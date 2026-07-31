@@ -11,14 +11,16 @@ import toast from 'react-hot-toast';
 interface Category {
   id: string;
   name: string;
+  slug: string;
   icon: string;
+  postCount: number;
 }
 
 interface Post {
   id: string;
   title: string;
   content: string;
-  author: { username: string };
+  author: { username: string; avatar?: string | null };
   category: string;
   viewCount: number;
   likeCount: number;
@@ -42,7 +44,7 @@ export default function MyPostsPage() {
   useEffect(() => {
     if (!user) {
       toast.error('请先登录');
-      router.replace('/admin/login');
+      router.replace('/login');
     }
   }, [user, router]);
 
@@ -57,7 +59,9 @@ export default function MyPostsPage() {
             data.map((cat: any) => ({
               id: String(cat.id),
               name: cat.name,
+              slug: cat.slug || '',
               icon: cat.icon || '',
+              postCount: cat.postCount || 0,
             }))
           );
         }
@@ -87,7 +91,7 @@ export default function MyPostsPage() {
             id: String(p.id),
             title: p.title,
             content: p.summary || p.content,
-            author: { username: p.author?.username || '匿名' },
+            author: { username: p.author?.username || '匿名', avatar: p.author?.avatar || null },
             category: p.category?.slug || '',
             viewCount: p.viewCount,
             likeCount: p.likeCount,

@@ -10,12 +10,31 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
     const categorySlug = searchParams.get('category') || undefined;
     const search = searchParams.get('search') || undefined;
     const authorId = searchParams.get('authorId') || undefined;
     const statusParam = searchParams.get('status') || undefined;
     const adminFlag = searchParams.get('admin') === '1';
+    const sort = searchParams.get('sort') || 'latest';
+
+    // 构建排序规则：置顶始终在最前
+    let orderBy: Prisma.PostOrderByWithRelationInput[];
+    if (sort === 'hot') {
+      // 热门排序：点赞数 + 浏览数
+      orderBy = [
+        { isPinned: 'desc' },
+        { likeCount: 'desc' },
+        { viewCount: 'desc' },
+        { createdAt: 'desc' },
+      ];
+    } else {
+      // 默认最新排序
+      orderBy = [
+        { isPinned: 'desc' },
+        { createdAt: 'desc' },
+      ];
+    }
 
     // 判断是否为管理员请求
     const admin = adminAuth(request);
@@ -51,10 +70,7 @@ export async function GET(request: NextRequest) {
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
         where,
-        orderBy: [
-          { isPinned: 'desc' },
-          { createdAt: 'desc' },
-        ],
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
         include: {

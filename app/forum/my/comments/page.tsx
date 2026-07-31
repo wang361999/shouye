@@ -31,7 +31,7 @@ export default function MyCommentsPage() {
   useEffect(() => {
     if (!user) {
       toast.error('请先登录');
-      router.replace('/admin/login');
+      router.replace('/login');
     }
   }, [user, router]);
 

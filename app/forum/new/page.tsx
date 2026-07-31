@@ -23,7 +23,7 @@ export default function NewPostPage() {
   // 未登录时重定向到登录页
   useEffect(() => {
     if (!user) {
-      router.replace('/admin/login');
+      router.replace('/login');
     }
   }, [user, router]);
 

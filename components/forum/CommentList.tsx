@@ -158,7 +158,7 @@ export default function CommentList({ comments: initialComments, postId }: Comme
           <div className="text-center py-6 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">
               请先{" "}
-              <a href="/admin/login" className="text-blue-600 hover:underline">
+              <a href="/login" className="text-blue-600 hover:underline">
                 登录
               </a>{" "}
               后再发表评论

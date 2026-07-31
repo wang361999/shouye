@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
 import PostList from '@/components/forum/PostList';
@@ -10,14 +10,16 @@ import { useAppStore } from '@/lib/store';
 interface Category {
   id: string;
   name: string;
+  slug: string;
   icon: string;
+  postCount: number;
 }
 
 interface Post {
   id: string;
   title: string;
   content: string;
-  author: { username: string };
+  author: { username: string; avatar?: string | null };
   category: string;
   viewCount: number;
   likeCount: number;
@@ -25,6 +27,12 @@ interface Post {
   isPinned: boolean;
   isEssence: boolean;
   createdAt: string;
+}
+
+interface ForumStats {
+  totalPosts: number;
+  totalUsers: number;
+  todayPosts: number;
 }
 
 export default function ForumPage() {
@@ -40,7 +48,11 @@ export default function ForumPage() {
 
   // 热门帖子 & 统计数据
   const [hotPosts, setHotPosts] = useState<Post[]>([]);
-  const [stats, setStats] = useState({ totalPosts: 0, totalUsers: 0, todayPosts: 0 });
+  const [stats, setStats] = useState<ForumStats>({
+    totalPosts: 0,
+    totalUsers: 0,
+    todayPosts: 0,
+  });
 
   // 获取分类列表
   useEffect(() => {
@@ -53,7 +65,9 @@ export default function ForumPage() {
             data.map((cat: any) => ({
               id: String(cat.id),
               name: cat.name,
+              slug: cat.slug || '',
               icon: cat.icon || '',
+              postCount: cat.postCount || 0,
             }))
           );
         }
@@ -62,6 +76,26 @@ export default function ForumPage() {
       }
     };
     fetchCategories();
+  }, []);
+
+  // 获取统计数据（用户数、今日新增等）
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+          const data = await res.json();
+          setStats((prev) => ({
+            totalPosts: data.postCount ?? prev.totalPosts,
+            totalUsers: data.userCount ?? 0,
+            todayPosts: prev.todayPosts,
+          }));
+        }
+      } catch (err) {
+        console.error('获取统计数据失败:', err);
+      }
+    };
+    fetchStats();
   }, []);
 
   // 获取帖子列表
@@ -82,25 +116,25 @@ export default function ForumPage() {
         const res = await fetch(`/api/forum/posts?${params}`);
         if (res.ok) {
           const data = await res.json();
-          // 转换数据格式以匹配 PostList 组件的接口
-          const formattedPosts = data.posts.map((p: any) => ({
+          const formattedPosts: Post[] = data.posts.map((p: any) => ({
             id: String(p.id),
             title: p.title,
             content: p.summary || p.content,
-            author: { username: p.author?.username || '匿名' },
+            author: { username: p.author?.username || '匿名', avatar: p.author?.avatar || null },
             category: p.category?.slug || '',
-            viewCount: p.viewCount,
-            likeCount: p.likeCount,
-            commentCount: p.commentCount,
+            viewCount: p.viewCount || 0,
+            likeCount: p.likeCount || 0,
+            commentCount: p.commentCount || 0,
             isPinned: p.isPinned,
             isEssence: p.isEssence,
             createdAt: p.createdAt,
           }));
           setPosts(formattedPosts);
           setTotalPages(data.totalPages || 1);
-
-          // 从 total 计算统计数据
-          setStats((prev) => ({ ...prev, totalPosts: data.total || prev.totalPosts }));
+          setStats((prev) => ({
+            ...prev,
+            totalPosts: data.total || prev.totalPosts,
+          }));
         }
       } catch (err) {
         console.error('获取帖子失败:', err);
@@ -111,37 +145,35 @@ export default function ForumPage() {
     fetchPosts();
   }, [currentPage, currentCategory, searchQuery]);
 
-  // 获取热门帖子
-  useEffect(() => {
-    const fetchHotPosts = async () => {
-      try {
-        const res = await fetch('/api/forum/posts?limit=100');
-        if (res.ok) {
-          const data = await res.json();
-          const sorted = [...data.posts]
-            .sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
-            .slice(0, 5)
-            .map((p: any) => ({
-              id: String(p.id),
-              title: p.title,
-              content: p.summary || p.content,
-              author: { username: p.author?.username || '匿名' },
-              category: p.category?.slug || '',
-              viewCount: p.viewCount,
-              likeCount: p.likeCount,
-              commentCount: p.commentCount,
-              isPinned: p.isPinned,
-              isEssence: p.isEssence,
-              createdAt: p.createdAt,
-            }));
-          setHotPosts(sorted);
-        }
-      } catch (err) {
-        console.error('获取热门帖子失败:', err);
+  // 获取热门帖子（服务端排序，只取 5 条）
+  const fetchHotPosts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/forum/posts?limit=5&sort=hot');
+      if (res.ok) {
+        const data = await res.json();
+        const formatted: Post[] = data.posts.map((p: any) => ({
+          id: String(p.id),
+          title: p.title,
+          content: p.summary || p.content,
+          author: { username: p.author?.username || '匿名', avatar: p.author?.avatar || null },
+          category: p.category?.slug || '',
+          viewCount: p.viewCount || 0,
+          likeCount: p.likeCount || 0,
+          commentCount: p.commentCount || 0,
+          isPinned: p.isPinned,
+          isEssence: p.isEssence,
+          createdAt: p.createdAt,
+        }));
+        setHotPosts(formatted);
       }
-    };
-    fetchHotPosts();
+    } catch (err) {
+      console.error('获取热门帖子失败:', err);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchHotPosts();
+  }, [fetchHotPosts]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -177,7 +209,7 @@ export default function ForumPage() {
           </Link>
         ) : (
           <Link
-            href="/admin/login"
+            href="/login"
             className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
           >
             登录后发帖
@@ -204,7 +236,13 @@ export default function ForumPage() {
                   key={i}
                   className="bg-white rounded-lg border border-gray-200 p-5 animate-pulse"
                 >
-                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-3" />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gray-200 rounded-full" />
+                    <div className="flex-1">
+                      <div className="h-4 bg-gray-200 rounded w-1/4 mb-2" />
+                      <div className="h-3 bg-gray-100 rounded w-1/3" />
+                    </div>
+                  </div>
                   <div className="h-6 bg-gray-200 rounded w-3/4 mb-3" />
                   <div className="h-3 bg-gray-100 rounded w-full mb-2" />
                   <div className="h-3 bg-gray-100 rounded w-2/3" />
