@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Markdown 渲染样式 */
+.markdown-body h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0; }
+.markdown-body h2 { font-size: 1.25rem; font-weight: 600; margin: 0.8rem 0; }
+.markdown-body h3 { font-size: 1.1rem; font-weight: 600; margin: 0.6rem 0; }
+.markdown-body p { margin: 0.5rem 0; line-height: 1.7; }
+.markdown-body code { background: #f1f5f9; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.9em; }
+.markdown-body pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.8rem 0; }
+.markdown-body pre code { background: transparent; padding: 0; color: inherit; }
+.markdown-body blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; color: #64748b; margin: 0.5rem 0; }
+.markdown-body ul, .markdown-body ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+.markdown-body a { color: #3b82f6; text-decoration: underline; }
+.markdown-body img { max-width: 100%; border-radius: 0.5rem; }
+
+/* 下拉菜单动画 */
+@keyframes dropdown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-dropdown { animation: dropdown 0.15s ease-out; }
+
+@keyframes slide-down {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 500px; }
+}
+.animate-slide-down { animation: slide-down 0.2s ease-out; }
+
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }

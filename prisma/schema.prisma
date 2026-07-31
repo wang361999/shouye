@@ -1,0 +1,334 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ 用户模型 ============
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
+  password      String    // GitHub OAuth 用户存随机值
+  role          Role      @default(USER)
+  avatar        String?
+  bio           String?   // 个人简介
+  status        String    @default("active") @map("status") // active | muted | banned
+  mutedUntil    DateTime? @map("muted_until")
+  postCount     Int       @default(0) @map("post_count")
+  commentCount  Int       @default(0) @map("comment_count")
+  lastActiveAt  DateTime? @map("last_active_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // GitHub OAuth
+  githubId      String?   @unique @map("github_id")
+  githubLogin   String?   @map("github_login")
+
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  logs          OperationLog[]
+  notifications Notification[]
+
+  // OAuth 授权服务
+  oauthCodes       OAuthAuthorizationCode[]
+  oauthAccessTokens OAuthAccessToken[]
+
+  @@map("User")
+}
+
+// 角色枚举
+enum Role {
+  ADMIN
+  USER
+}
+
+// ============ 论坛分类模型 ============
+model Category {
+  id        String  @id @default(cuid())
+  name      String
+  slug      String  @unique
+  icon      String?
+  desc      String? // 分类描述
+  sortOrder Int     @default(0) @map("sort_order")
+  posts     Post[]
+
+  @@map("Category")
+}
+
+// ============ 工具模型 ============
+model Tool {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  url         String
+  icon        String?
+  category    String? // 工具分类标签（开发工具/AI工具/效率工具）
+  isActive    Boolean  @default(true) @map("is_active")
+  isFeatured  Boolean  @default(false) @map("is_featured") // 是否首页推荐
+  needLogin   Boolean  @default(false) @map("need_login") // 是否需要登录
+  coverImage  String?  @map("cover_image") // 封面图
+  clickCount  Int      @default(0) @map("click_count") // 点击量
+  sortOrder   Int      @default(0) @map("sort_order") // 排序值，越大越靠前
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("Tool")
+}
+
+// ============ 帖子模型 ============
+model Post {
+  id           String     @id @default(cuid())
+  title        String
+  content      String // Markdown 内容
+  categoryId   String     @map("category_id")
+  authorId     String     @map("author_id")
+  viewCount    Int        @default(0) @map("view_count")
+  likeCount    Int        @default(0) @map("like_count")
+  commentCount Int        @default(0) @map("comment_count")
+  isPinned     Boolean    @default(false) @map("is_pinned")
+  isEssence    Boolean    @default(false) @map("is_essence")
+  isLocked     Boolean    @default(false) @map("is_locked") // 锁定后禁止评论
+  status       PostStatus @default(DRAFT)
+  deletedAt    DateTime?  @map("deleted_at") // 软删除时间
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  category Category @relation(fields: [categoryId], references: [id])
+  author   User     @relation(fields: [authorId], references: [id])
+  comments Comment[]
+  likes    Like[]
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([status])
+  @@map("Post")
+}
+
+// 帖子状态枚举
+enum PostStatus {
+  PUBLISHED
+  DRAFT
+  DELETED
+}
+
+// ============ 评论模型 ============
+model Comment {
+  id         String    @id @default(cuid())
+  content    String
+  postId     String    @map("post_id")
+  authorId   String    @map("author_id")
+  parentId   String?   @map("parent_id")
+  likeCount  Int       @default(0) @map("like_count")
+  isApproved Boolean   @default(true) @map("is_approved") // 是否审核通过
+  deletedAt  DateTime? @map("deleted_at") // 软删除时间
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  post    Post     @relation(fields: [postId], references: [id])
+  author  User     @relation(fields: [authorId], references: [id])
+  parent  Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+  likes   Like[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@map("Comment")
+}
+
+// ============ 点赞类型枚举 ============
+enum LikeType {
+  LIKE
+  FAVORITE
+}
+
+// ============ 点赞模型 ============
+model Like {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String?  @map("post_id")
+  commentId String?  @map("comment_id")
+  type      LikeType @default(LIKE)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  post    Post?   @relation(fields: [postId], references: [id])
+  comment Comment? @relation(fields: [commentId], references: [id])
+
+  // 复合唯一约束，防止重复点赞
+  @@unique([userId, postId, commentId])
+  @@index([userId])
+  @@index([postId])
+  @@index([commentId])
+  @@map("Like")
+}
+
+// ============ 通知模型 ============
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id") // 接收者
+  type      String   // reply | like | system | mention
+  title     String
+  content   String?
+  link      String?  // 点击跳转链接
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("Notification")
+}
+
+// ============ 操作日志模型 ============
+model OperationLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  username  String?  // 操作人姓名
+  action    String   // 操作类型（create_tool / delete_post / ban_user...）
+  target    String?  // 操作对象
+  detail    String?  // 详情
+  ip        String?  // IP地址
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@map("OperationLog")
+}
+
+// ============ 系统设置模型 ============
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   // JSON存储
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("SystemSetting")
+}
+
+// ============ OAuth 授权服务 - 应用模型 ============
+model OAuthApp {
+  id           String   @id @default(cuid())
+  name         String   // 应用名称
+  clientId     String   @unique @map("client_id")
+  clientSecret String   @map("client_secret")
+  redirectUris String   @map("redirect_uris") // JSON 数组格式
+  description  String?
+  homepage     String?  // 应用主页 URL
+  logo         String?  // 应用 Logo URL
+  status       String   @default("active") @map("status") // active | disabled
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  authCodes    OAuthAuthorizationCode[]
+  accessTokens OAuthAccessToken[]
+
+  @@map("OAuthApp")
+}
+
+// ============ OAuth 授权服务 - 授权码模型 ============
+model OAuthAuthorizationCode {
+  id          String   @id @default(cuid())
+  appId       String   @map("app_id")
+  userId      String   @map("user_id")
+  code        String   @unique
+  redirectUri String   @map("redirect_uri")
+  scope       String?  // 授权范围，空格分隔
+  expiresAt   DateTime @map("expires_at")
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  app  OAuthApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([appId])
+  @@index([userId])
+  @@map("OAuthAuthorizationCode")
+}
+
+// ============ OAuth 授权服务 - 访问令牌模型 ============
+model OAuthAccessToken {
+  id        String   @id @default(cuid())
+  appId     String   @map("app_id")
+  userId    String   @map("user_id")
+  token     String   @unique
+  scope     String?  // 授权范围
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  app  OAuthApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([appId])
+  @@index([userId])
+  @@map("OAuthAccessToken")
+}
+
+// ============ 授权系统 - 授权码表 ============
+model License {
+  id            String   @id @default(cuid())
+  licenseKey    String   @unique @map("license_key") // 授权码
+  projectName   String   @map("project_name") // 所属项目名称
+  projectType   String   @default("standard") @map("project_type") // 套餐类型: basic | standard | premium | enterprise
+  maxDomains    Int      @default(1) @map("max_domains") // 最大绑定域名数
+  expiresAt     DateTime @map("expires_at") // 有效期限
+  status        String   @default("active") @map("status") // active | suspended | expired | revoked
+  remark        String?  // 备注（客户信息等）
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  domains       LicenseDomain[]
+  logs          LicenseLog[]
+
+  @@index([status])
+  @@index([projectType])
+  @@map("License")
+}
+
+// ============ 授权系统 - 授权域名表 ============
+model LicenseDomain {
+  id              String   @id @default(cuid())
+  licenseId       String   @map("license_id")
+  domain          String   @unique // 绑定的域名
+  activatedAt     DateTime @default(now()) @map("activated_at") // 首次激活时间
+  lastVerifiedAt  DateTime? @map("last_verified_at") // 最后验证时间
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  license         License  @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@index([licenseId])
+  @@index([domain])
+  @@map("LicenseDomain")
+}
+
+// ============ 授权系统 - 授权验证日志表 ============
+model LicenseLog {
+  id          String   @id @default(cuid())
+  licenseId   String?  @map("license_id") // 可为空（授权码不存在时）
+  licenseKey  String   @map("license_key") // 请求的授权码
+  domain      String   // 请求的域名
+  ip          String?  // 请求 IP
+  userAgent   String?  @map("user_agent") // 用户代理
+  result      String   // valid | invalid | expired | suspended | domain_mismatch | not_found
+  message     String?  // 详细信息
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  license     License? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+
+  @@index([licenseId])
+  @@index([licenseKey])
+  @@index([domain])
+  @@index([result])
+  @@map("LicenseLog")
+}
