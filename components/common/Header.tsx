@@ -6,9 +6,9 @@ import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 const toolLinks = [
-  { name: "ZIP一键上传GitHub", href: "/#zip-upload-github" },
-  { name: "AI Commit生成器", href: "/#ai-commit-generator" },
-  { name: "更多工具...", href: "/#tools" },
+  { name: "浏览全部工具", href: "/#tools" },
+  { name: "产品中心", href: "/products" },
+  { name: "开发者社区", href: "/forum" },
 ];
 
 const forumLinks = [
@@ -205,12 +205,12 @@ export default function Header() {
             </Link>
 
             {/* 文档 */}
-            <a
-              href="#"
+            <Link
+              href="/products"
               className="px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
             >
               文档
-            </a>
+            </Link>
           </nav>
 
           {/* 右侧用户区 */}
@@ -362,12 +362,13 @@ export default function Header() {
             </div>
 
             {/* 文档 */}
-            <a
-              href="#"
+            <Link
+              href="/products"
+              onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
             >
               文档
-            </a>
+            </Link>
 
             <hr className="border-gray-100" />
 

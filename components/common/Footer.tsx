@@ -30,7 +30,7 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
           {/* 版权 */}
           <p className="text-sm text-gray-400">
-            &copy; 2026 {siteName}. All rights reserved.
+            &copy; {new Date().getFullYear()} {siteName}. All rights reserved.
           </p>
 
           {/* 链接 */}

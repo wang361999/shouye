@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { Container } from "@/components/common/Container";
 import ToolCard from "@/components/home/ToolCard";
@@ -148,6 +148,7 @@ export default function HomePage() {
   const toolsRef = useRef<HTMLDivElement>(null);
   const [siteName, setSiteName] = useState("ET Studio");
   const [siteDesc, setSiteDesc] = useState("实用开发工具，让效率翻倍");
+  const [stats, setStats] = useState({ toolCount: 0, userCount: 0, postCount: 0 });
 
   useEffect(() => {
     fetchTools();
@@ -157,6 +158,19 @@ export default function HomePage() {
       .then((data) => {
         if (data?.site_name) setSiteName(data.site_name);
         if (data?.site_description) setSiteDesc(data.site_description);
+      })
+      .catch(() => {});
+    // 动态获取统计数据
+    fetch("/api/stats")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          setStats({
+            toolCount: data.toolCount ?? 0,
+            userCount: data.userCount ?? 0,
+            postCount: data.postCount ?? 0,
+          });
+        }
       })
       .catch(() => {});
   }, []);
@@ -184,13 +198,13 @@ export default function HomePage() {
     toolsRef.current?.scrollIntoView({ behavior: "smooth" });
   }
 
-  // 数据统计区域（工具数取真实值，其余为占位数字）
-  const STATS: StatItem[] = [
-    { label: "工具总数", value: tools.length, suffix: "+", icon: "🛠️", hint: "持续更新中" },
-    { label: "注册用户", value: 1280, suffix: "+", icon: "👥", hint: "开发者社群" },
-    { label: "社区帖子", value: 860, suffix: "+", icon: "💬", hint: "经验沉淀" },
-    { label: "累计访问", value: 52000, suffix: "+", icon: "🌐", hint: "覆盖全球" },
-  ];
+  // 数据统计区域（全部取真实值）
+  const STATS: StatItem[] = useMemo(() => [
+    { label: "工具总数", value: stats.toolCount, suffix: "+", icon: "🛠️", hint: "持续更新中" },
+    { label: "注册用户", value: stats.userCount, suffix: "+", icon: "👥", hint: "开发者社群" },
+    { label: "社区帖子", value: stats.postCount, suffix: "+", icon: "💬", hint: "经验沉淀" },
+    { label: "在线工具", value: stats.toolCount, suffix: "+", icon: "🌐", hint: "即开即用" },
+  ], [stats.toolCount, stats.userCount, stats.postCount]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -261,20 +275,22 @@ export default function HomePage() {
           <div className="mx-auto grid max-w-2xl grid-cols-3 gap-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 backdrop-blur">
               <div className="text-3xl font-bold text-white">
-                {tools.length}
+                {stats.toolCount}
                 <span className="text-blue-300">+</span>
               </div>
               <div className="mt-1 text-sm text-blue-200">在线工具</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 backdrop-blur">
               <div className="text-3xl font-bold text-white">
-                1,280<span className="text-blue-300">+</span>
+                {stats.userCount.toLocaleString()}
+                <span className="text-blue-300">+</span>
               </div>
               <div className="mt-1 text-sm text-blue-200">注册用户</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 backdrop-blur">
               <div className="text-3xl font-bold text-white">
-                860<span className="text-blue-300">+</span>
+                {stats.postCount.toLocaleString()}
+                <span className="text-blue-300">+</span>
               </div>
               <div className="mt-1 text-sm text-blue-200">社区帖子</div>
             </div>
