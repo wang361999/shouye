@@ -12,7 +12,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
     "db:setup": "node scripts/db-setup.mjs",
-    "vercel-build": "node scripts/db-setup.mjs && prisma generate && next build"
+    "vercel-build": "node scripts/db-setup.mjs && prisma generate && rm -rf tsconfig.tsbuildinfo .next && next build"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

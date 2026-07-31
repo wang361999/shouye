@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
       valid: false,
       code: 'server_error',
       message: '验证服务暂时不可用',
+      detail: error instanceof Error ? error.message : String(error),
     }, { status: 500 });
   }
 }
