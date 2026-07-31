@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
       include: {
         domains: true,
         owner: { select: { id: true, username: true, email: true } },
+        product: { select: { id: true, name: true, slug: true, icon: true } },
+        order: { select: { id: true, orderNo: true, status: true } },
         _count: { select: { logs: true } },
       },
     });
@@ -52,6 +54,8 @@ export async function GET(request: NextRequest) {
       status: lic.expiresAt < new Date() && lic.status === 'active' ? 'expired' : lic.status,
       remark: lic.remark,
       owner: lic.owner ? { id: lic.owner.id, username: lic.owner.username, email: lic.owner.email } : null,
+      product: lic.product ? { id: lic.product.id, name: lic.product.name, slug: lic.product.slug, icon: lic.product.icon } : null,
+      order: lic.order ? { id: lic.order.id, orderNo: lic.order.orderNo, status: lic.order.status } : null,
       domains: lic.domains.map((d) => ({
         domain: d.domain,
         activatedAt: d.activatedAt,
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
     if (admin instanceof Response) return admin;
 
     const body = await request.json();
-    const { projectName, projectType, maxDomains, validDays, remark, ownerUsername } = body;
+    const { projectName, projectType, maxDomains, validDays, remark, ownerUsername, productId } = body;
 
     if (!projectName) {
       return NextResponse.json({ error: '项目名称不能为空' }, { status: 400 });
@@ -85,6 +89,16 @@ export async function POST(request: NextRequest) {
     const type = projectType || 'standard';
     const domains = maxDomains || (type === 'enterprise' ? 10 : type === 'premium' ? 5 : type === 'standard' ? 2 : 1);
     const days = validDays || 365;
+
+    // 校验关联产品是否存在（可选）
+    let validProductId: string | undefined = undefined;
+    if (productId) {
+      const product = await prisma.product.findUnique({ where: { id: productId } });
+      if (!product) {
+        return NextResponse.json({ error: '关联产品不存在' }, { status: 400 });
+      }
+      validProductId = product.id;
+    }
 
     // 生成唯一授权码
     let licenseKey = generateLicenseKey();
@@ -116,6 +130,7 @@ export async function POST(request: NextRequest) {
         expiresAt,
         remark: remark || null,
         ownerId: ownerId || null,
+        productId: validProductId || null,
       },
     });
 
@@ -152,7 +167,7 @@ export async function PATCH(request: NextRequest) {
     if (admin instanceof Response) return admin;
 
     const body = await request.json();
-    const { id, status, remark, maxDomains, expiresAt, ownerUsername } = body;
+    const { id, status, remark, maxDomains, expiresAt, ownerUsername, productId } = body;
 
     if (!id) {
       return NextResponse.json({ error: '缺少授权码 ID' }, { status: 400 });
@@ -179,6 +194,19 @@ export async function PATCH(request: NextRequest) {
           return NextResponse.json({ error: `用户 "${ownerUsername}" 不存在` }, { status: 400 });
         }
         updateData.ownerId = owner.id;
+      }
+    }
+
+    // 支持关联/取消关联产品
+    if (productId !== undefined) {
+      if (productId === '') {
+        updateData.productId = null;
+      } else {
+        const product = await prisma.product.findUnique({ where: { id: productId } });
+        if (!product) {
+          return NextResponse.json({ error: '关联产品不存在' }, { status: 400 });
+        }
+        updateData.productId = product.id;
       }
     }
 

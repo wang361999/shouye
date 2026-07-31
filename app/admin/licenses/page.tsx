@@ -12,6 +12,25 @@ interface LicenseDomain {
   lastVerifiedAt: string | null;
 }
 
+interface LicenseOwner {
+  id: string;
+  username: string;
+  email: string;
+}
+
+interface LicenseProduct {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+}
+
+interface LicenseOrder {
+  id: string;
+  orderNo: string;
+  status: string;
+}
+
 interface License {
   id: string;
   licenseKey: string;
@@ -22,9 +41,19 @@ interface License {
   expiresAt: string;
   status: string; // active | suspended | expired | revoked
   remark: string | null;
+  owner: LicenseOwner | null;
+  product: LicenseProduct | null;
+  order: LicenseOrder | null;
   domains: LicenseDomain[];
   logCount: number;
   createdAt: string;
+}
+
+interface ProductOption {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
 }
 
 interface LicenseLog {
@@ -173,6 +202,9 @@ export default function LicensesPage() {
   const [keyword, setKeyword] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // 产品列表（用于下拉选择）
+  const [products, setProducts] = useState<ProductOption[]>([]);
+
   // 创建授权码
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -182,6 +214,8 @@ export default function LicensesPage() {
     validDays: 365,
     maxDomains: 2,
     remark: "",
+    ownerUsername: "",
+    productId: "",
   });
   const [createdLicense, setCreatedLicense] = useState<{ licenseKey: string; projectName: string } | null>(null);
 
@@ -193,7 +227,7 @@ export default function LicensesPage() {
 
   // 编辑
   const [editTarget, setEditTarget] = useState<License | null>(null);
-  const [editForm, setEditForm] = useState({ remark: "", expiresAt: "", maxDomains: 1, status: "active" });
+  const [editForm, setEditForm] = useState({ remark: "", expiresAt: "", maxDomains: 1, status: "active", ownerUsername: "", productId: "" });
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // 删除
@@ -238,6 +272,31 @@ export default function LicensesPage() {
   useEffect(() => {
     if (token) fetchLicenses();
   }, [token, fetchLicenses]);
+
+  // ============ 获取产品列表（用于下拉选择） ============
+  const fetchProducts = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/admin/products", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.products || [];
+      setProducts(list.map((p: Record<string, unknown>) => ({
+        id: p.id as string,
+        name: p.name as string,
+        slug: p.slug as string,
+        icon: (p.icon as string) || null,
+      })));
+    } catch {
+      // 静默失败，不影响主流程
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) fetchProducts();
+  }, [token, fetchProducts]);
 
   // ============ 获取验证日志 ============
   const fetchLogs = useCallback(async () => {
@@ -319,6 +378,8 @@ export default function LicensesPage() {
       validDays: 365,
       maxDomains: PROJECT_TYPE_MAP.standard.defaultDomains,
       remark: "",
+      ownerUsername: "",
+      productId: "",
     });
     setCreateOpen(true);
   }
@@ -363,6 +424,8 @@ export default function LicensesPage() {
           maxDomains: createForm.maxDomains,
           validDays: createForm.validDays,
           remark: createForm.remark.trim() || undefined,
+          ownerUsername: createForm.ownerUsername.trim() || undefined,
+          productId: createForm.productId || undefined,
         }),
       });
       const data = await res.json();
@@ -445,6 +508,8 @@ export default function LicensesPage() {
       expiresAt: toDateInputValue(license.expiresAt),
       maxDomains: license.maxDomains,
       status: license.status,
+      ownerUsername: license.owner?.username || "",
+      productId: license.product?.id || "",
     });
   }
 
@@ -473,6 +538,8 @@ export default function LicensesPage() {
           remark: editForm.remark.trim(),
           maxDomains: editForm.maxDomains,
           expiresAt: editForm.expiresAt,
+          ownerUsername: editForm.ownerUsername.trim(),
+          productId: editForm.productId,
         }),
       });
       const data = await res.json();
@@ -485,6 +552,11 @@ export default function LicensesPage() {
       const newExpiresAt = new Date(editForm.expiresAt).toISOString();
       const computedStatus =
         editForm.status === "active" && isExpired(newExpiresAt) ? "expired" : editForm.status;
+      // 查找选中的产品对象
+      const selectedProduct = products.find((p) => p.id === editForm.productId) || null;
+      const productObj = selectedProduct
+        ? { id: selectedProduct.id, name: selectedProduct.name, slug: selectedProduct.slug, icon: selectedProduct.icon }
+        : null;
       setLicenses((prev) =>
         prev.map((l) =>
           l.id === editTarget.id
@@ -494,6 +566,12 @@ export default function LicensesPage() {
                 expiresAt: newExpiresAt,
                 maxDomains: editForm.maxDomains,
                 status: computedStatus,
+                owner: editForm.ownerUsername.trim()
+                  ? (l.owner?.username === editForm.ownerUsername.trim()
+                      ? l.owner
+                      : { id: "", username: editForm.ownerUsername.trim(), email: "" })
+                  : null,
+                product: productObj,
               }
             : l
         )
@@ -769,6 +847,8 @@ export default function LicensesPage() {
                       <tr className="bg-gray-50 border-b border-gray-200">
                         <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">授权码</th>
                         <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">项目名称</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">关联产品</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">归属用户</th>
                         <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">套餐类型</th>
                         <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">域名配额</th>
                         <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">到期时间</th>
@@ -816,6 +896,38 @@ export default function LicensesPage() {
                                     </div>
                                   )}
                                 </div>
+                              </td>
+                              {/* 关联产品 */}
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {license.product ? (
+                                  <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                                    {license.product.icon && (
+                                      <span className="text-base leading-none">{license.product.icon}</span>
+                                    )}
+                                    <span className="truncate max-w-[120px]" title={license.product.name}>
+                                      {license.product.name}
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">未关联</span>
+                                )}
+                              </td>
+                              {/* 归属用户 */}
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                {license.owner ? (
+                                  <div className="min-w-0">
+                                    <div className="text-sm text-gray-700 truncate max-w-[120px]" title={license.owner.username}>
+                                      {license.owner.username}
+                                    </div>
+                                    {license.owner.email && (
+                                      <div className="text-xs text-gray-400 truncate max-w-[120px]" title={license.owner.email}>
+                                        {license.owner.email}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-gray-400">未分配</span>
+                                )}
                               </td>
                               {/* 套餐类型 */}
                               <td className="px-4 py-3 whitespace-nowrap">{renderProjectType(license.projectType)}</td>
@@ -913,7 +1025,7 @@ export default function LicensesPage() {
                             {/* 展开行：域名列表 */}
                             {expanded && (
                               <tr className="bg-gray-50/50">
-                                <td colSpan={7} className="px-4 py-4">
+                                <td colSpan={9} className="px-4 py-4">
                                   <div className="bg-white rounded-lg border border-gray-200 p-4">
                                     <div className="flex items-center justify-between mb-3">
                                       <h4 className="text-sm font-semibold text-gray-800">
@@ -969,6 +1081,15 @@ export default function LicensesPage() {
                                     <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-400">
                                       <span>验证日志: {license.logCount} 条</span>
                                       <span>创建时间: {formatDateTime(license.createdAt)}</span>
+                                      {license.owner && (
+                                        <span>归属用户: {license.owner.username}{license.owner.email && ` (${license.owner.email})`}</span>
+                                      )}
+                                      {license.product && (
+                                        <span>关联产品: {license.product.name}</span>
+                                      )}
+                                      {license.order && (
+                                        <span>关联订单: {license.order.orderNo}</span>
+                                      )}
                                     </div>
                                   </div>
                                 </td>
@@ -1161,6 +1282,39 @@ export default function LicensesPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="如：企业官网"
                 />
+              </div>
+
+              {/* 关联产品 + 归属用户 */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* 关联产品 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">关联产品</label>
+                  <select
+                    value={createForm.productId}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, productId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">不关联产品</option>
+                    {products.map((prod) => (
+                      <option key={prod.id} value={prod.id}>
+                        {prod.icon ? `${prod.icon} ` : ""}{prod.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-gray-400">可选，将此授权码关联到某个产品</p>
+                </div>
+                {/* 归属用户 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">归属用户</label>
+                  <input
+                    type="text"
+                    value={createForm.ownerUsername}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, ownerUsername: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="用户名（可选）"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-400">填写用户名以分配给对应用户</p>
+                </div>
               </div>
 
               {/* 套餐类型 */}
@@ -1460,6 +1614,37 @@ export default function LicensesPage() {
 
             {/* 表单 */}
             <div className="px-6 py-5 space-y-5 overflow-y-auto">
+              {/* 关联产品 + 归属用户 */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* 关联产品 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">关联产品</label>
+                  <select
+                    value={editForm.productId}
+                    onChange={(e) => setEditForm((p) => ({ ...p, productId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">不关联产品</option>
+                    {products.map((prod) => (
+                      <option key={prod.id} value={prod.id}>
+                        {prod.icon ? `${prod.icon} ` : ""}{prod.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* 归属用户 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">归属用户</label>
+                  <input
+                    type="text"
+                    value={editForm.ownerUsername}
+                    onChange={(e) => setEditForm((p) => ({ ...p, ownerUsername: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="用户名（留空取消分配）"
+                  />
+                </div>
+              </div>
+
               {/* 备注 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">备注</label>
