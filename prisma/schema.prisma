@@ -41,6 +41,9 @@ model User {
   oauthCodes       OAuthAuthorizationCode[]
   oauthAccessTokens OAuthAccessToken[]
 
+  // 授权码归属
+  licenses       License[]
+
   @@map("User")
 }
 
@@ -285,14 +288,17 @@ model License {
   expiresAt     DateTime @map("expires_at") // 有效期限
   status        String   @default("active") @map("status") // active | suspended | expired | revoked
   remark        String?  // 备注（客户信息等）
+  ownerId       String?  @map("owner_id") // 归属用户 ID（可空，管理员生成可不指定）
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
+  owner         User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   domains       LicenseDomain[]
   logs          LicenseLog[]
 
   @@index([status])
   @@index([projectType])
+  @@index([ownerId])
   @@map("License")
 }
 

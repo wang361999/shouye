@@ -382,6 +382,13 @@ export default function ProfilePage() {
             {tab.label}
           </button>
         ))}
+        <Link
+          href="/profile/licenses"
+          className="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors whitespace-nowrap"
+        >
+          <span className="mr-1">📜</span>
+          我的授权
+        </Link>
       </div>
 
       {/* ============ Tab: 个人资料 ============ */}

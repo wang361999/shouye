@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       include: {
         domains: true,
+        owner: { select: { id: true, username: true, email: true } },
         _count: { select: { logs: true } },
       },
     });
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
       expiresAt: lic.expiresAt,
       status: lic.expiresAt < new Date() && lic.status === 'active' ? 'expired' : lic.status,
       remark: lic.remark,
+      owner: lic.owner ? { id: lic.owner.id, username: lic.owner.username, email: lic.owner.email } : null,
       domains: lic.domains.map((d) => ({
         domain: d.domain,
         activatedAt: d.activatedAt,
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest) {
     if (admin instanceof Response) return admin;
 
     const body = await request.json();
-    const { projectName, projectType, maxDomains, validDays, remark } = body;
+    const { projectName, projectType, maxDomains, validDays, remark, ownerUsername } = body;
 
     if (!projectName) {
       return NextResponse.json({ error: '项目名称不能为空' }, { status: 400 });
@@ -95,6 +97,16 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
 
+    // 查找归属用户（可选）
+    let ownerId: string | undefined = undefined;
+    if (ownerUsername) {
+      const owner = await prisma.user.findUnique({ where: { username: ownerUsername } });
+      if (!owner) {
+        return NextResponse.json({ error: `用户 "${ownerUsername}" 不存在` }, { status: 400 });
+      }
+      ownerId = owner.id;
+    }
+
     const license = await prisma.license.create({
       data: {
         licenseKey,
@@ -103,6 +115,7 @@ export async function POST(request: NextRequest) {
         maxDomains: domains,
         expiresAt,
         remark: remark || null,
+        ownerId: ownerId || null,
       },
     });
 
@@ -139,7 +152,7 @@ export async function PATCH(request: NextRequest) {
     if (admin instanceof Response) return admin;
 
     const body = await request.json();
-    const { id, status, remark, maxDomains, expiresAt } = body;
+    const { id, status, remark, maxDomains, expiresAt, ownerUsername } = body;
 
     if (!id) {
       return NextResponse.json({ error: '缺少授权码 ID' }, { status: 400 });
@@ -155,6 +168,19 @@ export async function PATCH(request: NextRequest) {
     if (remark !== undefined) updateData.remark = remark;
     if (maxDomains !== undefined) updateData.maxDomains = maxDomains;
     if (expiresAt !== undefined) updateData.expiresAt = new Date(expiresAt);
+
+    // 支持分配/取消分配用户
+    if (ownerUsername !== undefined) {
+      if (ownerUsername === '') {
+        updateData.ownerId = null;
+      } else {
+        const owner = await prisma.user.findUnique({ where: { username: ownerUsername } });
+        if (!owner) {
+          return NextResponse.json({ error: `用户 "${ownerUsername}" 不存在` }, { status: 400 });
+        }
+        updateData.ownerId = owner.id;
+      }
+    }
 
     await prisma.license.update({
       where: { id },
