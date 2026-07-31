@@ -196,6 +196,14 @@ export default function Header() {
               )}
             </div>
 
+            {/* 产品 */}
+            <Link
+              href="/products"
+              className="px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+            >
+              产品
+            </Link>
+
             {/* 文档 */}
             <a
               href="#"

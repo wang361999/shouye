@@ -386,8 +386,15 @@ export default function ProfilePage() {
           href="/profile/licenses"
           className="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors whitespace-nowrap"
         >
-          <span className="mr-1">📜</span>
+          <span className="mr-1">🔑</span>
           我的授权
+        </Link>
+        <Link
+          href="/profile/orders"
+          className="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-blue-600 transition-colors whitespace-nowrap"
+        >
+          <span className="mr-1">🛒</span>
+          我的订单
         </Link>
       </div>
 
@@ -513,6 +520,61 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 )}
+              </div>
+
+              {/* 快捷入口 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Link
+                  href="/profile/licenses"
+                  className="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-200 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-2xl group-hover:bg-blue-100 transition-colors">
+                      🔑
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-gray-900">我的授权码</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">查看授权状态、绑定域名</p>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </Link>
+                <Link
+                  href="/profile/orders"
+                  className="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-200 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center text-2xl group-hover:bg-orange-100 transition-colors">
+                      🛒
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-gray-900">我的订单</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">查看订单、支付购买</p>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </Link>
+                <Link
+                  href="/products"
+                  className="group bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-200 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-green-50 text-green-600 flex items-center justify-center text-2xl group-hover:bg-green-100 transition-colors">
+                      📦
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-gray-900">产品中心</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">浏览所有产品</p>
+                    </div>
+                    <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </Link>
               </div>
 
               {/* 编辑资料表单 */}

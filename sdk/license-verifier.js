@@ -323,6 +323,98 @@ async function checkLicenseForMiddleware(request, config) {
   );
 }
 
+// ============ 版本检查功能 ============
+
+/**
+ * 检查产品版本更新
+ * @param {string} apiUrl - 官网 API 地址（如 https://api.example.com/api）
+ * @param {string} productSlug - 产品标识
+ * @param {string} currentVersion - 当前版本号
+ * @returns {Promise<Object>} 版本检查结果
+ */
+async function checkVersion(apiUrl, productSlug, currentVersion) {
+  try {
+    const res = await fetch(`${apiUrl}/products/${productSlug}`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      return { hasUpdate: false, currentVersion, latestVersion: null };
+    }
+    const data = await res.json();
+    const latest =
+      (data.versions && data.versions.find((v) => v.isLatest)) ||
+      (data.versions && data.versions[0]);
+    if (!latest) {
+      return { hasUpdate: false, currentVersion, latestVersion: null };
+    }
+
+    const hasUpdate = compareVersions(latest.version, currentVersion) > 0;
+    return {
+      hasUpdate,
+      currentVersion,
+      latestVersion: {
+        version: latest.version,
+        title: latest.title,
+        changelog: latest.changelog,
+        downloadUrl: latest.downloadUrl,
+        downloadPassword: latest.downloadPassword,
+        fileSize: latest.fileSize,
+        createdAt: latest.createdAt,
+      },
+    };
+  } catch {
+    return { hasUpdate: false, currentVersion, latestVersion: null };
+  }
+}
+
+/**
+ * 比较版本号
+ * 返回 >0 表示 a>b，<0 表示 a<b，0 表示相等
+ * @param {string} a - 版本号 a
+ * @param {string} b - 版本号 b
+ * @returns {number} 比较结果
+ */
+function compareVersions(a, b) {
+  const normalize = (v) =>
+    String(v)
+      .replace(/^v/i, '')
+      .split('.')
+      .map((part) => Number(part));
+  const partsA = normalize(a);
+  const partsB = normalize(b);
+  const maxLen = Math.max(partsA.length, partsB.length);
+  for (let i = 0; i < maxLen; i++) {
+    const va = partsA[i] || 0;
+    const vb = partsB[i] || 0;
+    if (va > vb) return 1;
+    if (va < vb) return -1;
+  }
+  return 0;
+}
+
+/**
+ * 启动版本更新检查（每小时检查一次）
+ * @param {string} apiUrl - 官网 API 地址
+ * @param {string} productSlug - 产品标识
+ * @param {string} currentVersion - 当前版本号
+ * @param {Function} [onUpdate] - 发现新版本时的回调
+ * @returns {Object} 定时器句柄
+ */
+function startVersionCheck(apiUrl, productSlug, currentVersion, onUpdate) {
+  const timer = setInterval(async () => {
+    const result = await checkVersion(apiUrl, productSlug, currentVersion);
+    if (result.hasUpdate && onUpdate && typeof onUpdate === 'function') {
+      onUpdate(result);
+    }
+  }, 60 * 60 * 1000); // 1 hour
+
+  // 防止进程退出时 timer 阻止退出
+  if (timer && typeof timer === 'object' && typeof timer.unref === 'function') {
+    timer.unref();
+  }
+  return timer;
+}
+
 // ============ 导出 ============
 
 module.exports = {
@@ -334,4 +426,7 @@ module.exports = {
   licenseMiddleware,
   checkLicenseForMiddleware,
   getCurrentDomain,
+  checkVersion,
+  compareVersions,
+  startVersionCheck,
 };

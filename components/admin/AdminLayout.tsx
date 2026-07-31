@@ -78,6 +78,13 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: "产品销售",
+    items: [
+      { key: "products", label: "产品管理", href: "/admin/products", icon: "📦" },
+      { key: "orders", label: "订单管理", href: "/admin/orders", icon: "📋" },
+    ],
+  },
+  {
     title: "系统设置",
     items: [
       {

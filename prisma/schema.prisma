@@ -44,6 +44,9 @@ model User {
   // 授权码归属
   licenses       License[]
 
+  // 订单
+  orders         Order[]
+
   @@map("User")
 }
 
@@ -289,16 +292,22 @@ model License {
   status        String   @default("active") @map("status") // active | suspended | expired | revoked
   remark        String?  // 备注（客户信息等）
   ownerId       String?  @map("owner_id") // 归属用户 ID（可空，管理员生成可不指定）
+  productId     String?  @map("product_id") // 关联产品（可空）
+  orderId       String?  @map("order_id") // 关联订单（可空，手动创建的无订单）- 普通字段
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   owner         User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  order         Order?   @relation("OrderLicense") // 反向关系（通过 Order.licenseId 关联）
   domains       LicenseDomain[]
   logs          LicenseLog[]
 
   @@index([status])
   @@index([projectType])
   @@index([ownerId])
+  @@index([productId])
+  @@index([orderId])
   @@map("License")
 }
 
@@ -337,4 +346,88 @@ model LicenseLog {
   @@index([domain])
   @@index([result])
   @@map("LicenseLog")
+}
+
+// ============ 产品销售系统 - 产品表 ============
+model Product {
+  id            String   @id @default(cuid())
+  name          String   // 产品名称
+  slug          String   @unique // URL 标识
+  tagline       String   // 一句话描述
+  description   String   // 详细介绍（Markdown）
+  icon          String?  // 产品图标（emoji 或 URL）
+  coverImage    String?  @map("cover_image") // 封面图 URL
+  features      String?  // 功能特性（JSON 数组）
+  techStack     String?  @map("tech_stack") // 技术栈（JSON 数组）
+  screenshots   String?  // 截图（JSON 数组 URL）
+  demoUrl       String?  @map("demo_url") // 演示地址
+  docsUrl       String?  @map("docs_url") // 文档地址
+  status        String   @default("active") @map("status") // active | draft | retired
+  sortOrder     Int      @default(0) @map("sort_order") // 排序（越大越靠前）
+  // 定价（按套餐）
+  priceBasic    Int      @default(0) @map("price_basic") // 基础版价格（分）
+  priceStandard Int      @default(0) @map("price_standard") // 标准版价格（分）
+  pricePremium   Int      @default(0) @map("price_premium") // 高级版价格（分）
+  priceEnterprise Int    @default(0) @map("price_enterprise") // 企业版价格（分）
+  validDays     Int      @default(365) @map("valid_days") // 默认授权有效期（天）
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  versions      ProductVersion[]
+  licenses      License[]
+  orders        Order[]
+
+  @@index([status])
+  @@map("Product")
+}
+
+// ============ 产品销售系统 - 版本表 ============
+model ProductVersion {
+  id            String   @id @default(cuid())
+  productId     String   @map("product_id")
+  version       String   // 版本号，如 v1.0.0
+  title         String   // 版本标题
+  changelog     String   // 更新日志（Markdown）
+  downloadUrl   String   @map("download_url") // 下载链接
+  downloadPassword String? @map("download_password") // 下载密码（可选）
+  fileSize      String?  @map("file_size") // 文件大小描述
+  isLatest      Boolean  @default(false) @map("is_latest") // 是否为最新版本
+  isPublished   Boolean  @default(true) @map("is_published") // 是否已发布
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([isLatest])
+  @@map("ProductVersion")
+}
+
+// ============ 产品销售系统 - 订单表 ============
+model Order {
+  id            String   @id @default(cuid())
+  orderNo       String   @unique @map("order_no") // 订单号
+  userId        String   @map("user_id")
+  productId     String   @map("product_id")
+  productName   String   @map("product_name") // 快照
+  projectType   String   @map("project_type") // basic | standard | premium | enterprise
+  maxDomains    Int      @map("max_domains") // 域名配额
+  amount        Int      // 金额（分）
+  validDays     Int      @map("valid_days") // 授权有效期（天）
+  status        String   @default("pending") @map("status") // pending | paid | refunded | cancelled
+  payMethod     String?  @map("pay_method") // alipay | wechat | manual
+  payTxId       String?  @map("pay_tx_id") // 第三方交易号
+  paidAt        DateTime? @map("paid_at") // 支付时间
+  licenseId     String?  @unique @map("license_id") // 支付后生成的授权码 ID
+  remark        String?  // 备注
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  license       License? @relation("OrderLicense", fields: [licenseId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([status])
+  @@map("Order")
 }
