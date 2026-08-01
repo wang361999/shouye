@@ -1128,7 +1128,7 @@ export default function ProductsAdminPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     下载链接
                     <span className="ml-1 text-xs font-normal text-gray-400">
-                      （用户购买审核通过后显示）
+                      （填写 GitHub 仓库地址，系统自动打包为 ZIP 下载）
                     </span>
                   </label>
                   <input
@@ -1138,8 +1138,11 @@ export default function ProductsAdminPage() {
                       setForm((p) => ({ ...p, downloadUrl: e.target.value }))
                     }
                     className={INPUT_CLS}
-                    placeholder="https://download.example.com/product.zip（可选）"
+                    placeholder="https://github.com/用户名/仓库名"
                   />
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    支持格式：https://github.com/用户名/仓库名 或 https://github.com/用户名/仓库名.git，用户点击免费下载时将自动从该仓库打包 ZIP 下载
+                  </p>
                 </div>
               </section>
 
