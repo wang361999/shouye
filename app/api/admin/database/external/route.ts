@@ -3,7 +3,6 @@ import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
 import {
   encryptPassword,
-  decryptPassword,
   testConnection,
 } from '@/lib/external-db';
 
@@ -172,6 +171,3 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
-
-// 导出 decryptPassword 供其他路由使用
-export { decryptPassword };
