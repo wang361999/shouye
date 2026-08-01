@@ -62,6 +62,14 @@ interface FreeDashboardData {
     detail: string | null;
     createdAt: string;
   }>;
+  autoIteration: {
+    enabled: boolean;
+    requireApproval: boolean;
+    safeMode: boolean;
+    lastRequest: string;
+    lastDeployApproval: string;
+    manualDeployConfigured: boolean;
+  };
   freeStack: Array<{
     name: string;
     value: string;
@@ -97,10 +105,26 @@ const deployText = {
   unknown: "未知",
 };
 
+function readAutoIterationLog(value: string) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as {
+      requirement?: string;
+      createdAt?: string;
+      status?: string;
+      guardrails?: string[];
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function FreeDashboardPage() {
   const { token } = useAppStore();
   const [data, setData] = useState<FreeDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!token) return;
@@ -125,6 +149,36 @@ export default function FreeDashboardPage() {
     const timer = setInterval(fetchData, 60_000);
     return () => clearInterval(timer);
   }, [fetchData]);
+
+  const runAutoIterationAction = async (
+    action: "update_config" | "trigger_inspection" | "approve_deploy",
+    payload: Record<string, unknown> = {},
+  ) => {
+    if (!token || !data) return;
+    setActionLoading(action);
+    setActionMessage(null);
+    try {
+      const res = await fetch("/api/admin/auto-iteration", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        setActionMessage(result.error || "操作失败，请稍后重试");
+        return;
+      }
+      setActionMessage(result.message || "操作成功");
+      await fetchData();
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const lastAutoRequest = readAutoIterationLog(data?.autoIteration.lastRequest || "");
 
   return (
     <AdminLayout activeKey="free-dashboard">
@@ -218,6 +272,94 @@ export default function FreeDashboardPage() {
               <Metric label="本周发帖" value={data.business.weekPostCount} sub="近 7 天" />
               <Metric label="免费额度" value={`${data.freeQuota.maxPercent.toFixed(1)}%`} sub="最高使用项" />
               <Metric label="自动刷新" value="60s" sub="后台看板" />
+            </section>
+
+            <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-3xl">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-semibold text-indigo-950">AI 自动迭代实验</h2>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${
+                      data.autoIteration.enabled
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}>
+                      {data.autoIteration.enabled ? "已开启" : "未开启"}
+                    </span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-indigo-700">
+                      {data.autoIteration.requireApproval ? "上线前需要确认" : "允许自动上线"}
+                    </span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-indigo-700">
+                      {data.autoIteration.safeMode ? "安全模式" : "扩展模式"}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-indigo-800">
+                    开启后，后台可以记录自动巡检请求。AI 改完后要在日志里说明改了哪里、优化了什么、验证是否通过，再由你决定是否触发上线。
+                  </p>
+                  {lastAutoRequest ? (
+                    <div className="mt-3 rounded-xl border border-indigo-100 bg-white/70 p-3 text-sm text-indigo-900">
+                      <p className="font-medium">最近巡检：{lastAutoRequest.requirement || "未填写需求"}</p>
+                      <p className="mt-1 text-xs text-indigo-600">
+                        {lastAutoRequest.createdAt
+                          ? new Date(lastAutoRequest.createdAt).toLocaleString()
+                          : "暂无时间"}
+                        {" · "}
+                        {lastAutoRequest.status === "waiting_for_ai_changes" ? "等待 AI 修改并输出日志" : "已记录"}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-indigo-600">还没有自动巡检记录。</p>
+                  )}
+                  {actionMessage && (
+                    <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-sm text-indigo-800">
+                      {actionMessage}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-56">
+                  <button
+                    onClick={() =>
+                      runAutoIterationAction("update_config", {
+                        enabled: !data.autoIteration.enabled,
+                        requireApproval: true,
+                        safeMode: true,
+                      })
+                    }
+                    disabled={Boolean(actionLoading)}
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {actionLoading === "update_config"
+                      ? "保存中..."
+                      : data.autoIteration.enabled
+                        ? "关闭实验开关"
+                        : "开启实验开关"}
+                  </button>
+                  <button
+                    onClick={() =>
+                      runAutoIterationAction("trigger_inspection", {
+                        requirement: "检查后台可用性、免费额度、部署状态，并给出可安全优化项",
+                      })
+                    }
+                    disabled={Boolean(actionLoading) || !data.autoIteration.enabled}
+                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 disabled:opacity-60"
+                  >
+                    {actionLoading === "trigger_inspection" ? "记录中..." : "触发一次巡检"}
+                  </button>
+                  <button
+                    onClick={() => runAutoIterationAction("approve_deploy")}
+                    disabled={Boolean(actionLoading)}
+                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                  >
+                    {actionLoading === "approve_deploy" ? "确认中..." : "我确认，可以上线"}
+                  </button>
+                  <p className="text-xs text-indigo-700">
+                    {data.autoIteration.manualDeployConfigured
+                      ? "已配置 Vercel Deploy Hook，确认后会尝试触发部署。"
+                      : "未配置 Deploy Hook，确认会先写入日志。"}
+                  </p>
+                </div>
+              </div>
             </section>
 
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">

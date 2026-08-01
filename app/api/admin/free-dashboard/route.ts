@@ -14,6 +14,14 @@ const FREE_LIMITS = {
   dataTransferBytes: 100 * 1024 * 1024 * 1024,
 };
 
+const AUTO_ITERATION_KEYS = [
+  'auto_iteration_enabled',
+  'auto_iteration_require_approval',
+  'auto_iteration_safe_mode',
+  'auto_iteration_last_request',
+  'auto_iteration_last_deploy_approval',
+];
+
 type DeployStatus = 'success' | 'pending' | 'failure' | 'unknown';
 
 async function fetchDeployStatus() {
@@ -78,6 +86,11 @@ function getLevel(value: number) {
   return 'good';
 }
 
+function toBool(value: string | undefined, fallback: boolean) {
+  if (value === undefined) return fallback;
+  return value === 'true';
+}
+
 export async function GET(request: NextRequest) {
   try {
     const admin = adminAuth(request);
@@ -104,6 +117,7 @@ export async function GET(request: NextRequest) {
       monthUsage,
       hotTools,
       recentLogs,
+      autoIterationSettings,
     ] = await Promise.all([
       fetchDeployStatus(),
       prisma.tool.count(),
@@ -139,7 +153,14 @@ export async function GET(request: NextRequest) {
         take: 6,
         select: { id: true, username: true, action: true, detail: true, createdAt: true },
       }),
+      prisma.systemSetting.findMany({
+        where: { key: { in: AUTO_ITERATION_KEYS } },
+      }),
     ]);
+
+    const autoIterationMap = Object.fromEntries(
+      autoIterationSettings.map((item) => [item.key, item.value]),
+    );
 
     const usage = {
       functionInvocations: Number(monthUsage._sum.functionInvocations || 0),
@@ -264,6 +285,14 @@ export async function GET(request: NextRequest) {
       suggestions,
       hotTools,
       recentLogs,
+      autoIteration: {
+        enabled: toBool(autoIterationMap.auto_iteration_enabled, false),
+        requireApproval: toBool(autoIterationMap.auto_iteration_require_approval, true),
+        safeMode: toBool(autoIterationMap.auto_iteration_safe_mode, true),
+        lastRequest: autoIterationMap.auto_iteration_last_request || '',
+        lastDeployApproval: autoIterationMap.auto_iteration_last_deploy_approval || '',
+        manualDeployConfigured: Boolean(process.env.VERCEL_DEPLOY_HOOK_URL),
+      },
       freeStack: [
         { name: '代码托管', value: 'GitHub 免费仓库', status: '已使用' },
         { name: '自动部署', value: 'Vercel 免费额度', status: '已接入' },
