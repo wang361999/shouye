@@ -363,15 +363,13 @@ export default function UserOrdersPage() {
 
                   {order.status === 'approved' && order.product?.downloadUrl && (
                     <a
-                      href={order.product.downloadUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={`/api/download?repo=${encodeURIComponent(order.product.downloadUrl)}`}
                       className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                     >
                       <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      下载产品
+                      下载产品 ZIP
                     </a>
                   )}
 
