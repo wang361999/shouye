@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Container } from '@/components/common/Container';
 import UserAvatar from '@/components/common/UserAvatar';
 import MarkdownRenderer from '@/components/forum/MarkdownRenderer';
+import CodeExplorer from '@/components/collab/CodeExplorer';
 import { useAppStore } from '@/lib/store';
 import { cn, formatTimeAgo, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -608,7 +609,13 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
           />
         )}
         {activeTab === 'github' && (
-          <GithubTab repoInfo={repoInfo} loading={githubLoading} project={project} />
+          <GithubTab
+            repoInfo={repoInfo}
+            loading={githubLoading}
+            project={project}
+            token={token}
+            isMember={isMember}
+          />
         )}
       </div>
 
@@ -1596,10 +1603,14 @@ function GithubTab({
   repoInfo,
   loading,
   project,
+  token,
+  isMember,
 }: {
   repoInfo: RepoInfo | null;
   loading: boolean;
   project: ProjectDetail;
+  token: string | null;
+  isMember: boolean;
 }) {
   if (loading) {
     return (
@@ -1723,6 +1734,19 @@ function GithubTab({
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">{repoInfo.description}</p>
         )}
       </SectionCard>
+
+      {/* 在线代码编辑器 */}
+      {project.repoOwner && project.repoName && (
+        <SectionCard title="💻 在线代码编辑">
+          <CodeExplorer
+            owner={project.repoOwner}
+            repo={project.repoName}
+            repoUrl={project.repoUrl || `https://github.com/${project.repoOwner}/${project.repoName}`}
+            token={token}
+            isMember={isMember}
+          />
+        </SectionCard>
+      )}
     </div>
   );
 }

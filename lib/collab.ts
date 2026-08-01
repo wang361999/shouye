@@ -369,3 +369,388 @@ export function parseJsonArray(raw: string | null | undefined): string[] {
 export function stringifyJsonArray(arr: string[] | null | undefined): string {
   return JSON.stringify(arr ?? []);
 }
+
+// ============ 在线代码编辑相关 GitHub API ============
+
+/** GitHub 仓库内容项（文件或目录） */
+export interface GithubTreeItem {
+  path: string;
+  type: 'file' | 'dir' | 'symlink' | 'submodule';
+  size?: number;
+  sha?: string;
+  url?: string;
+}
+
+/**
+ * 获取仓库指定路径下的文件/目录列表
+ * 调用 GitHub REST API: GET /repos/{owner}/{repo}/contents/{path}
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param path 目录路径，默认根目录
+ * @param ref 分支/commit/tag，默认仓库默认分支
+ * @returns 内容项列表，失败返回空数组
+ */
+export async function fetchGithubContents(
+  owner: string,
+  repo: string,
+  path: string = '',
+  ref?: string,
+): Promise<GithubTreeItem[]> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+
+    const url = new URL(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+    );
+    if (ref) url.searchParams.set('ref', ref);
+
+    const response = await fetch(url.toString(), { headers });
+
+    if (!response.ok) {
+      console.error(
+        `[GITHUB CONTENTS ERROR] status=${response.status} owner=${owner} repo=${repo} path=${path}`,
+      );
+      return [];
+    }
+
+    const data = await response.json();
+
+    // 单文件返回对象，目录返回数组
+    if (!Array.isArray(data)) return [];
+
+    return data.map((item: any) => ({
+      path: item.path ?? '',
+      type: (item.type as GithubTreeItem['type']) ?? 'file',
+      size: item.size,
+      sha: item.sha,
+      url: item.html_url,
+    }));
+  } catch (error) {
+    console.error('[GITHUB CONTENTS ERROR]', error);
+    return [];
+  }
+}
+
+/** GitHub 文件内容（含 SHA 用于后续更新） */
+export interface GithubFileContent {
+  content: string;
+  sha: string;
+  path: string;
+  size: number;
+  encoding: string;
+}
+
+/**
+ * 获取仓库中单个文件的内容（含 SHA，用于后续更新）
+ * 调用 GitHub REST API: GET /repos/{owner}/{repo}/contents/{path}
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param path 文件路径
+ * @param ref 分支/commit/tag
+ * @returns 文件内容，失败返回 null
+ */
+export async function fetchGithubFile(
+  owner: string,
+  repo: string,
+  path: string,
+  ref?: string,
+): Promise<GithubFileContent | null> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+
+    const url = new URL(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+    );
+    if (ref) url.searchParams.set('ref', ref);
+
+    const response = await fetch(url.toString(), { headers });
+
+    if (!response.ok) {
+      console.error(
+        `[GITHUB FILE FETCH ERROR] status=${response.status} owner=${owner} repo=${repo} path=${path}`,
+      );
+      return null;
+    }
+
+    const data = await response.json();
+
+    // 确保是文件而非目录
+    if (data.type !== 'file' || !data.content) return null;
+
+    // GitHub 返回 base64 编码内容，可能含换行符
+    const content = Buffer.from(data.content, 'base64').toString('utf-8');
+
+    return {
+      content,
+      sha: data.sha ?? '',
+      path: data.path ?? path,
+      size: data.size ?? content.length,
+      encoding: data.encoding ?? 'base64',
+    };
+  } catch (error) {
+    console.error('[GITHUB FILE FETCH ERROR]', error);
+    return null;
+  }
+}
+
+/**
+ * 创建或更新仓库中的文件
+ * 调用 GitHub REST API: PUT /repos/{owner}/{repo}/contents/{path}
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param path 文件路径
+ * @param content 文件内容（UTF-8）
+ * @param message commit 消息
+ * @param branch 目标分支
+ * @param sha 已有文件的 SHA（更新时必传，新建时不传）
+ * @returns commit 信息，失败返回 null
+ */
+export async function updateGithubFile(
+  owner: string,
+  repo: string,
+  path: string,
+  content: string,
+  message: string,
+  branch: string,
+  sha?: string,
+): Promise<{ sha: string; commitSha: string } | null> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+    headers['Content-Type'] = 'application/json';
+
+    const body: Record<string, unknown> = {
+      message,
+      content: Buffer.from(content, 'utf-8').toString('base64'),
+      branch,
+    };
+    if (sha) body.sha = sha;
+
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+      {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(body),
+      },
+    );
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      console.error(
+        `[GITHUB FILE UPDATE ERROR] status=${response.status}`,
+        errData?.message,
+      );
+      return null;
+    }
+
+    const data = await response.json();
+
+    return {
+      sha: data.content?.sha ?? '',
+      commitSha: data.commit?.sha ?? '',
+    };
+  } catch (error) {
+    console.error('[GITHUB FILE UPDATE ERROR]', error);
+    return null;
+  }
+}
+
+/**
+ * 创建新分支
+ * 调用 GitHub REST API: POST /repos/{owner}/{repo}/git/refs
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param branchName 新分支名
+ * @param fromBranch 基于的分支（默认仓库默认分支）
+ * @returns 是否创建成功
+ */
+export async function createGithubBranch(
+  owner: string,
+  repo: string,
+  branchName: string,
+  fromBranch?: string,
+): Promise<boolean> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+    headers['Content-Type'] = 'application/json';
+
+    // 1. 获取基准分支的 SHA
+    let baseSha: string | null = null;
+
+    if (fromBranch) {
+      const refResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${fromBranch}`,
+        { headers },
+      );
+      if (refResponse.ok) {
+        const refData = await refResponse.json();
+        baseSha = refData.object?.sha ?? null;
+      }
+    }
+
+    // 未指定分支或获取失败时，获取默认分支
+    if (!baseSha) {
+      const repoResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}`,
+        { headers },
+      );
+      if (!repoResponse.ok) return false;
+      const repoData = await repoResponse.json();
+      const defaultBranch = fromBranch || repoData.default_branch || 'main';
+
+      const refResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${defaultBranch}`,
+        { headers },
+      );
+      if (!refResponse.ok) return false;
+      const refData = await refResponse.json();
+      baseSha = refData.object?.sha ?? null;
+    }
+
+    if (!baseSha) return false;
+
+    // 2. 创建新分支
+    const createResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/refs`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          ref: `refs/heads/${branchName}`,
+          sha: baseSha,
+        }),
+      },
+    );
+
+    return createResponse.ok;
+  } catch (error) {
+    console.error('[GITHUB CREATE BRANCH ERROR]', error);
+    return false;
+  }
+}
+
+/**
+ * 列出仓库的所有分支
+ * 调用 GitHub REST API: GET /repos/{owner}/{repo}/branches
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @returns 分支名列表，失败返回空数组
+ */
+export async function fetchGithubBranches(
+  owner: string,
+  repo: string,
+): Promise<string[]> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`,
+      { headers },
+    );
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    if (!Array.isArray(data)) return [];
+
+    return data.map((b: any) => b.name).filter(Boolean);
+  } catch (error) {
+    console.error('[GITHUB BRANCHES ERROR]', error);
+    return [];
+  }
+}
+
+/** 创建 PR 的结果 */
+export interface GithubPullRequest {
+  number: number;
+  title: string;
+  url: string;
+  state: string;
+}
+
+/**
+ * 创建 Pull Request
+ * 调用 GitHub REST API: POST /repos/{owner}/{repo}/pulls
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param title PR 标题
+ * @param body PR 描述
+ * @param head 源分支
+ * @param base 目标分支（默认仓库默认分支）
+ * @returns PR 信息，失败返回 null
+ */
+export async function createGithubPullRequest(
+  owner: string,
+  repo: string,
+  title: string,
+  body: string,
+  head: string,
+  base?: string,
+): Promise<GithubPullRequest | null> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+    headers['Content-Type'] = 'application/json';
+
+    // 未指定 base 时获取默认分支
+    let baseBranch = base;
+    if (!baseBranch) {
+      const repoResponse = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}`,
+        { headers },
+      );
+      if (repoResponse.ok) {
+        const repoData = await repoResponse.json();
+        baseBranch = repoData.default_branch || 'main';
+      } else {
+        baseBranch = 'main';
+      }
+    }
+
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          title,
+          body,
+          head,
+          base: baseBranch,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      console.error(
+        `[GITHUB CREATE PR ERROR] status=${response.status}`,
+        errData?.message,
+      );
+      return null;
+    }
+
+    const data = await response.json();
+
+    return {
+      number: data.number ?? 0,
+      title: data.title ?? title,
+      url: data.html_url ?? '',
+      state: data.state ?? 'open',
+    };
+  } catch (error) {
+    console.error('[GITHUB CREATE PR ERROR]', error);
+    return null;
+  }
+}
