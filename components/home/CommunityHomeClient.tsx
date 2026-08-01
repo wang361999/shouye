@@ -258,7 +258,7 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
   const forumRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/community/home")
+    fetch("/api/community/home", { cache: 'no-store' })
       .then((res) => res.json())
       .then((d) => {
         setData(d);

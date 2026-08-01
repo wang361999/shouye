@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
+import { revalidateCommunityHome } from '@/lib/revalidate';
 
 // ============ GET /api/forum/posts/[id] - 获取帖子详情 ============
 export async function GET(
@@ -230,6 +231,9 @@ export async function DELETE(
       where: { id },
       data: { status: 'DELETED' },
     });
+
+    // 清除社区首页缓存，避免删除后前端仍展示该帖子
+    revalidateCommunityHome();
 
     return NextResponse.json({ message: '帖子已删除' });
   } catch (error) {

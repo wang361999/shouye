@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
 import { parseGithubRepoUrl, stringifyJsonArray } from '@/lib/collab';
+import { revalidateCommunityHome } from '@/lib/revalidate';
 
 export const dynamic = 'force-dynamic';
 
@@ -199,6 +200,9 @@ export async function POST(request: NextRequest) {
 
       return created;
     });
+
+    // 清除社区首页缓存，使新召集令及时在首页展示
+    revalidateCommunityHome();
 
     // ---- 返回创建的项目（含解析后的数组字段） ----
     return NextResponse.json(

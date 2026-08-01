@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { Prisma } from '@prisma/client';
+import { revalidateCommunityHome } from '@/lib/revalidate';
 
 // ============ GET /api/forum/posts - 获取帖子列表 ============
 // 管理员（带 Authorization header）可通过 ?admin=1 获取全部帖子（含已删除/草稿）
@@ -186,6 +187,9 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // 清除社区首页缓存，使新帖及时在首页展示
+    revalidateCommunityHome();
 
     return NextResponse.json(post, { status: 201 });
   } catch (error) {

@@ -8,6 +8,7 @@ import {
   isProjectManager,
   stringifyJsonArray,
 } from '@/lib/collab';
+import { revalidateCommunityHome } from '@/lib/revalidate';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,31 +115,67 @@ export async function GET(
       data: { viewCount: { increment: 1 } },
     });
 
-    // ---- 通过 GitHub API 获取仓库最近提交和贡献者（不阻塞主流程，失败返回空） ----
-    const [repoInfo, commits, contributors] = await Promise.all([
-      fetchGithubRepoInfo(project.repoOwner, project.repoName),
-      fetchGithubCommits(
-        project.repoOwner,
-        project.repoName,
-        project.defaultBranch || undefined,
-        5,
-      ),
-      fetchGithubContributors(project.repoOwner, project.repoName, 10),
-    ]);
+    // ---- 通过 GitHub API 获取仓库最近提交和贡献者 ----
+    // 使用 Promise.allSettled + 超时保护，避免新建项目仓库无数据或 GitHub API 限流
+    // 导致整个详情接口卡住/失败（此前是创建协同任务后无法打开详情页的根本原因）。
+    const withTimeout = <T>(p: Promise<T>, ms = 8000): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<T>((resolve) => setTimeout(() => resolve(null as T), ms)),
+      ]);
+
+    const [repoInfoResult, commitsResult, contributorsResult] =
+      await Promise.allSettled([
+        withTimeout(fetchGithubRepoInfo(project.repoOwner, project.repoName)),
+        withTimeout(
+          fetchGithubCommits(
+            project.repoOwner,
+            project.repoName,
+            project.defaultBranch || undefined,
+            5,
+          ),
+        ),
+        withTimeout(
+          fetchGithubContributors(project.repoOwner, project.repoName, 10),
+        ),
+      ]);
+
+    const repoInfo =
+      repoInfoResult.status === 'fulfilled' ? repoInfoResult.value : null;
+    const commits =
+      commitsResult.status === 'fulfilled' ? commitsResult.value : [];
+    const contributors =
+      contributorsResult.status === 'fulfilled' ? contributorsResult.value : [];
 
     // ---- 如果仓库默认分支为空，尝试从 GitHub 信息补全 ----
     if (!project.defaultBranch && repoInfo?.defaultBranch) {
-      await prisma.collabProject.update({
-        where: { id },
-        data: { defaultBranch: repoInfo.defaultBranch },
-      });
+      try {
+        await prisma.collabProject.update({
+          where: { id },
+          data: { defaultBranch: repoInfo.defaultBranch },
+        });
+      } catch {
+        // 补全默认分支失败不影响主流程
+      }
     }
+
+    // ---- 计算前端期望的扁平字段（taskTotal/taskCompleted/contributionCount） ----
+    // API 此前只返回 taskStats/contributionStats 对象，与前端 ProjectDetail 类型不匹配，
+    // 导致详情页任务完成率等数据为 undefined，渲染异常。
+    const taskTotal = taskSummary.total;
+    const taskCompleted = taskSummary.completed;
+    const contributionCount = contributionSummary.total;
 
     return NextResponse.json({
       ...project,
       techStack: project.techStack ? JSON.parse(project.techStack) : [],
       tags: project.tags ? JSON.parse(project.tags) : [],
       viewCount: updated.viewCount,
+      // 扁平字段（前端 ProjectDetail 期望）
+      taskTotal,
+      taskCompleted,
+      contributionCount,
+      // 统计明细（保留供其他场景使用）
       taskStats: taskSummary,
       contributionStats: contributionSummary,
       github: {
@@ -347,6 +384,9 @@ export async function DELETE(
     await prisma.collabProject.delete({
       where: { id },
     });
+
+    // 清除社区首页缓存，避免删除后首页仍展示该召集令
+    revalidateCommunityHome();
 
     return NextResponse.json({ message: '项目已删除' });
   } catch (error) {
