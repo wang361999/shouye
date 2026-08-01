@@ -8,12 +8,14 @@ const {
   GITHUB_TOKEN,
   GITHUB_REPOSITORY,
   ISSUE_NUMBER,
-  AI_MODEL = 'openai/gpt-4.1',
+  AI_API_KEY = '',
+  AI_API_BASE = 'https://api.groq.com/openai/v1/chat/completions',
+  AI_MODEL = 'llama-3.3-70b-versatile',
 } = process.env;
 
 const MAX_CONTEXT_CHARS = 5_000;
 const MAX_FILE_CHARS = 1_200;
-const MAX_SELECTED_FILES = 12;
+const MAX_SELECTED_FILES = 10;
 const SUMMARY_PATH = 'AI_ITERATION_SUMMARY.md';
 
 function fail(message) {
@@ -24,6 +26,7 @@ function fail(message) {
 if (!GITHUB_TOKEN) fail('缺少 GITHUB_TOKEN');
 if (!GITHUB_REPOSITORY) fail('缺少 GITHUB_REPOSITORY');
 if (!ISSUE_NUMBER) fail('缺少 ISSUE_NUMBER');
+if (!AI_API_KEY) fail('缺少 AI_API_KEY。请在 GitHub 仓库 Settings → Secrets → Actions 中添加 AI_API_KEY（免费获取：https://console.groq.com/keys）');
 
 function run(command, args) {
   return execFileSync(command, args, { encoding: 'utf8' }).trim();
@@ -50,20 +53,8 @@ async function githubFetch(url, options = {}) {
 
 function isTextFile(file) {
   const allowedExts = [
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mjs',
-    '.json',
-    '.md',
-    '.yml',
-    '.yaml',
-    '.css',
-    '.scss',
-    '.html',
-    '.prisma',
-    '.env.example',
+    '.ts', '.tsx', '.js', '.jsx', '.mjs', '.json', '.md',
+    '.yml', '.yaml', '.css', '.scss', '.html', '.prisma', '.env.example',
   ];
   return allowedExts.some((ext) => file.endsWith(ext));
 }
@@ -117,8 +108,6 @@ function collectContext(issue) {
     'package.json',
     'app/api/admin/auto-iteration/route.ts',
     'docs/free-ai-iteration-guide.md',
-    'docs/github-automation-guide.md',
-    '.github/ISSUE_TEMPLATE/ai_iteration_request.md',
   ]);
 
   const selected = files
@@ -138,7 +127,7 @@ function collectContext(issue) {
   }
 
   return {
-    tree: files.slice(0, 300).join('\n'),
+    tree: files.slice(0, 200).join('\n'),
     context,
     selectedCount: selected.length,
   };
@@ -213,16 +202,16 @@ ${repoContext.context}
     ],
   };
 
-  console.log('[free-ai-issue-executor] 调用 GitHub Models API...');
+  console.log('[free-ai-issue-executor] 调用 AI API...');
+  console.log(`[free-ai-issue-executor] API 地址：${AI_API_BASE}`);
   console.log(`[free-ai-issue-executor] 模型：${AI_MODEL}`);
   console.log(`[free-ai-issue-executor] prompt 长度：约 ${prompt.length} 字符`);
   console.log(`[free-ai-issue-executor] 上下文文件数：${repoContext.selectedCount || '未知'}`);
 
-  const res = await fetch('https://models.github.ai/inference/chat/completions', {
+  const res = await fetch(AI_API_BASE, {
     method: 'POST',
     headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Authorization: `Bearer ${AI_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(requestBody),
@@ -230,15 +219,17 @@ ${repoContext.context}
 
   if (!res.ok) {
     const text = await res.text();
-    console.error(`[free-ai-issue-executor] GitHub Models API 失败：${res.status}`);
+    console.error(`[free-ai-issue-executor] AI API 失败：${res.status}`);
     console.error(`[free-ai-issue-executor] 响应内容：${text.slice(0, 1000)}`);
-    console.error(`[free-ai-issue-executor] 提示：GitHub Models 免费层限制为 8K 输入 / 4K 输出，每天 150 次请求。`);
-    fail(`GitHub Models 请求失败：${res.status} ${text.slice(0, 500)}`);
+    fail(`AI API 请求失败：${res.status} ${text.slice(0, 500)}`);
   }
 
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
-  if (!content) fail('GitHub Models 没有返回内容');
+  if (!content) {
+    console.error('[free-ai-issue-executor] API 返回数据：', JSON.stringify(data).slice(0, 1000));
+    fail('AI API 没有返回内容');
+  }
   return extractJson(content);
 }
 
