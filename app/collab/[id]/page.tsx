@@ -16,7 +16,7 @@ type ProjectStatus = 'recruiting' | 'active' | 'completed' | 'archived';
 type MemberRole = 'owner' | 'maintainer' | 'member';
 type TaskStatus = 'open' | 'in_progress' | 'review' | 'completed';
 type TaskPriority = 'urgent' | 'high' | 'medium' | 'low';
-type ContributionType = 'commit' | 'PR' | 'issue' | 'docs';
+type ContributionType = 'commit' | 'pull_request' | 'issue' | 'docs' | 'other';
 type ContributionStatus = 'pending' | 'approved' | 'rejected';
 type TabKey = 'overview' | 'tasks' | 'members' | 'contributions' | 'github';
 
@@ -170,9 +170,10 @@ const priorityConfig: Record<TaskPriority, { label: string; badge: string }> = {
 
 const contributionTypeConfig: Record<ContributionType, { icon: string; label: string; color: string }> = {
   commit: { icon: '💾', label: 'Commit', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  PR: { icon: '🔀', label: 'PR', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  pull_request: { icon: '🔀', label: 'PR', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
   issue: { icon: '🐛', label: 'Issue', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   docs: { icon: '📄', label: 'Docs', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  other: { icon: '📦', label: '其他', color: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400' },
 };
 
 const contributionStatusConfig: Record<ContributionStatus, { label: string; badge: string }> = {
@@ -1474,9 +1475,10 @@ function ContributionForm({
           </label>
           <select value={type} onChange={(e) => setType(e.target.value as ContributionType)} className={inputCls}>
             <option value="commit">Commit 提交</option>
-            <option value="PR">Pull Request</option>
+            <option value="pull_request">Pull Request</option>
             <option value="issue">Issue</option>
             <option value="docs">文档</option>
+            <option value="other">其他</option>
           </select>
         </div>
         <div>
