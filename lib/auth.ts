@@ -4,21 +4,37 @@ import { NextRequest } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// 生产环境必须配置 JWT_SECRET，否则启动时报错
-if (!JWT_SECRET) {
+// 开发环境回退值（仅在 JWT_SECRET 未配置时使用）
+// 注意：不能在模块顶层 throw，否则 Next.js 构建时会因加载所有路由模块而崩溃
+// 运行时校验在 getJwtSecret() 函数中执行
+const FALLBACK_SECRET = 'dev-only-insecure-secret-do-not-use-in-production';
+
+let warnedAboutSecret = false;
+
+/**
+ * 获取 JWT 密钥
+ * 生产环境未配置时抛出错误（运行时），开发环境使用回退值并警告
+ */
+function getJwtSecret(): string {
+  if (JWT_SECRET) return JWT_SECRET;
+
   if (process.env.NODE_ENV === 'production') {
     throw new Error(
-      'FATAL: JWT_SECRET 环境变量未配置。请在 Vercel 项目设置中添加 JWT_SECRET。' +
+      'JWT_SECRET 环境变量未配置。请在 Vercel 项目设置中添加 JWT_SECRET。' +
       '可使用命令生成: openssl rand -base64 32'
     );
   }
-  // 开发环境使用回退值并警告
-  console.warn(
-    'WARNING: JWT_SECRET 未配置，正在使用不安全的开发回退值。' +
-    '生产环境部署前必须配置 JWT_SECRET 环境变量。'
-  );
+
+  if (!warnedAboutSecret) {
+    warnedAboutSecret = true;
+    console.warn(
+      'WARNING: JWT_SECRET 未配置，正在使用不安全的开发回退值。' +
+      '生产环境部署前必须配置 JWT_SECRET 环境变量。'
+    );
+  }
+
+  return FALLBACK_SECRET;
 }
-const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'dev-only-insecure-secret-do-not-use-in-production';
 
 /** Token 载荷类型 */
 interface TokenPayload {
@@ -57,7 +73,7 @@ export function generateToken(user: {
     username: user.username,
     role: user.role,
   };
-  return jwt.sign(payload, EFFECTIVE_JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '7d' });
 }
 
 /**
@@ -65,7 +81,7 @@ export function generateToken(user: {
  */
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, EFFECTIVE_JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, getJwtSecret()) as TokenPayload;
   } catch {
     return null;
   }
