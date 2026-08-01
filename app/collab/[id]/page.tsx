@@ -285,7 +285,8 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
       const res = await fetch(`/api/collab/github/repo-info?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setRepoInfo(data);
+        // API 返回 { data: repoInfo }，兼容直接返回对象的情况
+        setRepoInfo(data.data || data);
       }
     } catch {
       // 静默处理
@@ -367,7 +368,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
   };
 
   // ============ 权限计算 ============
-  const isOwner = !!user && !!project && project.owner.id === user.id;
+  const isOwner = !!user && !!project && !!project.owner && project.owner.id === user.id;
   const myRole = project?.myRole ?? null;
   const isMember = project?.isMember ?? myRole !== null;
   const canManage = isOwner || myRole === 'maintainer';
@@ -510,11 +511,11 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
         {/* 发起人 + 操作按钮 */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2.5">
-            <UserAvatar username={project.owner.username} avatar={project.owner.avatar} size="md" />
+            <UserAvatar username={project.owner?.username || '未知用户'} avatar={project.owner?.avatar} size="md" />
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                {project.owner.username}
-                {project.owner.githubUsername && (
+                {project.owner?.username || '未知用户'}
+                {project.owner?.githubUsername && (
                   <span className="ml-1.5 text-xs text-gray-400 dark:text-gray-500">
                     @{project.owner.githubUsername}
                   </span>

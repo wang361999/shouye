@@ -166,11 +166,38 @@ export async function GET(
     const taskCompleted = taskSummary.completed;
     const contributionCount = contributionSummary.total;
 
+    // ---- 映射关联字段为前端 ProjectDetail 期望的结构 ----
+    // Prisma 返回 author/members.user 嵌套结构，前端类型期望 owner(扁平) 与
+    // members(扁平: userId/username/avatar/githubUsername)。此前直接展开 ...project
+    // 导致 project.owner 为 undefined，前端访问 project.owner.username 抛 TypeError，
+    // 触发 Error Boundary（"页面出错了"）。
+    const owner = project.author
+      ? {
+          id: project.author.id,
+          username: project.author.username,
+          avatar: project.author.avatar ?? null,
+          githubUsername: project.author.githubLogin ?? undefined,
+        }
+      : { id: '', username: '未知用户', avatar: null };
+
+    const members = (project.members || []).map((m) => ({
+      id: m.id,
+      userId: m.user?.id ?? '',
+      username: m.user?.username ?? '未知用户',
+      avatar: m.user?.avatar ?? null,
+      role: m.role,
+      githubUsername: m.user?.githubLogin ?? undefined,
+      joinedAt: m.joinedAt,
+    }));
+
     return NextResponse.json({
       ...project,
       techStack: project.techStack ? JSON.parse(project.techStack) : [],
       tags: project.tags ? JSON.parse(project.tags) : [],
       viewCount: updated.viewCount,
+      // 关联字段（前端 ProjectDetail 期望的扁平结构）
+      owner,
+      members,
       // 扁平字段（前端 ProjectDetail 期望）
       taskTotal,
       taskCompleted,
