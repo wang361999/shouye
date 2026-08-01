@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { NextRequest } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -11,20 +12,52 @@ const FALLBACK_SECRET = 'dev-only-insecure-secret-do-not-use-in-production';
 
 let warnedAboutSecret = false;
 
+// 缓存派生的密钥（避免每次请求都计算哈希）
+let derivedSecret: string | null = null;
+
 /**
  * 获取 JWT 密钥
- * 生产环境未配置时抛出错误（运行时），开发环境使用回退值并警告
+ *
+ * 优先级：
+ *   1. JWT_SECRET 环境变量（推荐）
+ *   2. 生产环境：从 DATABASE_URL 派生（回退方案，避免 500 错误）
+ *   3. 开发环境：使用不安全的回退值
+ *
+ * 注意：方案 2 不是最佳安全实践，请尽快在 Vercel 中配置 JWT_SECRET
  */
 function getJwtSecret(): string {
+  // 1. 优先使用显式配置的 JWT_SECRET
   if (JWT_SECRET) return JWT_SECRET;
 
+  // 2. 生产环境回退：从 DATABASE_URL 派生密钥
   if (process.env.NODE_ENV === 'production') {
+    if (derivedSecret) return derivedSecret;
+
+    const dbUrl = process.env.DATABASE_URL;
+    if (dbUrl) {
+      if (!warnedAboutSecret) {
+        warnedAboutSecret = true;
+        console.error(
+          'CRITICAL: JWT_SECRET 未配置，正在从 DATABASE_URL 派生密钥作为回退。' +
+          '请立即在 Vercel 项目设置中配置 JWT_SECRET 环境变量以确保安全。' +
+          '生成命令: openssl rand -base64 32'
+        );
+      }
+      // 使用 SHA-256 从 DATABASE_URL 派生固定密钥
+      derivedSecret = crypto
+        .createHash('sha256')
+        .update(dbUrl)
+        .digest('hex');
+      return derivedSecret;
+    }
+
+    // DATABASE_URL 也不可用时才抛出（正常运行不会走到这里）
     throw new Error(
-      'JWT_SECRET 环境变量未配置。请在 Vercel 项目设置中添加 JWT_SECRET。' +
-      '可使用命令生成: openssl rand -base64 32'
+      'JWT_SECRET 和 DATABASE_URL 均未配置。请在 Vercel 项目设置中添加 JWT_SECRET。'
     );
   }
 
+  // 3. 开发环境回退
   if (!warnedAboutSecret) {
     warnedAboutSecret = true;
     console.warn(
