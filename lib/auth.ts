@@ -1,73 +1,15 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import { NextRequest } from 'next/server';
+import { getJwtSecret } from './env';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-// 开发环境回退值（仅在 JWT_SECRET 未配置时使用）
-// 注意：不能在模块顶层 throw，否则 Next.js 构建时会因加载所有路由模块而崩溃
-// 运行时校验在 getJwtSecret() 函数中执行
-const FALLBACK_SECRET = 'dev-only-insecure-secret-do-not-use-in-production';
-
-let warnedAboutSecret = false;
-
-// 缓存派生的密钥（避免每次请求都计算哈希）
-let derivedSecret: string | null = null;
-
-/**
- * 获取 JWT 密钥
- *
- * 优先级：
- *   1. JWT_SECRET 环境变量（推荐）
- *   2. 生产环境：从 DATABASE_URL 派生（回退方案，避免 500 错误）
- *   3. 开发环境：使用不安全的回退值
- *
- * 注意：方案 2 不是最佳安全实践，请尽快在 Vercel 中配置 JWT_SECRET
- */
-function getJwtSecret(): string {
-  // 1. 优先使用显式配置的 JWT_SECRET
-  if (JWT_SECRET) return JWT_SECRET;
-
-  // 2. 生产环境回退：从 DATABASE_URL 派生密钥
-  if (process.env.NODE_ENV === 'production') {
-    if (derivedSecret) return derivedSecret;
-
-    const dbUrl = process.env.DATABASE_URL;
-    if (dbUrl) {
-      if (!warnedAboutSecret) {
-        warnedAboutSecret = true;
-        console.error(
-          'CRITICAL: JWT_SECRET 未配置，正在从 DATABASE_URL 派生密钥作为回退。' +
-          '请立即在 Vercel 项目设置中配置 JWT_SECRET 环境变量以确保安全。' +
-          '生成命令: openssl rand -base64 32'
-        );
-      }
-      // 使用 SHA-256 从 DATABASE_URL 派生固定密钥
-      derivedSecret = crypto
-        .createHash('sha256')
-        .update(dbUrl)
-        .digest('hex');
-      return derivedSecret;
-    }
-
-    // DATABASE_URL 也不可用时才抛出（正常运行不会走到这里）
-    throw new Error(
-      'JWT_SECRET 和 DATABASE_URL 均未配置。请在 Vercel 项目设置中添加 JWT_SECRET。'
-    );
-  }
-
-  // 3. 开发环境回退
-  if (!warnedAboutSecret) {
-    warnedAboutSecret = true;
-    console.warn(
-      'WARNING: JWT_SECRET 未配置，正在使用不安全的开发回退值。' +
-      '生产环境部署前必须配置 JWT_SECRET 环境变量。'
-    );
-  }
-
-  return FALLBACK_SECRET;
-}
+// JWT 密钥的派生 / 回退逻辑已统一收敛到 lib/env.ts 的 getJwtSecret()：
+//   1. JWT_SECRET 环境变量（推荐）
+//   2. 生产环境：从 DATABASE_URL 派生（回退方案，避免 500 错误）
+//   3. 开发环境：使用不安全的回退值
+// 此处直接复用，保持与 external-db 等模块的密钥来源一致。
+// 注意：不能在模块顶层 throw，否则 Next.js 构建时会因加载所有路由模块而崩溃，
+//       运行时校验在 env.ts 的 getJwtSecret() 中执行。
 
 /** Token 载荷类型 */
 interface TokenPayload {

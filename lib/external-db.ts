@@ -1,10 +1,20 @@
 import { Pool } from 'pg';
+import { getJwtSecret } from './env';
 
 // 简单加解密（基于 JWT_SECRET 的 XOR 混淆，防止明文存储）
-const SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+// 密钥延迟解析：避免模块加载阶段因密钥缺失而抛出异常（构建安全），
+// 同时复用 env 模块的统一密钥派生逻辑（不再使用硬编码回退值）
+let cachedSecret: string | null = null;
+function getSecret(): string {
+  if (cachedSecret === null) {
+    cachedSecret = getJwtSecret();
+  }
+  return cachedSecret;
+}
 
 export function encryptPassword(text: string): string {
   try {
+    const SECRET = getSecret();
     const result = Buffer.from(
       text.split('').map((char, i) => 
         String.fromCharCode(char.charCodeAt(0) ^ SECRET.charCodeAt(i % SECRET.length))
@@ -18,6 +28,7 @@ export function encryptPassword(text: string): string {
 
 export function decryptPassword(encrypted: string): string {
   try {
+    const SECRET = getSecret();
     const decoded = Buffer.from(encrypted, 'base64').toString('binary');
     return decoded.split('').map((char, i) =>
       String.fromCharCode(char.charCodeAt(0) ^ SECRET.charCodeAt(i % SECRET.length))

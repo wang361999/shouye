@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
+import AvatarPicker from '@/components/common/AvatarPicker';
 import { useAppStore } from '@/lib/store';
 import { formatTimeAgo, formatDate, cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -57,7 +58,8 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
 ];
 
 export default function ProfilePage() {
-  const { user, token, hydrate, _hydrated, setAuth } = useAppStore();
+  const { user, token, hydrate, _hydrated, setAuth, updateAvatar } =
+    useAppStore();
   const [activeTab, setActiveTab] = useState<TabKey>('profile');
 
   // ---- 个人资料状态 ----
@@ -65,6 +67,7 @@ export default function ProfilePage() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [editUsername, setEditUsername] = useState('');
   const [editBio, setEditBio] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
   // ---- 修改密码状态 ----
@@ -104,6 +107,7 @@ export default function ProfilePage() {
       setProfile(data);
       setEditUsername(data.username);
       setEditBio(data.bio || '');
+      setEditAvatar(data.avatar || '');
     } catch (err: any) {
       toast.error(err.message || '获取个人资料失败');
     } finally {
@@ -254,6 +258,7 @@ export default function ProfilePage() {
         body: JSON.stringify({
           username: editUsername.trim(),
           bio: editBio.trim(),
+          avatar: editAvatar.trim(),
         }),
       });
       const data = await res.json();
@@ -262,13 +267,25 @@ export default function ProfilePage() {
       }
       toast.success(data.message || '资料更新成功');
       setProfile(data);
+      // 同步本地编辑态，避免重复提交
+      setEditAvatar(data.avatar || '');
 
-      // 同步更新 store 中的用户名
-      if (user && data.username !== user.username) {
-        setAuth(
-          { id: user.id, username: data.username, role: user.role },
-          token,
-        );
+      // 同步更新 store 中的用户名和头像
+      if (user) {
+        if (data.username !== user.username) {
+          setAuth(
+            {
+              id: user.id,
+              username: data.username,
+              role: user.role,
+              avatar: data.avatar,
+            },
+            token,
+          );
+        } else {
+          // 仅头像变化时单独同步
+          updateAvatar(data.avatar);
+        }
       }
     } catch (err: any) {
       toast.error(err.message || '保存失败，请稍后重试');
@@ -416,18 +433,35 @@ export default function ProfilePage() {
               {/* 用户信息卡片 */}
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  {/* 头像 */}
-                  <div className="w-20 h-20 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-3xl font-bold flex-shrink-0 overflow-hidden">
-                    {profile.avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={profile.avatar}
-                        alt={profile.username}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      profile.username.charAt(0).toUpperCase()
-                    )}
+                  {/* 头像 + 修改头像提示 */}
+                  <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                    <div className="w-20 h-20 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-3xl font-bold overflow-hidden">
+                      {profile.avatar ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={profile.avatar}
+                          alt={profile.username}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        profile.username.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('profile');
+                        document
+                          .getElementById('edit-profile-form')
+                          ?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                          });
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+                    >
+                      ✏️ 修改头像
+                    </button>
                   </div>
                   {/* 基本信息 */}
                   <div className="flex-1 min-w-0">
@@ -578,18 +612,33 @@ export default function ProfilePage() {
               </div>
 
               {/* 编辑资料表单 */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div
+                id="edit-profile-form"
+                className="bg-white rounded-xl border border-gray-200 p-6 scroll-mt-20"
+              >
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">
                   编辑资料
                 </h2>
                 <p className="text-sm text-gray-500 mb-6">
-                  修改你的用户名和个人简介
+                  修改你的头像、用户名和个人简介
                 </p>
 
                 <form
                   onSubmit={handleSaveProfile}
                   className="max-w-md space-y-5"
                 >
+                  {/* 头像 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      头像
+                    </label>
+                    <AvatarPicker
+                      currentAvatar={editAvatar}
+                      username={editUsername || profile.username}
+                      onAvatarChange={setEditAvatar}
+                    />
+                  </div>
+
                   {/* 用户名 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">

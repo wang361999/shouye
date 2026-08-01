@@ -19,17 +19,91 @@ const forumLinks = [
   { name: "✏️ 发布新帖", href: "/forum/new", icon: "✏️" },
 ];
 
+/**
+ * 判断头像字符串是否为图片 URL
+ * 支持 http(s)、data:、相对路径和 blob: 协议，其余视为 emoji 文本
+ */
+function isImageAvatar(avatar: string): boolean {
+  return /^(https?:|data:|\/|blob:)/.test(avatar);
+}
+
+/**
+ * 导航栏用户头像（32x32 圆形）
+ * 支持 emoji、图片 URL，无头像时回退到用户名首字母
+ */
+function HeaderAvatar({
+  avatar,
+  username,
+}: {
+  avatar?: string | null;
+  username: string;
+}) {
+  const hasAvatar = !!avatar;
+  const isImg = hasAvatar && isImageAvatar(avatar as string);
+  return (
+    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center overflow-hidden flex-shrink-0 border border-blue-200">
+      {hasAvatar ? (
+        isImg ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatar as string}
+            alt={username}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <span className="text-xl leading-none">{avatar}</span>
+        )
+      ) : (
+        <span className="text-sm font-bold">
+          {username.charAt(0).toUpperCase()}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function Header({ siteName: initialSiteName = "ET Studio" }: { siteName?: string }) {
-  const { user, logout, hydrate } = useAppStore();
+  const { user, token, logout, hydrate, updateAvatar } = useAppStore();
   const [toolOpen, setToolOpen] = useState(false);
   const [forumOpen, setForumOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [siteName, setSiteName] = useState<string>(initialSiteName);
   const toolRef = useRef<HTMLDivElement>(null);
   const forumRef = useRef<HTMLDivElement>(null);
+  // 记录已为哪个用户拉取过头像，避免 avatar 为 null 时重复请求导致死循环
+  const avatarFetchedForRef = useRef<string | null>(null);
 
   // 客户端水合：从 localStorage 恢复登录态
   useEffect(() => { hydrate(); }, []);
+
+  // 拉取用户头像：store 中没有 avatar 时从 /api/user/profile 获取（依赖 httpOnly cookie 鉴权）
+  useEffect(() => {
+    if (!user) {
+      avatarFetchedForRef.current = null;
+      return;
+    }
+    // 已有头像或已为该用户拉取过则跳过
+    if (user.avatar || avatarFetchedForRef.current === user.id) return;
+    avatarFetchedForRef.current = user.id;
+
+    let active = true;
+    const headers: HeadersInit = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
+    fetch("/api/user/profile", { headers })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (active && data && data.avatar !== undefined) {
+          updateAvatar(data.avatar);
+        }
+      })
+      .catch(() => {
+        // 静默降级，不影响导航栏基本功能
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, token, updateAvatar]);
 
   // GitHub OAuth 登录桥接：检测 URL 参数 oauth_success，
   // 调用 /api/auth/me 从 httpOnly cookie 中提取 token 并同步到 store/localStorage
@@ -239,12 +313,13 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
                     />
                   </svg>
                 </Link>
-                {/* 用户名链接到 /profile */}
+                {/* 用户名链接到 /profile（头像 + 用户名） */}
                 <Link
                   href="/profile"
-                  className="text-sm text-gray-700 hover:text-blue-600 transition-colors"
+                  className="flex items-center space-x-2 text-sm text-gray-700 hover:text-blue-600 transition-colors"
                 >
-                  {user.username}
+                  <HeaderAvatar avatar={user.avatar} username={user.username} />
+                  <span>{user.username}</span>
                 </Link>
                 <button
                   onClick={handleLogout}
@@ -400,13 +475,14 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
                         />
                       </svg>
                     </Link>
-                    {/* 用户名链接到 /profile */}
+                    {/* 用户名链接到 /profile（头像 + 用户名） */}
                     <Link
                       href="/profile"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="text-sm text-gray-700 hover:text-blue-600 transition-colors"
+                      className="flex items-center space-x-2 text-sm text-gray-700 hover:text-blue-600 transition-colors"
                     >
-                      {user.username}
+                      <HeaderAvatar avatar={user.avatar} username={user.username} />
+                      <span>{user.username}</span>
                     </Link>
                   </div>
                   <button
