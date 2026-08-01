@@ -203,6 +203,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [joining, setJoining] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // 各 Tab 数据
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -529,12 +530,12 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
 
           <div className="flex items-center gap-2">
             {isOwner ? (
-              <Link
-                href={`/collab/${project.id}?edit=1`}
+              <button
+                onClick={() => setShowEditModal(true)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
               >
                 ✏️ 编辑项目
-              </Link>
+              </button>
             ) : isMember ? (
               <button
                 onClick={handleLeave}
@@ -610,6 +611,19 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
           <GithubTab repoInfo={repoInfo} loading={githubLoading} project={project} />
         )}
       </div>
+
+      {/* 编辑项目模态框 */}
+      {showEditModal && project && (
+        <EditProjectModal
+          project={project}
+          token={token}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={() => {
+            setShowEditModal(false);
+            fetchProject();
+          }}
+        />
+      )}
     </Container>
   );
 }
@@ -1764,6 +1778,295 @@ function EmptyBox({
       </div>
       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{text}</p>
       {subText && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{subText}</p>}
+    </div>
+  );
+}
+
+// ============ 编辑项目模态框 ============
+function EditProjectModal({
+  project,
+  token,
+  onClose,
+  onSuccess,
+}: {
+  project: ProjectDetail;
+  token: string | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [title, setTitle] = useState(project.title || '');
+  const [description, setDescription] = useState(project.description || '');
+  const [goals, setGoals] = useState(project.goals || '');
+  const [requirements, setRequirements] = useState(project.requirements || '');
+  const [status, setStatus] = useState<ProjectStatus>(project.status || 'recruiting');
+  const [maxMembers, setMaxMembers] = useState(project.maxMembers || 10);
+  const [techStack, setTechStack] = useState<string[]>(project.techStack || []);
+  const [tags, setTags] = useState<string[]>(project.tags || []);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      toast.error('请输入项目标题');
+      return;
+    }
+    if (!description.trim()) {
+      toast.error('请输入项目描述');
+      return;
+    }
+    if (!token) {
+      toast.error('请先登录');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/collab/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          goals: goals.trim() || undefined,
+          requirements: requirements.trim() || undefined,
+          status,
+          maxMembers,
+          techStack,
+          tags,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '更新失败');
+      toast.success('项目已更新');
+      onSuccess();
+    } catch (err: any) {
+      toast.error(err.message || '更新失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl w-full max-w-2xl my-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 头部 */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">编辑项目</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 表单 */}
+        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* 标题 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              项目标题 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={100}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* 描述 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              项目描述 <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={5}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
+            />
+          </div>
+
+          {/* 状态 + 最大成员数 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                项目状态
+              </label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as ProjectStatus)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="recruiting">招募中</option>
+                <option value="active">进行中</option>
+                <option value="completed">已完成</option>
+                <option value="archived">已归档</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                最大成员数
+              </label>
+              <input
+                type="number"
+                value={maxMembers}
+                min={2}
+                max={50}
+                onChange={(e) => setMaxMembers(Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* 技术栈 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              技术栈
+            </label>
+            <TagInputField
+              tags={techStack}
+              onChange={setTechStack}
+              placeholder="输入技术名称后按回车..."
+            />
+          </div>
+
+          {/* 标签 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              项目标签
+            </label>
+            <TagInputField
+              tags={tags}
+              onChange={setTags}
+              placeholder="输入标签后按回车..."
+            />
+          </div>
+
+          {/* 项目目标 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              项目目标
+            </label>
+            <textarea
+              value={goals}
+              onChange={(e) => setGoals(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
+            />
+          </div>
+
+          {/* 参与要求 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              参与要求
+            </label>
+            <textarea
+              value={requirements}
+              onChange={(e) => setRequirements(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+            />
+          </div>
+        </form>
+
+        {/* 底部操作 */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-700">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {submitting ? '保存中...' : '保存修改'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ 标签输入字段（编辑模态框用） ============
+function TagInputField({
+  tags,
+  onChange,
+  placeholder,
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  placeholder?: string;
+}) {
+  const [input, setInput] = useState('');
+
+  const addTag = () => {
+    const value = input.trim();
+    if (!value) return;
+    if (tags.includes(value)) {
+      setInput('');
+      return;
+    }
+    onChange([...tags, value]);
+    setInput('');
+  };
+
+  const removeTag = (index: number) => {
+    onChange(tags.filter((_, i) => i !== index));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    } else if (e.key === 'Backspace' && !input && tags.length > 0) {
+      removeTag(tags.length - 1);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 px-2 py-2 min-h-[42px] border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-shadow">
+      {tags.map((tag, index) => (
+        <span
+          key={index}
+          className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+        >
+          {tag}
+          <button
+            type="button"
+            onClick={() => removeTag(index)}
+            className="hover:text-red-500 transition-colors"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </span>
+      ))}
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={addTag}
+        placeholder={tags.length === 0 ? placeholder : ''}
+        className="flex-1 min-w-[120px] px-2 py-1 text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
+      />
     </div>
   );
 }
