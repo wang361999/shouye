@@ -427,9 +427,14 @@ export default function FreeDashboardPage() {
                   </button>
                   <p className="text-xs text-indigo-700">
                     {data.autoIteration.githubIssueConfigured
-                      ? "已配置 GitHub Token，提交时会尝试创建 Issue 并触发免费 AI 执行器。"
+                      ? "已配置 GitHub Token，提交后会自动创建 Issue → AI 生成代码 → lint/build 验证 → 自动合并上线。"
                       : "未配置 GitHub Token，只能写入后台日志；可到安全设置里填写。"}
                   </p>
+                  <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+                    <p className="font-medium">全自动闭环已开启</p>
+                    <p className="mt-1">提交需求 → AI 写代码 → 自动验证 → 自动合并 → Vercel 自动部署</p>
+                    <p className="mt-1">另外每天 10:00 自动巡检，发现部署失败会自动创建修复 Issue。</p>
+                  </div>
                   <button
                     onClick={() => runAutoIterationAction("approve_deploy")}
                     disabled={Boolean(actionLoading)}
