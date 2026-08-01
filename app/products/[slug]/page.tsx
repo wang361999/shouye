@@ -30,6 +30,8 @@ interface Product {
   icon: string | null;
   coverImage: string | null;
   features: string[];
+  techStack: string | null;
+  screenshots: string | null;
   demoUrl: string | null;
   docsUrl: string | null;
   status: string;
@@ -158,70 +160,151 @@ export default function ProductDetailPage() {
         </nav>
 
         {/* ============ Hero 区域 ============ */}
-        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 p-8 mb-8">
-          <div className="flex flex-col md:flex-row md:items-start md:gap-8">
-            {/* 图标 */}
-            <div className="text-6xl mb-4 md:mb-0 md:flex-shrink-0">
-              {product.icon || '📦'}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-8">
+          {/* 封面图 Banner */}
+          {product.coverImage ? (
+            <div className="relative w-full h-64 md:h-80 overflow-hidden bg-gray-100">
+              <img
+                src={product.coverImage}
+                alt={product.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              <span className="absolute top-4 left-4 inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-green-700 bg-white/90 backdrop-blur-sm rounded-full shadow-sm">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                免费开源
+              </span>
             </div>
+          ) : null}
 
-            {/* 标题信息 */}
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3 flex-wrap">
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {product.name}
-                </h1>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium text-green-700 bg-green-50 rounded-full">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                  免费开源
-                </span>
+          {/* 标题信息区 */}
+          <div className="p-6 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-start md:gap-6">
+              {/* 图标 */}
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center text-4xl md:text-5xl mb-4 md:mb-0 md:flex-shrink-0 border border-gray-100">
+                {product.icon || '📦'}
               </div>
-              <p className="text-lg text-gray-500 mb-6 leading-relaxed">
-                {product.tagline}
-              </p>
 
-              {/* 链接按钮 */}
-              <div className="flex flex-wrap gap-3">
-                {product.demoUrl && (
-                  <a
-                    href={product.demoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    在线演示
-                  </a>
-                )}
-                {product.docsUrl && (
-                  <a
-                    href={product.docsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                    查看文档
-                  </a>
-                )}
-                {product.latestVersion && (
-                  <span className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg">
-                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    最新版本 {product.latestVersion.version}
-                  </span>
-                )}
+              {/* 标题信息 */}
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3 flex-wrap">
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {product.name}
+                  </h1>
+                  {!product.coverImage && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium text-green-700 bg-green-50 rounded-full">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      免费开源
+                    </span>
+                  )}
+                </div>
+                <p className="text-base md:text-lg text-gray-500 mb-6 leading-relaxed">
+                  {product.tagline}
+                </p>
+
+                {/* 链接按钮 */}
+                <div className="flex flex-wrap gap-3">
+                  {product.demoUrl && (
+                    <a
+                      href={product.demoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      在线演示
+                    </a>
+                  )}
+                  {product.docsUrl && (
+                    <a
+                      href={product.docsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      查看文档
+                    </a>
+                  )}
+                  {product.latestVersion && (
+                    <span className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg">
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      最新版本 {product.latestVersion.version}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* ============ 产品介绍 ============ */}
+        {product.description && (
+          <section className="bg-white rounded-2xl border border-gray-200 p-8 mb-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+              <span className="mr-2">📝</span>
+              产品介绍
+            </h2>
+            <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap">
+              {product.description}
+            </div>
+          </section>
+        )}
+
+        {/* ============ 产品截图 ============ */}
+        {(() => {
+          let screenshots: string[] = [];
+          if (product.screenshots) {
+            try {
+              const parsed = JSON.parse(product.screenshots);
+              if (Array.isArray(parsed)) {
+                screenshots = parsed.filter((s) => typeof s === 'string' && s.trim());
+              }
+            } catch {
+              screenshots = [];
+            }
+          }
+          if (screenshots.length === 0) return null;
+          return (
+            <section className="bg-white rounded-2xl border border-gray-200 p-8 mb-8">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <span className="mr-2">🖼️</span>
+                产品截图
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {screenshots.map((src, idx) => (
+                  <div
+                    key={idx}
+                    className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50 group cursor-zoom-in"
+                  >
+                    <img
+                      src={src}
+                      alt={`${product.name} 截图 ${idx + 1}`}
+                      className="w-full h-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.parentElement!.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })()}
 
         {/* ============ 功能特性 ============ */}
         {product.features.length > 0 && (

@@ -14,6 +14,7 @@ interface Product {
   coverImage: string | null;
   features: string[];
   demoUrl: string | null;
+  downloadUrl: string | null;
   validDays: number;
   sortOrder: number;
 }
@@ -81,17 +82,36 @@ export default function ProductsPage() {
             <Link
               key={product.id}
               href={`/products/${product.slug}`}
-              className="group block bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-blue-200"
+              className="group block bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-blue-200"
             >
-              {/* 图标 */}
-              <div className="text-4xl mb-4">
-                {product.icon || '📦'}
-              </div>
+              {/* 封面图 */}
+              {product.coverImage ? (
+                <div className="relative w-full h-44 overflow-hidden bg-gray-100">
+                  <img
+                    src={product.coverImage}
+                    alt={product.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <span className="absolute top-3 left-3 inline-block px-2.5 py-0.5 text-xs font-medium text-green-700 bg-white/90 backdrop-blur-sm rounded-full shadow-sm">
+                    免费开源
+                  </span>
+                </div>
+              ) : (
+                <div className="relative w-full h-44 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                  <div className="text-5xl">
+                    {product.icon || '📦'}
+                  </div>
+                  <span className="absolute top-3 left-3 inline-block px-2.5 py-0.5 text-xs font-medium text-green-700 bg-white/90 backdrop-blur-sm rounded-full shadow-sm">
+                    免费开源
+                  </span>
+                </div>
+              )}
 
-              {/* 免费标签 */}
-              <span className="inline-block px-2.5 py-0.5 text-xs font-medium text-green-700 bg-green-50 rounded-full mb-3">
-                免费开源
-              </span>
+              {/* 内容区 */}
+              <div className="p-6">
 
               {/* 产品名称 */}
               <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
@@ -146,6 +166,7 @@ export default function ProductsPage() {
                     d="M9 5l7 7-7 7"
                   />
                 </svg>
+              </div>
               </div>
             </Link>
           ))}

@@ -61,6 +61,7 @@ export async function GET(
       docsUrl: product.docsUrl,
       status: product.status,
       sortOrder: product.sortOrder,
+      downloadUrl: product.downloadUrl,
       priceBasic: product.priceBasic,
       priceStandard: product.priceStandard,
       pricePremium: product.pricePremium,

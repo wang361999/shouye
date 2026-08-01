@@ -40,6 +40,7 @@ export async function GET() {
         coverImage: p.coverImage,
         features,
         demoUrl: p.demoUrl,
+        downloadUrl: p.downloadUrl,
         priceBasic: p.priceBasic,
         priceStandard: p.priceStandard,
         pricePremium: p.pricePremium,
