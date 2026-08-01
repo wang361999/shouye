@@ -13,9 +13,9 @@ const {
   AI_MODEL = 'gemini-3.6-flash',
 } = process.env;
 
-const MAX_CONTEXT_CHARS = 5_000;
-const MAX_FILE_CHARS = 1_200;
-const MAX_SELECTED_FILES = 10;
+const MAX_CONTEXT_CHARS = 120_000;
+const MAX_FILE_CHARS = 15_000;
+const MAX_SELECTED_FILES = 30;
 const SUMMARY_PATH = 'AI_ITERATION_SUMMARY.md';
 
 function fail(message) {
@@ -87,12 +87,14 @@ function scoreFile(file, keywords) {
   for (const keyword of keywords) {
     if (lower.includes(keyword)) score += keyword.length > 4 ? 3 : 1;
   }
-  if (file.startsWith('app/')) score += 2;
+  if (file.startsWith('app/')) score += 3;
   if (file.startsWith('components/')) score += 2;
   if (file.startsWith('lib/')) score += 2;
   if (file.startsWith('docs/')) score += 1;
-  if (file === 'package.json') score += 4;
-  if (file === 'prisma/schema.prisma') score += 1;
+  if (file === 'package.json') score += 5;
+  if (file === 'prisma/schema.prisma') score += 2;
+  if (file === 'next.config.mjs' || file === 'next.config.js') score += 3;
+  if (file === 'middleware.ts' || file === 'middleware.js') score += 3;
   return score;
 }
 
@@ -104,32 +106,30 @@ function collectContext(issue) {
 
   const issueText = `${issue.title}\n\n${issue.body || ''}`;
   const keywords = tokenize(issueText);
-  const mustInclude = new Set([
-    'package.json',
-    'app/api/admin/auto-iteration/route.ts',
-    'docs/free-ai-iteration-guide.md',
-  ]);
 
+  // 根据 issue 内容智能选择相关文件
   const selected = files
-    .map((file) => ({ file, score: mustInclude.has(file) ? 99 : scoreFile(file, keywords) }))
+    .map((file) => ({ file, score: scoreFile(file, keywords) }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_SELECTED_FILES)
     .map((item) => item.file);
 
   let context = '';
+  let actualCount = 0;
   for (const file of selected) {
     if (!existsSync(file) || !statSync(file).isFile()) continue;
     const content = readFileSync(file, 'utf8').slice(0, MAX_FILE_CHARS);
     const block = `\n\n--- FILE: ${file} ---\n${content}`;
     if (context.length + block.length > MAX_CONTEXT_CHARS) break;
     context += block;
+    actualCount++;
   }
 
   return {
-    tree: files.slice(0, 200).join('\n'),
+    tree: files.slice(0, 300).join('\n'),
     context,
-    selectedCount: selected.length,
+    selectedCount: actualCount,
   };
 }
 
@@ -153,10 +153,17 @@ function extractJson(text) {
 }
 
 async function callModel(issue, repoContext) {
-  const prompt = `
-你是这个开源免费项目的自动代码迭代执行器。请根据 GitHub Issue 需求直接生成安全、最小、可验证的代码改动。
+  const prompt = `你是一个专业的全栈开发工程师，正在维护这个开源项目。请认真分析 Issue 需求，仔细阅读代码，找到问题根因并修复。
 
-硬性边界：
+## 重要规则
+
+1. 必须认真阅读提供的代码文件，理解项目结构和路由逻辑，不要敷衍说"没问题"。
+2. 如果用户报告 404、白屏、报错等问题，必须找到具体原因并修复，不能回复"没发现问题"。
+3. 仔细检查路由文件、页面文件、API 路由、中间件、配置文件。
+4. 如果当前提供的代码不足以定位问题，在 summary 中说明需要查看哪些文件。
+
+## 安全边界
+
 1. 免费订单、免费授权、普通用户权限和后台功能可以自动迭代。
 2. 禁止泄露、生成或改写真实密钥、Token、数据库密码、OAuth Secret、Vercel Token。
 3. 禁止删除生产数据，禁止删除表、删除字段、批量清空或不可回滚的数据迁移。
@@ -164,7 +171,9 @@ async function callModel(issue, repoContext) {
 5. 不要修改 node_modules、.next、.env、.env.local、prisma/migrations。
 6. 尽量不引入新依赖；如果必须引入，说明原因。
 
-输出格式必须是严格 JSON，不要 Markdown，不要解释文字：
+## 输出格式
+
+输出严格 JSON，不要 Markdown，不要解释文字：
 {
   "summary": "一句话说明本次改动",
   "details": ["改动点 1", "改动点 2"],
@@ -176,32 +185,37 @@ async function callModel(issue, repoContext) {
   ]
 }
 
-如果需求不清楚或风险过高，返回 changes: []，并在 summary/details 里说明原因。
+如果确实没有需要修改的代码，在 summary 中详细说明你检查了哪些文件、为什么认为没有问题。
+
+## 仓库信息
 
 仓库：${GITHUB_REPOSITORY}
 
-Issue 标题：
-${issue.title}
+## Issue 需求
 
-Issue 内容：
+标题：${issue.title}
+
+内容：
 ${issue.body || ''}
 
-仓库文件列表：
+## 仓库文件列表
+
 ${repoContext.tree}
 
-相关文件内容：
+## 相关代码文件
+
 ${repoContext.context}
 `;
 
   const requestBody = {
     model: AI_MODEL,
-    temperature: 0.2,
-    max_tokens: 8_000,
+    temperature: 0.3,
+    max_tokens: 16_000,
     response_format: { type: 'json_object' },
     messages: [
       {
         role: 'system',
-        content: '你是谨慎的开源项目代码维护者，只输出严格 JSON，不要输出任何 Markdown 或解释文字。',
+        content: '你是专业的全栈开发工程师。你必须仔细阅读代码、找到问题根因并修复。禁止敷衍回复"没问题"。只输出严格 JSON。',
       },
       {
         role: 'user',
@@ -263,6 +277,26 @@ function applyChanges(result) {
   }
 
   if (applied.length === 0) {
+    writeFileSync(SUMMARY_PATH, [
+      `# AI 自动迭代结果`,
+      ``,
+      `模型：${AI_MODEL}`,
+      ``,
+      `## 摘要`,
+      ``,
+      result.summary || '模型未提供摘要。',
+      ``,
+      `## 细节`,
+      ``,
+      ...(Array.isArray(result.details) && result.details.length
+        ? result.details.map((item) => `- ${item}`)
+        : ['- 模型未提供细节。']),
+      ``,
+      `## 已写入文件`,
+      ``,
+      `- 未写入文件。`,
+      ``,
+    ].join('\n'), 'utf8');
     return applied;
   }
 
