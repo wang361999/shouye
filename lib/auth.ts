@@ -2,7 +2,23 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// 生产环境必须配置 JWT_SECRET，否则启动时报错
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'FATAL: JWT_SECRET 环境变量未配置。请在 Vercel 项目设置中添加 JWT_SECRET。' +
+      '可使用命令生成: openssl rand -base64 32'
+    );
+  }
+  // 开发环境使用回退值并警告
+  console.warn(
+    'WARNING: JWT_SECRET 未配置，正在使用不安全的开发回退值。' +
+    '生产环境部署前必须配置 JWT_SECRET 环境变量。'
+  );
+}
+const EFFECTIVE_JWT_SECRET = JWT_SECRET || 'dev-only-insecure-secret-do-not-use-in-production';
 
 /** Token 载荷类型 */
 interface TokenPayload {
@@ -41,7 +57,7 @@ export function generateToken(user: {
     username: user.username,
     role: user.role,
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, EFFECTIVE_JWT_SECRET, { expiresIn: '7d' });
 }
 
 /**
@@ -49,7 +65,7 @@ export function generateToken(user: {
  */
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, EFFECTIVE_JWT_SECRET) as TokenPayload;
   } catch {
     return null;
   }

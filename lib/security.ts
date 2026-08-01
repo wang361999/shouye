@@ -3,6 +3,8 @@
  * 输入净化、XSS 防护、SQL 注入防护
  */
 
+import crypto from 'crypto';
+
 /**
  * 净化字符串输入 - 防止 XSS
  * 移除 HTML 标签和危险字符
@@ -110,13 +112,9 @@ export function safeJsonParse<T>(str: string, fallback: T): T {
 }
 
 /**
- * 生成随机 token
+ * 生成密码学安全的随机 token
+ * 使用 Node.js crypto.randomBytes，适用于授权码、CSRF token 等场景
  */
 export function generateToken(length: number = 32): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  return crypto.randomBytes(length).toString('hex');
 }

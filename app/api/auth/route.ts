@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     });
 
     // ---- 返回用户信息（不返回密码） ----
-    return NextResponse.json({
+    const response = NextResponse.json({
       token,
       user: {
         id: user.id,
@@ -86,6 +86,19 @@ export async function POST(request: NextRequest) {
         role: user.role,
       },
     });
+
+    // 同时设置 httpOnly Cookie 作为安全层
+    // localStorage 中的 token 用于前端状态管理
+    // httpOnly Cookie 用于 API 请求鉴权（无法被 XSS 读取）
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60, // 7天，与 JWT 过期时间一致
+    });
+
+    return response;
   } catch (error) {
     console.error('[AUTH LOGIN ERROR]', error);
     return NextResponse.json(

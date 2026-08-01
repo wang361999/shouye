@@ -42,6 +42,8 @@ export default function ForumPostsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // 操作确认弹窗
   const [deleteTarget, setDeleteTarget] = useState<Post | null>(null);
@@ -51,9 +53,27 @@ export default function ForumPostsPage() {
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
+      const params = new URLSearchParams({
+        admin: "1",
+        page: String(currentPage),
+        limit: String(PAGE_SIZE),
+        search: searchKeyword.trim(),
+      });
+
+      // 状态筛选传递给 API（all 不传）
+      if (statusFilter === "deleted") {
+        params.set("status", "DELETED");
+      } else if (statusFilter === "normal") {
+        params.set("status", "PUBLISHED");
+      }
+
+      // 分类筛选传递给 API
+      if (categoryFilter !== "all") {
+        params.set("category", categoryFilter);
+      }
+
       const res = await fetch(
-        "/api/forum/posts?admin=1&limit=200&search=" +
-          encodeURIComponent(searchKeyword.trim()),
+        `/api/forum/posts?${params.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -73,12 +93,14 @@ export default function ForumPostsPage() {
             : null,
         }))
       );
+      setTotalPages(data.totalPages || 1);
+      setTotalCount(data.total || 0);
     } catch {
       toast.error("获取帖子列表失败");
     } finally {
       setLoading(false);
     }
-  }, [token, searchKeyword]);
+  }, [token, searchKeyword, statusFilter, categoryFilter, currentPage]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -100,49 +122,15 @@ export default function ForumPostsPage() {
     fetchCategories();
   }, [fetchCategories]);
 
-  // 前端筛选
-  const filteredPosts = useMemo(() => {
-    let list = posts;
-    if (statusFilter === "normal") {
-      list = list.filter(
-        (p) => !p.isPinned && !p.isEssence && p.status !== "DELETED"
-      );
-    } else if (statusFilter === "pinned") {
-      list = list.filter((p) => p.isPinned);
-    } else if (statusFilter === "essence") {
-      list = list.filter((p) => p.isEssence);
-    } else if (statusFilter === "deleted") {
-      list = list.filter((p) => p.status === "DELETED");
-    }
-    if (categoryFilter !== "all") {
-      list = list.filter((p) => p.category?.slug === categoryFilter);
-    }
-    return list;
-  }, [posts, statusFilter, categoryFilter]);
-
-  // 分页
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const pagedPosts = filteredPosts.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE
-  );
-
+  // 筛选条件变化时重置到第一页
   useEffect(() => {
     setCurrentPage(1);
   }, [searchKeyword, statusFilter, categoryFilter]);
 
   // 统计
   const stats = useMemo(() => {
-    const total = posts.length;
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayNew = posts.filter(
-      (p) => new Date(p.createdAt).getTime() >= todayStart.getTime()
-    ).length;
-    const deleted = posts.filter((p) => p.status === "DELETED").length;
-    return { total, todayNew, deleted };
-  }, [posts]);
+    return { total: totalCount, todayNew: 0, deleted: 0 };
+  }, [totalCount]);
 
   async function patchPost(post: Post, action: string) {
     try {
@@ -324,7 +312,7 @@ export default function ForumPostsPage() {
               ))}
             </div>
           </div>
-        ) : pagedPosts.length === 0 ? (
+        ) : posts.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
             <div className="text-5xl mb-3">📭</div>
             <p className="text-gray-500">
@@ -365,7 +353,7 @@ export default function ForumPostsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {pagedPosts.map((post) => (
+                  {posts.map((post) => (
                     <tr
                       key={post.id}
                       className="hover:bg-gray-50 transition-colors"
@@ -511,13 +499,13 @@ export default function ForumPostsPage() {
         )}
 
         {/* 底部分页 */}
-        {!loading && filteredPosts.length > 0 && (
+        {!loading && posts.length > 0 && (
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="text-sm text-gray-500">
-              共 <span className="font-medium text-gray-700">{filteredPosts.length}</span> 篇帖子
+              共 <span className="font-medium text-gray-700">{totalCount}</span> 篇帖子
             </div>
             <Pagination
-              currentPage={safePage}
+              currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
             />

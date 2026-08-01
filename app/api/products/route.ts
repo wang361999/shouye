@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// 缓存 GET 响应 1 小时（产品数据不频繁变化）
+export const revalidate = 3600;
+
 /**
  * GET /api/products - 公开接口，获取所有上架产品列表（无需鉴权）
  * 返回精简字段，features 字段从 JSON 字符串解析为数组

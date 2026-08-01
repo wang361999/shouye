@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
 
+// 缓存 GET 响应 1 小时（分类数据不频繁变化）
+// POST/PUT/DELETE 仍为动态请求，不受影响
+export const revalidate = 3600;
+
 // ============ GET /api/forum/categories - 获取分类列表 ============
 export async function GET() {
   try {
@@ -40,12 +44,7 @@ export async function POST(request: NextRequest) {
   try {
     // 管理员鉴权
     const admin = adminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: '需要管理员权限' },
-        { status: 401 }
-      );
-    }
+    if (admin instanceof Response) return admin;
 
     const body = await request.json();
     const { name, slug, icon, desc, sortOrder } = body;
@@ -95,12 +94,7 @@ export async function PUT(request: NextRequest) {
   try {
     // 管理员鉴权
     const admin = adminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: '需要管理员权限' },
-        { status: 401 }
-      );
-    }
+    if (admin instanceof Response) return admin;
 
     const body = await request.json();
     const { id, name, slug, icon, desc, sortOrder } = body;
@@ -166,12 +160,7 @@ export async function DELETE(request: NextRequest) {
   try {
     // 管理员鉴权
     const admin = adminAuth(request);
-    if (!admin) {
-      return NextResponse.json(
-        { error: '需要管理员权限' },
-        { status: 401 }
-      );
-    }
+    if (admin instanceof Response) return admin;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

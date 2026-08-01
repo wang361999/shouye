@@ -44,6 +44,11 @@ export default function CommentList({ comments: initialComments, postId }: Comme
     }
   }, [postId]);
 
+  // 挂载时主动从评论 API 获取全部评论（帖子详情 API 只返回 10 条）
+  useEffect(() => {
+    refreshComments();
+  }, [refreshComments]);
+
   const handleSubmit = async () => {
     if (!content.trim()) return;
     if (!token) {

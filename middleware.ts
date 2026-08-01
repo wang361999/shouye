@@ -63,6 +63,12 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
+  // 采样率控制：仅 10% 的请求被追踪，减少 Serverless 函数调用开销
+  // 完整统计可通过 Vercel Analytics 获取
+  if (Math.random() > 0.1) {
+    return response;
+  }
+
   const duration = Date.now() - start;
   const contentLength = response.headers.get('content-length');
   const estimatedBytes = contentLength ? parseInt(contentLength, 10) : 0;
