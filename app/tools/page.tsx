@@ -49,10 +49,15 @@ export default function ToolsPage() {
       setError(null);
 
       // 并行请求工具与分类列表
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
       const [toolsRes, catRes] = await Promise.all([
-        fetch("/api/tools").catch(() => null),
-        fetch("/api/admin/tools/categories").catch(() => null),
+        fetch("/api/tools", { signal: controller.signal }).catch(() => null),
+        fetch("/api/admin/tools/categories", { signal: controller.signal }).catch(() => null),
       ]);
+
+      clearTimeout(timeoutId);
 
       let toolsData: ToolItem[] = [];
       if (toolsRes && toolsRes.ok) {

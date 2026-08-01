@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Container from "@/components/common/Container";
 
@@ -28,15 +28,9 @@ interface ToolItem {
 export default function ToolDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }> | { id: string };
+  params: { id: string };
 }) {
-  // 兼容 Next.js 不同的 params 异步结构
-  const resolvedParams =
-    typeof (params as any)?.then === "function"
-      ? use(params as Promise<{ id: string }>)
-      : (params as { id: string });
-
-  const toolId = resolvedParams?.id;
+  const toolId = params?.id;
 
   const [tool, setTool] = useState<ToolItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,7 +43,10 @@ export default function ToolDetailPage({
     setLoading(true);
     setError(null);
 
-    fetch(`/api/tools/${toolId}`)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    fetch(`/api/tools/${toolId}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) {
           if (res.status === 404) {
@@ -65,10 +62,11 @@ export default function ToolDetailPage({
         setTool(toolData);
       })
       .catch((err: any) => {
-        if (active) setError(err.message || "获取工具详情失败");
+        if (active) setError(err.name === 'AbortError' ? '加载超时，请刷新重试' : (err.message || "获取工具详情失败"));
       })
       .finally(() => {
         if (active) setLoading(false);
+        clearTimeout(timeoutId);
       });
 
     return () => {

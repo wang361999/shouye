@@ -53,6 +53,7 @@ export default function ForumPage() {
   const [currentCategory, setCurrentCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('all');
 
   // 从 URL 获取标签参数
@@ -139,7 +140,9 @@ export default function ForumPage() {
           params.set('postType', 'discussion');
         }
 
-        const res = await fetch(`${url}?${params}`);
+        const res = await fetch(`${url}?${params}`, {
+          signal: AbortSignal.timeout(8000),
+        });
         if (res.ok) {
           const data = await res.json();
           const formattedPosts: Post[] = (data.posts || []).map((p: any) => ({
@@ -170,6 +173,7 @@ export default function ForumPage() {
         }
       } catch (err) {
         console.error('获取帖子失败:', err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -180,7 +184,9 @@ export default function ForumPage() {
   // 获取热门帖子
   const fetchHotPosts = useCallback(async () => {
     try {
-      const res = await fetch('/api/forum/posts?limit=5&sort=hot');
+      const res = await fetch('/api/forum/posts?limit=5&sort=hot', {
+          signal: AbortSignal.timeout(8000),
+        });
       if (res.ok) {
         const data = await res.json();
         const formatted: Post[] = data.posts.map((p: any) => ({
@@ -366,6 +372,17 @@ export default function ForumPage() {
                     <div className="h-3 bg-gray-100 rounded w-2/3" />
                   </div>
                 ))}
+              </div>
+            ) : loadError && posts.length === 0 ? (
+              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                <p className="text-4xl mb-3">😵</p>
+                <p className="text-gray-500 mb-4">数据加载超时，请检查网络后重试</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  重新加载
+                </button>
               </div>
             ) : (
               <PostList

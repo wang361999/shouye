@@ -255,16 +255,32 @@ function CollabProjectCard({ project }: { project: CollabProject }) {
 export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHomeProps) {
   const [data, setData] = useState<CommunityData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const forumRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/community/home", { cache: 'no-store' })
-      .then((res) => res.json())
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    fetch("/api/community/home", { cache: 'no-store', signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error('API error');
+        return res.json();
+      })
       .then((d) => {
         setData(d);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setLoadError(true);
+        setLoading(false);
+      })
+      .finally(() => clearTimeout(timeoutId));
+
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, []);
 
   const stats = data?.stats ?? { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 };
@@ -387,6 +403,17 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
                   </div>
                 ))}
               </div>
+            </div>
+          ) : loadError ? (
+            <div className="text-center py-16">
+              <p className="text-4xl mb-3">😵</p>
+              <p className="text-gray-500 mb-4">数据加载超时，请检查网络后重试</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                重新加载
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
