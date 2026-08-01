@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- 调用 GitHub API 创建 PR ----
-    const pr = await createGithubPullRequest(
+    const result = await createGithubPullRequest(
       owner,
       repo,
       title,
@@ -66,19 +66,19 @@ export async function POST(request: NextRequest) {
       base,
     );
 
-    if (!pr) {
+    if (!result.data) {
       return NextResponse.json(
-        { error: '创建 Pull Request 失败，请检查分支是否存在或是否有权限' },
+        { error: result.error || '创建 Pull Request 失败' },
         { status: 500 },
       );
     }
 
     return NextResponse.json(
       {
-        number: pr.number,
-        title: pr.title,
-        url: pr.url,
-        state: pr.state,
+        number: result.data.number,
+        title: result.data.title,
+        url: result.data.url,
+        state: result.data.state,
       },
       { status: 201 },
     );

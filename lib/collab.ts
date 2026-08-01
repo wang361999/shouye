@@ -678,6 +678,12 @@ export interface GithubPullRequest {
   state: string;
 }
 
+/** 创建 PR 的返回值：成功时 data 有值，失败时 error 有值 */
+export interface CreatePRResult {
+  data: GithubPullRequest | null;
+  error: string | null;
+}
+
 /**
  * 创建 Pull Request
  * 调用 GitHub REST API: POST /repos/{owner}/{repo}/pulls
@@ -688,7 +694,7 @@ export interface GithubPullRequest {
  * @param body PR 描述
  * @param head 源分支
  * @param base 目标分支（默认仓库默认分支）
- * @returns PR 信息，失败返回 null
+ * @returns { data, error } 成功时 data 有值，失败时 error 包含 GitHub 返回的错误信息
  */
 export async function createGithubPullRequest(
   owner: string,
@@ -697,7 +703,7 @@ export async function createGithubPullRequest(
   body: string,
   head: string,
   base?: string,
-): Promise<GithubPullRequest | null> {
+): Promise<CreatePRResult> {
   try {
     const token = await getGithubToken();
     const headers = buildGithubHeaders(token);
@@ -718,6 +724,14 @@ export async function createGithubPullRequest(
       }
     }
 
+    // head 和 base 不能相同
+    if (head === baseBranch) {
+      return {
+        data: null,
+        error: '源分支和目标分支不能相同，请选择不同的分支',
+      };
+    }
+
     const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/pulls`,
       {
@@ -734,23 +748,36 @@ export async function createGithubPullRequest(
 
     if (!response.ok) {
       const errData = await response.json().catch(() => null);
+      const githubMsg = errData?.message || `HTTP ${response.status}`;
+      // GitHub 常见错误的有优化文案
+      let friendly = githubMsg;
+      if (response.status === 422) {
+        friendly = `GitHub 拒绝创建 PR：${githubMsg}。常见原因：两个分支间没有差异提交、源分支不存在、或仓库未开启 Pull Request 功能`;
+      } else if (response.status === 403) {
+        friendly = `权限不足：${githubMsg}。请检查 GitHub Token 是否有该仓库的写入权限`;
+      } else if (response.status === 404) {
+        friendly = `仓库不存在或 Token 无权访问：${owner}/${repo}`;
+      }
       console.error(
         `[GITHUB CREATE PR ERROR] status=${response.status}`,
-        errData?.message,
+        githubMsg,
       );
-      return null;
+      return { data: null, error: friendly };
     }
 
     const data = await response.json();
 
     return {
-      number: data.number ?? 0,
-      title: data.title ?? title,
-      url: data.html_url ?? '',
-      state: data.state ?? 'open',
+      data: {
+        number: data.number ?? 0,
+        title: data.title ?? title,
+        url: data.html_url ?? '',
+        state: data.state ?? 'open',
+      },
+      error: null,
     };
   } catch (error) {
     console.error('[GITHUB CREATE PR ERROR]', error);
-    return null;
+    return { data: null, error: '创建 Pull Request 时发生异常' };
   }
 }

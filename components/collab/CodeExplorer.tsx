@@ -399,6 +399,16 @@ export default function CodeExplorer({
       toast.error('请选择源分支');
       return;
     }
+    // 客户端校验：head 和 base 不能相同（GitHub 会返回 422 错误）
+    if (prForm.base && prForm.head === prForm.base) {
+      toast.error('源分支和目标分支不能相同，请选择不同的分支');
+      return;
+    }
+    // 只有一个分支时提示用户先新建分支
+    if (branches.length < 2 && !prForm.base) {
+      toast.error('仓库只有一个分支，请先点击「+ 新建分支」创建功能分支后再发起 PR');
+      return;
+    }
     setCreatingPR(true);
     try {
       const res = await fetch('/api/collab/github/pull-request', {
@@ -429,7 +439,7 @@ export default function CodeExplorer({
     } finally {
       setCreatingPR(false);
     }
-  }, [prForm, owner, repo, token]);
+  }, [prForm, owner, repo, token, branches]);
 
   // ============ 打开新建分支表单 ============
   const openNewBranch = useCallback(() => {
@@ -441,11 +451,21 @@ export default function CodeExplorer({
   // ============ 打开 PR 表单 ============
   const openPR = useCallback(() => {
     setCreatedPR(null);
+    // 智能选择默认 head 和 base，避免两者相同（相同会导致 GitHub 422 错误）
+    // 策略：head 默认当前分支，base 默认第一个与 head 不同的分支
+    const defaultHead = currentBranch || branches[0] || '';
+    let defaultBase = '';
+    if (branches.length >= 2) {
+      defaultBase = branches.find((b) => b !== defaultHead) || branches[0];
+    } else if (branches.length === 1) {
+      // 只有一个分支时，base 留空（让后端用默认分支），但提示用户新建分支
+      defaultBase = '';
+    }
     setPrForm({
       title: '',
       body: '',
-      head: currentBranch || branches[0] || '',
-      base: branches[0] || '',
+      head: defaultHead,
+      base: defaultBase,
     });
     setShowPR(true);
   }, [currentBranch, branches]);
@@ -912,6 +932,23 @@ export default function CodeExplorer({
                       </select>
                     </div>
                   </div>
+                  {/* 单分支提示 */}
+                  {branches.length < 2 && (
+                    <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
+                      <span className="flex-shrink-0">⚠️</span>
+                      <span>
+                        仓库目前只有一个分支，无法直接发起 PR。请先点击「+ 新建分支」创建功能分支，
+                        在功能分支上修改代码后，再从功能分支向主分支发起 PR。
+                      </span>
+                    </div>
+                  )}
+                  {/* head == base 提示 */}
+                  {prForm.head && prForm.base && prForm.head === prForm.base && (
+                    <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400">
+                      <span className="flex-shrink-0">✗</span>
+                      <span>源分支和目标分支不能相同，请选择不同的分支</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
                   <button
