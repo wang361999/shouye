@@ -2,27 +2,42 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * 全局中间件 - 请求追踪
+ * 全局中间件 - 安全头 + 请求追踪
  *
- * 追踪每个请求的：路由、方法、响应时间
- * 通过 fire-and-forget 方式发送到内部追踪 API，不阻塞响应
+ * 1. 为所有响应注入安全头
+ * 2. 轻量级请求追踪（仅 API 路由，fire-and-forget）
  */
 
 // 需要跳过追踪的路径
 const SKIP_PATHS = [
-  '/api/_monitor',    // 追踪 API 自身（避免无限循环）
-  '/_next/static',    // 静态资源
-  '/_next/image',     // 图片优化
+  '/api/_monitor',
+  '/_next/static',
+  '/_next/image',
   '/favicon.ico',
   '/robots.txt',
+  '/sitemap.xml',
 ];
+
+// 安全头配置
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+};
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 跳过不需要追踪的路径
+  // 跳过静态资源
   if (SKIP_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    // 即使是静态资源也注入安全头
+    for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+      response.headers.set(key, value);
+    }
+    return response;
   }
 
   const start = Date.now();
@@ -34,15 +49,23 @@ export function middleware(request: NextRequest) {
     },
   });
 
-  // 计算耗时
-  const duration = Date.now() - start;
+  // 注入安全头
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(key, value);
+  }
 
-  // 从响应头估算数据传输量
+  // 隐藏 Server 头
+  response.headers.delete('X-Powered-By');
+
+  // 仅追踪 API 路由（减少 Serverless 函数调用开销）
+  const isApi = pathname.startsWith('/api/');
+  if (!isApi) {
+    return response;
+  }
+
+  const duration = Date.now() - start;
   const contentLength = response.headers.get('content-length');
   const estimatedBytes = contentLength ? parseInt(contentLength, 10) : 0;
-
-  // 判断是否为 API 调用（Serverless Function）
-  const isApi = pathname.startsWith('/api/');
 
   // fire-and-forget 追踪，不阻塞响应
   try {
@@ -51,7 +74,6 @@ export function middleware(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // 内部调用标识，追踪 API 不需要鉴权
         'X-Internal-Track': '1',
       },
       body: JSON.stringify({
@@ -60,21 +82,17 @@ export function middleware(request: NextRequest) {
         duration,
         isApi,
         dataBytes: estimatedBytes,
-        // 请求来源：用户IP的前3位用于地区统计，不存储完整IP
         statusCode: response.status,
       }),
       keepalive: true,
-    }).catch(() => {
-      // 静默失败，不影响正常请求
-    });
+    }).catch(() => {});
   } catch {
-    // 忽略追踪错误
+    // 忽略
   }
 
   return response;
 }
 
 export const config = {
-  // 匹配所有路径
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

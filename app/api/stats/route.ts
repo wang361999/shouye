@@ -15,11 +15,14 @@ export async function GET() {
       prisma.post.count({ where: { status: { not: 'DELETED' } } }),
     ]);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       toolCount,
       userCount,
       postCount,
     });
+    // 统计数据可缓存 10 分钟（减少数据库查询）
+    response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1200');
+    return response;
   } catch (error) {
     console.error('[PUBLIC STATS ERROR]', error);
     // 降级返回零值，不暴露错误详情

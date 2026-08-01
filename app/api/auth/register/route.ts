@@ -3,17 +3,29 @@ import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { generateToken } from '@/lib/auth';
+import { rateLimit, getClientIP } from '@/lib/rate-limit';
+import { sanitizeString } from '@/lib/security';
 
 /** 邮箱格式校验 */
 function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 }
 
 /** POST /api/auth/register - 用户注册 */
 export async function POST(request: NextRequest) {
+  // ---- 限流：每 IP 每分钟最多 5 次注册请求 ----
+  const clientIP = getClientIP(request);
+  const rl = rateLimit(`register:${clientIP}`, 5, 60_000);
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: '注册请求过于频繁，请稍后再试' },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
-    const { username, email, password } = body;
+    let { username, email, password } = body;
 
     // ---- 基础非空校验 ----
     if (!username || !email || !password) {
@@ -22,6 +34,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // ---- 输入净化 ----
+    username = sanitizeString(String(username)).trim().slice(0, 20);
+    email = String(email).trim().toLowerCase().slice(0, 100);
+    password = String(password).slice(0, 128);
 
     // ---- 输入校验：用户名 3-20 字符 ----
     if (

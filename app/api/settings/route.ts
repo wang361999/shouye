@@ -26,13 +26,16 @@ export async function GET() {
     }
 
     // 合并默认值（数据库未设置时降级）
-    return NextResponse.json({
+    const response = NextResponse.json({
       site_name: settingsObj.site_name || DEFAULT_SETTINGS.site_name,
       site_description:
         settingsObj.site_description || DEFAULT_SETTINGS.site_description,
       site_logo: settingsObj.site_logo ?? DEFAULT_SETTINGS.site_logo,
       site_favicon: settingsObj.site_favicon ?? DEFAULT_SETTINGS.site_favicon,
     });
+    // 公开设置可缓存 5 分钟（CDN + 浏览器）
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    return response;
   } catch (error) {
     // 数据库不可用时降级返回默认值
     console.error('[PUBLIC SETTINGS GET ERROR]', error);
