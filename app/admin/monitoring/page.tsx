@@ -58,6 +58,13 @@ interface MonitoringData {
     daysElapsed: number;
     daysTotal: number;
   };
+  meta: {
+    source: string;
+    accuracy: string;
+    lastRecordedAt: string | null;
+    routeRowCount: number;
+    trackingMode: string;
+  };
   today: {
     functionInvocations: number;
     edgeRequests: number;
@@ -134,7 +141,7 @@ export default function MonitoringPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">📊 用量监控</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Vercel 免费版资源使用情况 · 实时追踪
+              站内访问趋势和热门路由 · 用于排查高消耗页面
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -166,12 +173,30 @@ export default function MonitoringPage() {
             <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
               <span>📅</span>
               <span>
-                当前计费周期：{data.billing.cycleStart} ~ {data.billing.cycleEnd}
+                当前统计周期：{data.billing.cycleStart} ~ {data.billing.cycleEnd}
                 （第 {data.billing.daysElapsed}/{data.billing.daysTotal} 天）
               </span>
               <span className="ml-auto text-xs text-blue-500">
                 自动刷新中（每60秒）
               </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <InfoCard
+                label="数据来源"
+                value={data.meta.source}
+                desc={data.meta.accuracy}
+              />
+              <InfoCard
+                label="最近入库"
+                value={data.meta.lastRecordedAt ? new Date(data.meta.lastRecordedAt).toLocaleString() : "暂无记录"}
+                desc={data.meta.lastRecordedAt ? "如果这里一直不变，说明埋点没有写入数据库。" : "还没有采集到请求数据。"}
+              />
+              <InfoCard
+                label="路由样本"
+                value={`${data.meta.routeRowCount} 条`}
+                desc="按日期、路径、方法累积，再按本月请求数聚合排序。"
+              />
             </div>
 
             {/* 今日概览 */}
@@ -307,7 +332,7 @@ export default function MonitoringPage() {
             {/* 路由 Top 列表 */}
             <div>
               <h2 className="text-base font-semibold text-gray-800 mb-3">
-                🔥 热门路由 Top 20（本月）
+                🔥 热门路由 Top 20（本月聚合）
               </h2>
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 {data.routes.length === 0 ? (
@@ -367,10 +392,10 @@ export default function MonitoringPage() {
             {/* 说明 */}
             <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500">
               <p className="mb-1">ℹ️ 说明：</p>
-              <p>• 数据通过全局中间件实时追踪，每次请求都会记录函数调用、CPU 时间、数据传输等指标</p>
-              <p>• 内存用量按 CPU 时间 × 256MB（Vercel 默认函数内存）估算</p>
-              <p>• 计费周期按自然月计算，每月1日重置</p>
-              <p>• 数据存储在项目数据库中，重启不会丢失</p>
+              <p>• 这里显示的是站内中间件埋点估算数据，用来判断访问趋势和哪个路由最热，不是 Vercel 官方账单。</p>
+              <p>• Vercel 官方函数调用、带宽、执行时间仍以 Vercel 后台 Usage 页面为准。</p>
+              <p>• CPU、流量、内存是根据请求类型和采集耗时估算，用于相对比较，不用于精确扣费判断。</p>
+              <p>• 数据存储在项目数据库中；如果“最近入库”不更新，优先检查数据库连接和中间件追踪接口。</p>
             </div>
           </>
         ) : (
@@ -468,6 +493,24 @@ function TodayCard({
       </div>
       <div className="text-xl font-bold text-gray-900">{value}</div>
       <div className="text-xs text-gray-500 mt-1">{label}</div>
+    </div>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+  desc,
+}: {
+  label: string;
+  value: string;
+  desc: string;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="text-xs text-gray-500">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-gray-900">{value}</div>
+      <p className="mt-1 text-xs text-gray-500">{desc}</p>
     </div>
   );
 }

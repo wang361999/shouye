@@ -11,7 +11,8 @@ import prisma from '@/lib/prisma';
 export async function POST(request: NextRequest) {
   // 验证内部调用标识
   const internalHeader = request.headers.get('x-internal-track');
-  if (internalHeader !== '1') {
+  const expectedHeader = process.env.MONITOR_INTERNAL_SECRET || '1';
+  if (internalHeader !== expectedHeader) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -37,7 +38,8 @@ export async function POST(request: NextRequest) {
           ? 2048 // API 平均 2KB
           : 15360; // 页面平均 15KB
 
-    // 估算 CPU 时间：如果没有 duration，按类型估算
+    // 估算 CPU 时间：中间件只能拿到轻量耗时，拿不到 Vercel 官方 CPU 账单。
+    // 这里作为站内趋势参考，不等同于 Vercel Usage 页面。
     const cpuMs = duration > 0 ? duration : isApi ? 50 : 10;
 
     // 估算内存使用（MB-seconds）：每次调用约 256MB × 平均 100ms = 0.0071 MB·s

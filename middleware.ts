@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextFetchEvent, NextRequest } from 'next/server';
 
 /**
  * 全局中间件 - 安全头 + 请求追踪
  *
  * 1. 为所有响应注入安全头
- * 2. 请求追踪（使用 fetch keepalive 确保追踪请求在响应返回后仍能完成）
+ * 2. 请求追踪（使用 waitUntil 确保追踪请求不会因响应返回而被提前中断）
  */
 
 // 需要跳过追踪的路径
@@ -27,7 +27,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
 };
 
-export function middleware(request: NextRequest) {
+export function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
 
   // 跳过静态资源（仍注入安全头）
@@ -57,24 +57,27 @@ export function middleware(request: NextRequest) {
   // 判断是否为 API 路由
   const isApi = pathname.startsWith('/api/');
 
-  // 使用 fetch keepalive 发送追踪请求
-  // keepalive 选项确保请求在页面/中间件卸载后仍能完成
-  // 这是浏览器和 Edge Runtime 标准的 beacon 发送方式
+  // 使用 waitUntil 发送追踪请求。
+  // 之前只 fire-and-forget，生产环境里很容易被提前回收，导致监控数据像“假的”。
   try {
     const trackUrl = new URL('/api/_monitor/track', request.url);
-    fetch(trackUrl.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Internal-Track': '1',
-      },
-      body: JSON.stringify({
-        path: pathname,
-        method: request.method,
-        isApi,
-      }),
-      keepalive: true,
-    }).catch(() => {});
+    const startedAt = Date.now();
+    event.waitUntil(
+      fetch(trackUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Internal-Track': process.env.MONITOR_INTERNAL_SECRET || '1',
+        },
+        body: JSON.stringify({
+          path: pathname,
+          method: request.method,
+          isApi,
+          duration: Math.max(1, Date.now() - startedAt),
+          dataBytes: 0,
+        }),
+      }).catch(() => undefined),
+    );
   } catch {
     // 忽略追踪错误，不影响正常请求
   }

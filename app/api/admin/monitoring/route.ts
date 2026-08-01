@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
-import { Prisma } from '@prisma/client';
 
 // ============ Vercel 免费版限额配置 ============
 const FREE_TIER_LIMITS = {
@@ -34,7 +33,7 @@ export async function GET(request: NextRequest) {
     nDaysAgo.setDate(nDaysAgo.getDate() - (days - 1));
 
     // ---- 并行查询 ----
-    const [dailyStats, monthAgg, routeStats] = await Promise.all([
+    const [dailyStats, monthAgg, routeStats, lastDaily, routeRowCount] = await Promise.all([
       // 每日统计（N天）
       prisma.monitoringDaily.findMany({
         where: { date: { gte: nDaysAgo } },
@@ -58,16 +57,40 @@ export async function GET(request: NextRequest) {
         _count: true,
       }),
 
-      // 路由级别统计（当月 Top 20）
-      prisma.monitoringRoute.findMany({
+      // 路由级别统计（按当月总请求数聚合 Top 20）
+      prisma.monitoringRoute.groupBy({
+        by: ['path', 'method'],
         where: {
           date: {
             gte: monthStart,
             lt: monthEnd,
           },
         },
-        orderBy: { requestCount: 'desc' },
+        _sum: {
+          requestCount: true,
+          totalCpuMs: true,
+          totalDataBytes: true,
+        },
+        orderBy: {
+          _sum: {
+            requestCount: 'desc',
+          },
+        },
         take: 20,
+      }),
+
+      prisma.monitoringDaily.findFirst({
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true },
+      }),
+
+      prisma.monitoringRoute.count({
+        where: {
+          date: {
+            gte: monthStart,
+            lt: monthEnd,
+          },
+        },
       }),
     ]);
 
@@ -131,10 +154,13 @@ export async function GET(request: NextRequest) {
     const routeList = routeStats.map((r) => ({
       path: r.path,
       method: r.method,
-      requestCount: r.requestCount,
-      totalCpuMs: r.totalCpuMs,
-      avgCpuMs: r.requestCount > 0 ? Math.round(r.totalCpuMs / r.requestCount) : 0,
-      totalDataMB: Number(r.totalDataBytes) / (1024 * 1024),
+      requestCount: r._sum.requestCount || 0,
+      totalCpuMs: r._sum.totalCpuMs || 0,
+      avgCpuMs:
+        r._sum.requestCount && r._sum.totalCpuMs
+          ? Math.round(r._sum.totalCpuMs / r._sum.requestCount)
+          : 0,
+      totalDataMB: Number(r._sum.totalDataBytes || 0) / (1024 * 1024),
     }));
 
     // ---- 剩余配额 ----
@@ -188,6 +214,13 @@ export async function GET(request: NextRequest) {
       trend: fullTrend,
       routes: routeList,
       billing: billingInfo,
+      meta: {
+        source: '站内中间件埋点估算',
+        accuracy: '用于趋势和热门路由判断，不等同于 Vercel 官方 Usage 账单',
+        lastRecordedAt: lastDaily?.updatedAt?.toISOString() || null,
+        routeRowCount,
+        trackingMode: 'middleware_waitUntil',
+      },
       today: todayData
         ? {
             functionInvocations: todayData.functionInvocations,
