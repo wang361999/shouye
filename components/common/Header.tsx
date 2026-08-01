@@ -8,7 +8,7 @@ import ThemeToggle from "./ThemeToggle";
 
 const toolLinks = [
   { name: "浏览全部工具", href: "/#tools" },
-  { name: "产品中心", href: "/products" },
+  { name: "开源项目", href: "/products" },
 ];
 
 const forumLinks = [
@@ -296,12 +296,12 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
               )}
             </div>
 
-            {/* 产品 */}
+            {/* 开源 */}
             <Link
               href="/products"
               className="px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
             >
-              产品
+              开源
             </Link>
 
             {/* 文档 */}
