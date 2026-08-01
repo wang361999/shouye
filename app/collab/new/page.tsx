@@ -284,10 +284,18 @@ export default function NewCollabPage() {
       </Link>
 
       {/* 页面标题 */}
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-        <span className="mr-2">📣</span>
-        发起召集令
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <span className="mr-2">📣</span>
+          发起召集令
+        </h1>
+        <Link
+          href="/collab/guide"
+          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+        >
+          📖 使用教程
+        </Link>
+      </div>
 
       {/* 表单 */}
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-6">

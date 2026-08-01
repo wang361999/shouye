@@ -42,6 +42,11 @@ const SECTIONS = [
     icon: '🐙',
   },
   {
+    id: 'collab',
+    title: '协同创作召集令',
+    icon: '🚀',
+  },
+  {
     id: 'api',
     title: 'API 文档',
     icon: '🔌',
@@ -371,6 +376,114 @@ export default function DocsPage() {
                   Ruby、Swift、Kotlin、Bash、YAML、JSON、XML、HTML、CSS、SCSS、SQL、
                   Markdown 等主流语言均支持语法高亮。文件大小限制 100KB 以内。
                 </p>
+              </div>
+            </div>
+          </section>
+
+          {/* 协同创作召集令 */}
+          <section id="collab" className="scroll-mt-20">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">🚀 协同创作召集令</h2>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                GitHub 协同创作召集令是平台的核心功能，帮助开发者发起开源协作项目，
+                邀请社区成员共同参与代码编写。支持手动添加已有仓库或登录 GitHub 创建新仓库，
+                包含任务清单、团队管理、提交贡献、审核流程等完整协作功能。
+              </p>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-blue-700">
+                  📖 完整使用教程请查看：
+                  <Link href="/collab/guide" className="font-semibold underline ml-1">
+                    召集令使用指南
+                  </Link>
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">发起召集令</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  访问 <Link href="/collab/new" className="text-blue-600 underline">发起召集令</Link> 页面，
+                  填写项目信息并关联 GitHub 仓库。支持两种方式：
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1.5 ml-4 list-disc">
+                  <li><strong>手动添加</strong>：输入已有 GitHub 仓库 URL，自动解析仓库信息</li>
+                  <li><strong>创建新仓库</strong>：通过 GitHub API 直接创建新仓库（需配置 Token）</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">任务管理</h3>
+                <p className="text-sm text-gray-600">
+                  项目 Owner/Maintainer 可创建开发任务，成员认领任务后开始开发。
+                  任务状态流转：待认领 → 进行中 → 待审核 → 已完成。
+                  支持优先级（紧急/高/中/低）、截止日期、指派人和标签。
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">提交贡献与审核</h3>
+                <p className="text-sm text-gray-600">
+                  成员在 GitHub 提交代码后，可在平台记录贡献（commit/PR/issue/docs），
+                  关联任务和分支信息。Owner/Maintainer 审核贡献，通过或拒绝。
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">协作规范</h3>
+                <ul className="text-sm text-gray-600 space-y-1.5 ml-4 list-disc">
+                  <li>主分支受保护，通过 Pull Request 提交代码</li>
+                  <li>每次提交需通过 CI 自动检查（语法、格式、测试）</li>
+                  <li>任务需先认领再开发，避免重复工作</li>
+                  <li>Owner/Maintainer 审核 PR 后合并到主分支</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">角色权限</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="text-left px-3 py-2 font-medium text-gray-600">角色</th>
+                        <th className="text-left px-3 py-2 font-medium text-gray-600">权限说明</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      <tr>
+                        <td className="px-3 py-2"><span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">Owner</span></td>
+                        <td className="px-3 py-2 text-gray-600">项目所有者，全部管理权限</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2"><span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Maintainer</span></td>
+                        <td className="px-3 py-2 text-gray-600">维护者，可管理任务和审核贡献</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2"><span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Member</span></td>
+                        <td className="px-3 py-2 text-gray-600">普通成员，可认领任务和提交贡献</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Link
+                  href="/collab"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  🐙 浏览召集令
+                </Link>
+                <Link
+                  href="/collab/new"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  🚀 发起召集令
+                </Link>
+                <Link
+                  href="/collab/guide"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  📖 完整教程
+                </Link>
               </div>
             </div>
           </section>

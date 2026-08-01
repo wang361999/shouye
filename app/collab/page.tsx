@@ -179,10 +179,18 @@ export default function CollabListPage() {
 
       {/* 页面标题 */}
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-          <span className="mr-2">🤝</span>
-          GitHub 协同创作召集令
-        </h1>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+            <span className="mr-2">🤝</span>
+            GitHub 协同创作召集令
+          </h1>
+          <Link
+            href="/collab/guide"
+            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap"
+          >
+            📖 使用教程
+          </Link>
+        </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           发起开源协作项目，召集开发者一起共建 GitHub 仓库
         </p>
