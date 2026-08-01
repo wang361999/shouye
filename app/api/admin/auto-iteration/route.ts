@@ -73,7 +73,7 @@ async function readConfig() {
     executorName: hasAiWebhook
       ? '外部 AI 执行器'
       : hasGitHubToken
-        ? 'GitHub Issue 迭代队列'
+        ? 'GitHub Issue + 免费 AI 执行器'
         : '站内日志迭代队列',
   };
 }

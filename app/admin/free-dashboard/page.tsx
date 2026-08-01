@@ -335,11 +335,16 @@ export default function FreeDashboardPage() {
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-indigo-800">
-                    后台现在会把迭代请求放进执行队列。当前模式是“{data.autoIteration.executorName}”；只有配置外部 AI Webhook 时，才会自动把需求交给会写代码的 AI 执行器。
+                    后台现在会把迭代请求放进执行队列。当前模式是“{data.autoIteration.executorName}”；配置 GitHub Token 后可进入免费 AI 执行器，配置外部 AI Webhook 时则优先使用你自己的执行器。
                   </p>
-                  {!data.autoIteration.aiExecutorConfigured && (
+                  {!data.autoIteration.aiExecutorConfigured && !data.autoIteration.githubIssueConfigured && (
                     <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
-                      已接入免费请求队列，但还没接入能自动写代码的外部 AI。配置 <span className="font-mono">AI_ITERATION_WEBHOOK_URL</span> 后，才会自动交给代码执行器。
+                      已接入站内日志队列，但还没接入 GitHub 免费 AI 执行器。配置 <span className="font-mono">GITHUB_TOKEN</span> 后，后台请求会进入 GitHub Issue 并触发自动 PR 流程。
+                    </div>
+                  )}
+                  {!data.autoIteration.aiExecutorConfigured && data.autoIteration.githubIssueConfigured && (
+                    <div className="mt-3 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                      已接入 GitHub 免费 AI 执行器。后台提交请求后，会创建 Issue，并由 GitHub Actions 尝试生成代码 PR。
                     </div>
                   )}
                   {lastAutoRequest ? (

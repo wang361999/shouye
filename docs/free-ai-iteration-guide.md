@@ -51,21 +51,21 @@
 
 这个能力默认是半自动：AI 可以改代码、跑检查、输出日志，但上线动作要由管理员确认。因为本项目是开源免费项目，免费订单、免费授权、普通权限和后台流程可以进入自动迭代；真正需要拦住的是密钥泄露、生产数据删除、破坏性数据库变更、真实支付或外部计费。
 
-注意：后台页面本身不会凭空拥有“写代码的 AI”。现在默认已接入“站内日志迭代队列”，点击按钮会记录一条迭代请求；如果配置了 `GITHUB_TOKEN`，会升级为 GitHub Issue 迭代队列；如果配置了 `AI_ITERATION_WEBHOOK_URL`，才会交给真正能写代码的外部 AI 执行器。
+注意：后台页面本身不会凭空拥有“写代码的 AI”。现在默认已接入“站内日志迭代队列”，点击按钮会记录一条迭代请求；如果配置了 `GITHUB_TOKEN`，会升级为 GitHub Issue 队列，并由 GitHub Actions 里的免费 AI 执行器尝试生成 PR；如果配置了 `AI_ITERATION_WEBHOOK_URL`，则优先交给你自己的外部 AI 执行器。
 
 ## 真正自动执行需要什么
 
 如果要让后台按钮真的触发 AI 自动改代码，需要准备：
 
 1. `AI_ITERATION_WEBHOOK_URL`：你的 AI 代码执行服务地址。
-2. `GITHUB_TOKEN`：允许创建 Issue 或写入仓库的 Token。
-3. 执行器能力：能 clone 仓库、改代码、运行 `npm run lint` 和 `npm run build`、提交变更。
+2. `GITHUB_TOKEN`：允许创建 Issue 的 Token；使用 GitHub 免费执行器时，后台提交 Issue 后会触发 `.github/workflows/free-ai-issue-executor.yml`。
+3. 执行器能力：GitHub Actions 会调用 GitHub Models 读 Issue、改代码、运行 `npm run lint` 和 `npm run build`、提交分支并创建 PR。
 4. 安全限制：免费订单、免费授权和普通权限逻辑可以自动改；真实支付、密钥、生产数据删除和破坏性数据库变更默认不能自动改。
 
 当前执行模式：
 
 1. 只配置网站本身：站内日志迭代队列。
-2. 配置 `GITHUB_TOKEN`：GitHub Issue 迭代队列。
+2. 配置 `GITHUB_TOKEN`：GitHub Issue + 免费 AI 执行器。
 3. 配置 `AI_ITERATION_WEBHOOK_URL`：外部 AI 执行器。
 
 ## GitHub 自动合并
@@ -79,7 +79,7 @@
 3. 小版本和补丁更新自动合并。
 4. 大版本更新保留人工确认。
 
-这适合依赖维护，不等于后台能自动实现任意业务功能。业务功能仍然需要进入站内队列、GitHub Issue 队列，或交给外部 AI 执行器。
+这适合依赖维护；业务功能会进入站内队列、GitHub Issue + 免费 AI 执行器，或交给外部 AI 执行器。免费执行器会自动生成 PR，但合并前仍建议管理员看一眼改动。
 
 建议每次 AI 完成后输出这三类日志：
 

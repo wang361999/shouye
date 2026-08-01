@@ -1,0 +1,143 @@
+name: Free AI issue executor
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - labeled
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "要执行的 GitHub Issue 编号"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  models: read
+
+concurrency:
+  group: free-ai-issue-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    name: Generate code from issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.issue.title, 'AI 自动迭代请求：') ||
+      contains(join(github.event.issue.labels.*.name, ','), 'ai-iteration')
+
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+      AI_MODEL: openai/gpt-4.1
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate changes with GitHub Models
+        run: node scripts/free-ai-issue-executor.mjs
+
+      - name: Check generated diff
+        id: diff
+        run: |
+          if git diff --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment when no changes
+        if: steps.diff.outputs.has_changes == 'false'
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "AI 自动迭代执行完成，但没有生成可提交的代码改动。请补充更明确的页面、接口或期望结果后再试。"
+
+      - name: Create working branch
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "ai-iteration/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
+
+      - name: Run validation
+        if: steps.diff.outputs.has_changes == 'true'
+        id: validation
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            echo "## npm run lint"
+            npm run lint
+            echo
+            echo "## npm run build"
+            npm run build
+          } 2>&1 | tee ai-validation.log
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/ethhy?schema=public
+          JWT_SECRET: ci-only-jwt-secret
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+      - name: Commit and push changes
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          git add -A
+          git commit -m "AI iteration for issue #${ISSUE_NUMBER}"
+          git push --set-upstream origin "ai-iteration/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
+
+      - name: Create pull request
+        if: steps.diff.outputs.has_changes == 'true'
+        id: pr
+        run: |
+          STATUS="通过"
+          if [ "${{ steps.validation.outcome }}" != "success" ]; then
+            STATUS="未通过，需要人工检查"
+          fi
+
+          BODY="$(cat AI_ITERATION_SUMMARY.md)
+
+          ## 验证结果
+
+          lint/build：${STATUS}
+
+          关联 Issue：#${ISSUE_NUMBER}
+          "
+
+          PR_URL="$(gh pr create \
+            --title "AI 自动迭代：Issue #${ISSUE_NUMBER}" \
+            --body "$BODY" \
+            --base main \
+            --head "ai-iteration/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}")"
+
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Comment with result
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          STATUS="通过"
+          if [ "${{ steps.validation.outcome }}" != "success" ]; then
+            STATUS="未通过，需要人工检查"
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "AI 自动迭代已生成 PR：${{ steps.pr.outputs.pr_url }}
+
+          验证结果：${STATUS}
+
+          合并前请检查改动是否符合预期。"
