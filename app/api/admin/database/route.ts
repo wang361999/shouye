@@ -72,11 +72,36 @@ export async function GET(request: NextRequest) {
 
     // ---- 数据库大小（PostgreSQL） ----
     let dbSize = null;
+    let dbSizeDetail = null;
     try {
       const sizeResult = await prisma.$queryRaw<Array<{ size: bigint }>>`
         SELECT pg_database_size(current_database()) as size
       `;
       dbSize = Number(sizeResult[0].size);
+
+      // 获取数据库大小明细：数据部分 vs 索引部分 vs TOAST
+      const detailResult = await prisma.$queryRaw<
+        Array<{ heap: bigint; indexes: bigint; toast: bigint; total: bigint }>
+      >`
+        SELECT
+          COALESCE(SUM(pg_relation_size(c.oid, 'main')), 0)::bigint as heap,
+          COALESCE(SUM(pg_relation_size(c.oid, 'fsm') + pg_relation_size(c.oid, 'vm') + pg_relation_size(c.oid, 'init')), 0)::bigint as "fsmVm",
+          COALESCE(SUM(pg_total_relation_size(c.oid) - pg_relation_size(c.oid) - COALESCE(pg_relation_size(reltoastrelid), 0)), 0)::bigint as indexes,
+          COALESCE(SUM(COALESCE(pg_total_relation_size(c.reltoastrelid), 0)), 0)::bigint as toast,
+          pg_database_size(current_database())::bigint as total
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = 'r'
+      `;
+      if (detailResult.length > 0) {
+        const d = detailResult[0];
+        dbSizeDetail = {
+          dataBytes: Number(d.heap),       // 数据本体
+          indexBytes: Number(d.indexes),    // 索引
+          toastBytes: Number(d.toast),      // TOAST（大字段存储）
+          totalBytes: Number(d.total),       // 总计
+        };
+      }
     } catch {
       // 忽略
     }
@@ -127,6 +152,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       tables: tableStats,
       dbSize,
+      dbSizeDetail,
+      // Vercel 免费版 PostgreSQL 限额 256MB
+      dbLimitBytes: 256 * 1024 * 1024,
       tableSizes,
       cleanableEstimates,
       dbInfo,

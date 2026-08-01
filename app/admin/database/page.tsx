@@ -26,9 +26,18 @@ interface CleanableEstimate {
   description: string;
 }
 
+interface DbSizeDetail {
+  dataBytes: number;
+  indexBytes: number;
+  toastBytes: number;
+  totalBytes: number;
+}
+
 interface DatabaseData {
   tables: TableStat[];
   dbSize: number | null;
+  dbSizeDetail: DbSizeDetail | null;
+  dbLimitBytes: number;
   tableSizes: TableSize[];
   cleanableEstimates: CleanableEstimate[];
   dbInfo: { host: string; database: string; maxConnections: number };
@@ -226,6 +235,114 @@ export default function DatabasePage() {
             {/* ===== 概览 Tab ===== */}
             {activeTab === "overview" && (
               <div className="space-y-4">
+                {/* 数据库空间使用进度条 */}
+                {data.dbSize !== null && (
+                  <div className="bg-white rounded-xl border border-gray-200 p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base font-semibold text-gray-800">
+                        💾 数据库空间使用
+                      </h2>
+                      <span className="text-xs text-gray-400">
+                        Vercel 免费版限制
+                      </span>
+                    </div>
+
+                    {/* 进度条 */}
+                    {(() => {
+                      const limit = data.dbLimitBytes || 256 * 1024 * 1024;
+                      const used = data.dbSize || 0;
+                      const pct = Math.min((used / limit) * 100, 100);
+                      const remaining = limit - used;
+                      const isWarning = pct >= 80;
+                      const isDanger = pct >= 90;
+
+                      return (
+                        <>
+                          <div className="flex items-baseline justify-between mb-2">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-bold text-gray-900">
+                                {formatBytes(used)}
+                              </span>
+                              <span className="text-sm text-gray-400">
+                                / {formatBytes(limit)}
+                              </span>
+                            </div>
+                            <span
+                              className={`text-sm font-semibold ${
+                                isDanger
+                                  ? "text-red-600"
+                                  : isWarning
+                                  ? "text-orange-600"
+                                  : "text-green-600"
+                              }`}
+                            >
+                              {pct.toFixed(1)}%
+                            </span>
+                          </div>
+
+                          <div className="h-6 bg-gray-100 rounded-full overflow-hidden relative">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 flex items-center justify-end pr-3 ${
+                                isDanger
+                                  ? "bg-gradient-to-r from-red-400 to-red-500"
+                                  : isWarning
+                                  ? "bg-gradient-to-r from-orange-400 to-orange-500"
+                                  : "bg-gradient-to-r from-blue-400 to-blue-500"
+                              }`}
+                              style={{ width: `${Math.max(pct, 3)}%` }}
+                            >
+                              {pct > 10 && (
+                                <span className="text-xs text-white font-medium whitespace-nowrap">
+                                  {formatBytes(used)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 剩余空间 */}
+                          <div className="flex items-center justify-between mt-2 text-xs">
+                            <span className="text-gray-400">
+                              剩余可用： <span className="font-medium text-gray-600">{formatBytes(remaining)}</span>
+                            </span>
+                            {isWarning && (
+                              <span className={`font-medium ${isDanger ? "text-red-600" : "text-orange-600"}`}>
+                                {isDanger ? "⚠️ 空间即将用尽，请尽快清理！" : "⚠️ 空间使用率较高"}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 大小明细 */}
+                          {data.dbSizeDetail && (
+                            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
+                              <div className="text-center">
+                                <div className="w-3 h-3 rounded-full bg-blue-500 mx-auto mb-1" />
+                                <div className="text-xs text-gray-400">数据</div>
+                                <div className="text-sm font-semibold text-gray-700">
+                                  {formatBytes(data.dbSizeDetail.dataBytes)}
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="w-3 h-3 rounded-full bg-purple-500 mx-auto mb-1" />
+                                <div className="text-xs text-gray-400">索引</div>
+                                <div className="text-sm font-semibold text-gray-700">
+                                  {formatBytes(data.dbSizeDetail.indexBytes)}
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-1" />
+                                <div className="text-xs text-gray-400">TOAST</div>
+                                <div className="text-sm font-semibold text-gray-700">
+                                  {formatBytes(data.dbSizeDetail.toastBytes)}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
                 {/* 数据库概览卡片 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <OverviewCard
@@ -555,6 +672,13 @@ export default function DatabasePage() {
                     <InfoItem label="数据表数量" value={`${data.totalTables}`} />
                     <InfoItem label="最大连接数" value={data.dbInfo.maxConnections > 0 ? `${data.dbInfo.maxConnections}` : "未知"} />
                   </div>
+                  {data.dbSizeDetail && (
+                    <div className="grid grid-cols-3 gap-4 text-sm mt-4 pt-4 border-t border-gray-100">
+                      <InfoItem label="数据本体" value={formatBytes(data.dbSizeDetail.dataBytes)} />
+                      <InfoItem label="索引大小" value={formatBytes(data.dbSizeDetail.indexBytes)} />
+                      <InfoItem label="TOAST 大字段" value={formatBytes(data.dbSizeDetail.toastBytes)} />
+                    </div>
+                  )}
                 </div>
 
                 {/* 危险说明 */}
