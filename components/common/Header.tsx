@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 const toolLinks = [
   { name: "浏览全部工具", href: "/#tools" },
   { name: "产品中心", href: "/products" },
-  { name: "开发者社区", href: "/forum" },
 ];
 
 const forumLinks = [
@@ -17,6 +16,7 @@ const forumLinks = [
   { name: "💬 反馈建议", href: "/forum/category/feedback", icon: "💬" },
   { name: "📖 使用教程", href: "/forum/category/tutorial", icon: "📖" },
   { name: "🗣️ 闲聊", href: "/forum/category/chat", icon: "🗣️" },
+  { name: "✏️ 发布新帖", href: "/forum/new", icon: "✏️" },
 ];
 
 export default function Header({ siteName: initialSiteName = "ET Studio" }: { siteName?: string }) {
@@ -107,7 +107,52 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
 
           {/* 桌面端导航 */}
           <nav className="hidden md:flex items-center space-x-1">
-            {/* 工具下拉 */}
+            {/* 论坛下拉（社区为主，放第一位） */}
+            <div className="relative" ref={forumRef}>
+              <button
+                onClick={() => {
+                  setForumOpen(!forumOpen);
+                  setToolOpen(false);
+                }}
+                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+              >
+                <span>社区</span>
+                <svg
+                  className={cn(
+                    "w-4 h-4 transition-transform duration-200",
+                    forumOpen && "rotate-180"
+                  )}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              {/* 下拉面板 */}
+              {forumOpen && (
+                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 animate-dropdown">
+                  <div className="absolute -top-2 left-6 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-white" />
+                  {forumLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setForumOpen(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                    >
+                      {link.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 工具下拉（次要位置） */}
             <div className="relative" ref={toolRef}>
               <button
                 onClick={() => {
@@ -144,51 +189,6 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
                       key={link.name}
                       href={link.href}
                       onClick={() => setToolOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                    >
-                      {link.name}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 论坛下拉 */}
-            <div className="relative" ref={forumRef}>
-              <button
-                onClick={() => {
-                  setForumOpen(!forumOpen);
-                  setToolOpen(false);
-                }}
-                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
-              >
-                <span>论坛</span>
-                <svg
-                  className={cn(
-                    "w-4 h-4 transition-transform duration-200",
-                    forumOpen && "rotate-180"
-                  )}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-              {/* 下拉面板 */}
-              {forumOpen && (
-                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 animate-dropdown">
-                  <div className="absolute -top-2 left-6 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-white" />
-                  {forumLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setForumOpen(false)}
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                       {link.name}

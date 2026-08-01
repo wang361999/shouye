@@ -1,12 +1,13 @@
 import prisma from '@/lib/prisma';
-import HomePageClient from '@/components/home/HomePageClient';
+import CommunityHomeClient from '@/components/home/CommunityHomeClient';
 
 const DEFAULT_SITE_NAME = 'ET Studio';
-const DEFAULT_SITE_DESC = '开发者工具与社区';
+const DEFAULT_SITE_DESC = '开发者交流社区';
 
 /**
- * 首页 - 服务端组件
- * 从数据库获取站点设置，传递给客户端组件，避免首屏闪烁旧名称
+ * 首页 - 社区型主页（服务端组件）
+ * 从数据库获取站点设置，传递给社区客户端组件
+ * 社区数据由前端通过 /api/community/home 获取
  */
 export default async function HomePage() {
   let siteName = DEFAULT_SITE_NAME;
@@ -26,5 +27,5 @@ export default async function HomePage() {
     // 数据库不可用时降级使用默认值
   }
 
-  return <HomePageClient siteName={siteName} siteDesc={siteDescription} />;
+  return <CommunityHomeClient siteName={siteName} siteDesc={siteDescription} />;
 }
