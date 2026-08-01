@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
+import { sendNotification } from '@/lib/notify';
 
 // ============ POST /api/forum/interact - 点赞/收藏 toggle ============
 export async function POST(request: NextRequest) {
@@ -72,6 +73,18 @@ export async function POST(request: NextRequest) {
           where: { id: postId },
           data: { likeCount: { increment: 1 } },
         });
+
+        // ---- 通知帖子作者被点赞（点赞者不是作者时） ----
+        if (user.userId !== post.authorId) {
+          await sendNotification({
+            userId: post.authorId,
+            type: 'like',
+            title: '有人赞了您的帖子',
+            content: `${user.username || '匿名用户'} 赞了您的帖子`,
+            link: `/forum/post/${postId}`,
+          });
+        }
+
         return NextResponse.json({ liked: true });
       }
     }

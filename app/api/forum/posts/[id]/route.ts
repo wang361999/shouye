@@ -35,6 +35,18 @@ export async function GET(
             slug: true,
           },
         },
+        // include tags：通过 PostTag include Tag
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
         comments: {
           where: { parentId: null },
           take: 10,
@@ -77,9 +89,32 @@ export async function GET(
       data: { viewCount: { increment: 1 } },
     });
 
+    // 若存在采纳评论（问答帖），单独查询 acceptedComment 返回
+    // （acceptedCommentId 为普通字段而非关系，故此处单独获取）
+    let acceptedComment = null;
+    if (post.acceptedCommentId) {
+      acceptedComment = await prisma.comment.findUnique({
+        where: { id: post.acceptedCommentId },
+        select: {
+          id: true,
+          content: true,
+          isAccepted: true,
+          createdAt: true,
+          author: {
+            select: {
+              id: true,
+              username: true,
+              avatar: true,
+            },
+          },
+        },
+      });
+    }
+
     return NextResponse.json({
       ...post,
       viewCount: post.viewCount + 1, // 返回更新后的浏览量
+      acceptedComment,
     });
   } catch (error) {
     console.error('[POST DETAIL ERROR]', error);
@@ -132,7 +167,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, content, categoryId } = body;
+    const { title, content, categoryId, tags, postType: rawPostType } = body;
 
     // ---- 输入校验 ----
     if (!title || !content) {
@@ -149,30 +184,108 @@ export async function PUT(
       );
     }
 
-    // ---- 更新帖子 ----
-    const post = await prisma.post.update({
-      where: { id },
-      data: {
-        title,
-        content,
-        ...(categoryId !== undefined && { categoryId: categoryId || null }),
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
+    // 帖子类型校验：仅允许 discussion | question
+    let postType: string | undefined;
+    if (rawPostType !== undefined) {
+      postType = rawPostType === 'question' ? 'question' : 'discussion';
+    }
+
+    // 标签处理：仅当传入 tags 字段时才更新（先删除旧 PostTag，再创建新的）
+    let tagEntries: { name: string; slug: string }[] | null = null;
+    if (tags !== undefined && tags !== null) {
+      if (!Array.isArray(tags)) {
+        return NextResponse.json(
+          { error: '标签必须为字符串数组' },
+          { status: 400 }
+        );
+      }
+      tagEntries = [];
+      const seenSlugs = new Set<string>();
+      for (const raw of tags) {
+        const name = String(raw).trim();
+        if (!name) continue;
+        const slug = name.toLowerCase().replace(/\s+/g, '-');
+        // 按 slug 去重，避免 PostTag 主键冲突
+        if (seenSlugs.has(slug)) continue;
+        seenSlugs.add(slug);
+        tagEntries.push({ name, slug });
+        if (tagEntries.length >= 5) break;
+      }
+    }
+
+    // ---- 更新帖子（含标签替换时使用事务保证一致性）----
+    const post = await prisma.$transaction(async (tx) => {
+      const updated = await tx.post.update({
+        where: { id },
+        data: {
+          title,
+          content,
+          ...(categoryId !== undefined && { categoryId: categoryId || null }),
+          ...(postType !== undefined && { postType }),
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              username: true,
+              avatar: true,
+            },
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          tags: {
+            include: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
           },
         },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
+      });
+
+      // 仅当传入 tags 字段时替换标签关联
+      if (tagEntries) {
+        // 获取旧标签 ID，用于后续 postCount 递减
+        const oldPostTags = await tx.postTag.findMany({
+          where: { postId: id },
+          select: { tagId: true },
+        });
+        const oldTagIds = oldPostTags.map((pt) => pt.tagId);
+
+        // 先删除旧 PostTag
+        await tx.postTag.deleteMany({ where: { postId: id } });
+
+        // 旧标签 postCount -1（防止负数）
+        if (oldTagIds.length > 0) {
+          await tx.tag.updateMany({
+            where: { id: { in: oldTagIds }, postCount: { gt: 0 } },
+            data: { postCount: { decrement: 1 } },
+          });
+        }
+
+        // 再创建新的 PostTag 关联
+        for (const { name, slug } of tagEntries) {
+          const tag = await tx.tag.upsert({
+            where: { slug },
+            update: { postCount: { increment: 1 } },
+            create: { name, slug, postCount: 1 },
+          });
+          await tx.postTag.create({
+            data: { postId: id, tagId: tag.id },
+          });
+        }
+      }
+
+      return updated;
     });
 
     return NextResponse.json(post);

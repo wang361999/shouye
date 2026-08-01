@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
+import { notifyAllAdmins } from '@/lib/notify';
 
 /** 生成 4 位随机数字字符串 */
 function random4Digits(): string {
@@ -106,6 +107,14 @@ export async function POST(request: NextRequest) {
         target: 'Order',
         detail: `用户申请免费授权: ${product.name} (${order.orderNo})`,
       },
+    });
+
+    // ---- 通知所有管理员：有新的免费授权申请 ----
+    await notifyAllAdmins({
+      type: 'authorize',
+      title: '新的免费授权申请',
+      content: `用户 ${userPayload.username || '未知用户'} 申请了免费授权: ${product.name}`,
+      link: '/admin/orders',
     });
 
     return NextResponse.json(

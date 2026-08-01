@@ -31,6 +31,10 @@ model User {
   githubId      String?   @unique @map("github_id")
   githubLogin   String?   @map("github_login")
 
+  // 声望系统
+  reputation    Int       @default(0) // 声望值
+  badge         String?   // 徽章: newcomer | contributor | expert | master
+
   posts         Post[]
   comments      Comment[]
   likes         Like[]
@@ -53,6 +57,11 @@ model User {
   collabTasks         CollabTask[]
   collabContributions CollabContribution[]
 
+  // 论坛扩展
+  reports       Report[]   // 用户提交的举报
+  following     Follow[]   @relation("UserFollowing") // 关注他人
+  followers     Follow[]   @relation("UserFollowed")  // 被他人关注
+
   @@map("User")
 }
 
@@ -70,7 +79,11 @@ model Category {
   icon      String?
   desc      String? // 分类描述
   sortOrder Int     @default(0) @map("sort_order")
+  productId String? @map("product_id") // 关联产品（项目讨论区）
   posts     Post[]
+  follows   Follow[]
+
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@map("Category")
 }
@@ -100,7 +113,7 @@ model Post {
   id           String     @id @default(cuid())
   title        String
   content      String // Markdown 内容
-  categoryId   String     @map("category_id")
+  categoryId   String?    @map("category_id") // 改为可选
   authorId     String     @map("author_id")
   viewCount    Int        @default(0) @map("view_count")
   likeCount    Int        @default(0) @map("like_count")
@@ -109,18 +122,22 @@ model Post {
   isEssence    Boolean    @default(false) @map("is_essence")
   isLocked     Boolean    @default(false) @map("is_locked") // 锁定后禁止评论
   status       PostStatus @default(DRAFT)
+  postType     String     @default("discussion") @map("post_type") // discussion | question
+  acceptedCommentId String? @map("accepted_comment_id") // 问答帖采纳的评论ID
   deletedAt    DateTime?  @map("deleted_at") // 软删除时间
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  category Category @relation(fields: [categoryId], references: [id])
+  category Category?  @relation(fields: [categoryId], references: [id])
   author   User     @relation(fields: [authorId], references: [id])
   comments Comment[]
   likes    Like[]
+  tags     PostTag[]
 
   @@index([categoryId])
   @@index([authorId])
   @@index([status])
+  @@index([postType])
   @@map("Post")
 }
 
@@ -140,6 +157,7 @@ model Comment {
   parentId   String?   @map("parent_id")
   likeCount  Int       @default(0) @map("like_count")
   isApproved Boolean   @default(true) @map("is_approved") // 是否审核通过
+  isAccepted Boolean   @default(false) @map("is_accepted") // 问答帖是否被采纳
   deletedAt  DateTime? @map("deleted_at") // 软删除时间
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
@@ -153,6 +171,7 @@ model Comment {
   @@index([postId])
   @@index([authorId])
   @@index([parentId])
+  @@index([isAccepted])
   @@map("Comment")
 }
 
@@ -383,6 +402,7 @@ model Product {
   versions      ProductVersion[]
   licenses      License[]
   orders        Order[]
+  categories    Category[] // 项目讨论区分类
 
   @@index([status])
   @@map("Product")
@@ -611,4 +631,65 @@ model CollabContribution {
   @@index([taskId])
   @@index([userId])
   @@map("CollabContribution")
+}
+
+// ============ 论坛扩展 - 标签 ============
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  postCount Int      @default(0) @map("post_count")
+  createdAt DateTime @default(now()) @map("created_at")
+  posts     PostTag[]
+
+  @@map("Tag")
+}
+
+// ============ 论坛扩展 - 帖子标签关联 ============
+model PostTag {
+  postId String
+  tagId  String
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+  @@map("PostTag")
+}
+
+// ============ 论坛扩展 - 举报 ============
+model Report {
+  id          String   @id @default(cuid())
+  reporterId  String   @map("reporter_id")
+  targetType  String   @map("target_type") // post | comment
+  targetId    String   @map("target_id")
+  reason      String   // spam | abuse | inappropriate | other
+  description String?
+  status      String   @default("pending") @map("status") // pending | resolved | dismissed
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  reporter User @relation(fields: [reporterId], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([reporterId])
+  @@map("Report")
+}
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String   @map("follower_id")
+  followingId String?  @map("following_id") // 关注的用户
+  categoryId  String?  @map("category_id") // 关注的分类
+
+  follower  User      @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User?     @relation("UserFollowed", fields: [followingId], references: [id], onDelete: Cascade)
+  category  Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@unique([followerId, categoryId])
+  @@index([followerId])
+  @@index([followingId])
+  @@index([categoryId])
+  @@map("Follow")
 }

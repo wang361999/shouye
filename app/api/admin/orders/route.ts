@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { sendNotification } from '@/lib/notify';
 
 /** 生成授权码格式: ET-XXXXXXXX-XXXXXXXX-XXXXXXXX */
 function generateLicenseKey(): string {
@@ -189,6 +190,38 @@ export async function PATCH(request: NextRequest) {
         })}`,
       },
     });
+
+    // ---- 通知用户审核结果 ----
+    if (isApproving) {
+      // 获取授权码（新生成的或已有的）
+      let licenseKeyForNotify = createdLicenseKey;
+      if (!licenseKeyForNotify && order.licenseId) {
+        const existingLicense = await prisma.license.findUnique({
+          where: { id: order.licenseId },
+          select: { licenseKey: true },
+        });
+        licenseKeyForNotify = existingLicense?.licenseKey || null;
+      }
+      await sendNotification({
+        userId: order.userId,
+        type: 'authorize',
+        title: '授权申请已通过',
+        content: licenseKeyForNotify
+          ? `您的授权申请已通过，授权码：${licenseKeyForNotify}`
+          : '您的授权申请已通过，请前往授权管理查看',
+        link: '/profile/licenses',
+      });
+    }
+
+    if (status === 'rejected' && order.status !== 'rejected') {
+      await sendNotification({
+        userId: order.userId,
+        type: 'authorize',
+        title: '授权申请未通过',
+        content: `您的授权申请（订单号：${order.orderNo}）未通过审核`,
+        link: '/profile/orders',
+      });
+    }
 
     return NextResponse.json({
       message: '订单已更新',

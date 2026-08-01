@@ -6,6 +6,7 @@ import { revalidateCommunityHome } from '@/lib/revalidate';
 
 // ============ GET /api/forum/posts - 获取帖子列表 ============
 // 管理员（带 Authorization header）可通过 ?admin=1 获取全部帖子（含已删除/草稿）
+// 支持 ?tag=xxx 按标签筛选、?postType=question|discussion 按类型筛选、?sort=latest|hot|essence
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -18,6 +19,8 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get('status') || undefined;
     const adminFlag = searchParams.get('admin') === '1';
     const sort = searchParams.get('sort') || 'latest';
+    const tag = searchParams.get('tag') || undefined;
+    const postType = searchParams.get('postType') || undefined;
 
     // 构建排序规则：置顶始终在最前
     let orderBy: Prisma.PostOrderByWithRelationInput[];
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
         { createdAt: 'desc' },
       ];
     } else {
-      // 默认最新排序
+      // 默认最新排序（essence 也走最新排序，仅过滤条件不同）
       orderBy = [
         { isPinned: 'desc' },
         { createdAt: 'desc' },
@@ -56,15 +59,38 @@ export async function GET(request: NextRequest) {
       where.category = { slug: categorySlug };
     }
 
+    // 搜索：同时搜索标题、内容和标签名
     if (search) {
       where.OR = [
         { title: { contains: search } },
         { content: { contains: search } },
+        { tags: { some: { tag: { name: { contains: search } } } } },
       ];
     }
 
     if (authorId) {
       where.authorId = authorId;
+    }
+
+    // 按标签筛选（通过 PostTag 关联查询，支持按 slug 或 name 匹配）
+    if (tag) {
+      where.tags = {
+        some: {
+          tag: {
+            OR: [{ slug: tag }, { name: tag }],
+          },
+        },
+      };
+    }
+
+    // 按帖子类型筛选
+    if (postType) {
+      where.postType = postType;
+    }
+
+    // essence：只看精华帖
+    if (sort === 'essence') {
+      where.isEssence = true;
     }
 
     // ---- 查询总数和分页数据 ----
@@ -87,6 +113,18 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               slug: true,
+            },
+          },
+          // include tags：通过 PostTag include Tag
+          tags: {
+            include: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                },
+              },
             },
           },
         },
@@ -119,6 +157,8 @@ export async function GET(request: NextRequest) {
 }
 
 // ============ POST /api/forum/posts - 发布新帖 ============
+// 支持接收 tags(string[]) 和 postType('discussion'|'question')
+// 发帖频率限制：同一用户 60 秒内只能发 1 帖
 export async function POST(request: NextRequest) {
   try {
     // 登录鉴权
@@ -131,7 +171,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, content, categoryId } = body;
+    const { title, content, categoryId, tags, postType: rawPostType } = body;
 
     // ---- 输入校验 ----
     if (!title || !content) {
@@ -148,6 +188,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 帖子类型校验：仅允许 discussion | question，默认 discussion
+    const postType = rawPostType === 'question' ? 'question' : 'discussion';
+
+    // 标签校验：必须是字符串数组，去重并最多保留 5 个
+    let tagEntries: { name: string; slug: string }[] = [];
+    if (tags !== undefined && tags !== null) {
+      if (!Array.isArray(tags)) {
+        return NextResponse.json(
+          { error: '标签必须为字符串数组' },
+          { status: 400 }
+        );
+      }
+      const seenSlugs = new Set<string>();
+      for (const raw of tags) {
+        const name = String(raw).trim();
+        if (!name) continue;
+        const slug = name.toLowerCase().replace(/\s+/g, '-');
+        // 按 slug 去重，避免不同大小写/空格产生相同 slug 导致 PostTag 主键冲突
+        if (seenSlugs.has(slug)) continue;
+        seenSlugs.add(slug);
+        tagEntries.push({ name, slug });
+        if (tagEntries.length >= 5) break;
+      }
+    }
+
     // 如果指定了分类，验证分类是否存在
     if (categoryId) {
       const category = await prisma.category.findUnique({
@@ -161,15 +226,61 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ---- 创建帖子 ----
-    const post = await prisma.post.create({
-      data: {
-        title,
-        content,
-        authorId: user.userId,
-        categoryId: categoryId || null,
-        status: 'PUBLISHED',
-      },
+    // ---- 发帖频率限制：同一用户 60 秒内只能发 1 帖 ----
+    const latestPost = await prisma.post.findFirst({
+      where: { authorId: user.userId },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+    if (latestPost) {
+      const COOLDOWN_MS = 60 * 1000;
+      const elapsedMs = Date.now() - latestPost.createdAt.getTime();
+      if (elapsedMs < COOLDOWN_MS) {
+        const waitSec = Math.ceil((COOLDOWN_MS - elapsedMs) / 1000);
+        return NextResponse.json(
+          { error: `发帖过于频繁，请 ${waitSec} 秒后再试` },
+          { status: 429 }
+        );
+      }
+    }
+
+    // ---- 创建帖子（含标签关联与用户计数更新，使用事务保证一致性）----
+    const created = await prisma.$transaction(async (tx) => {
+      const post = await tx.post.create({
+        data: {
+          title,
+          content,
+          authorId: user.userId,
+          categoryId: categoryId || null,
+          status: 'PUBLISHED',
+          postType,
+        },
+      });
+
+      // 处理标签：对每个标签名，查找或创建 Tag 记录，然后创建 PostTag 关联
+      for (const { name, slug } of tagEntries) {
+        const tag = await tx.tag.upsert({
+          where: { slug },
+          update: { postCount: { increment: 1 } },
+          create: { name, slug, postCount: 1 },
+        });
+        await tx.postTag.create({
+          data: { postId: post.id, tagId: tag.id },
+        });
+      }
+
+      // 创建帖子后更新用户 postCount +1
+      await tx.user.update({
+        where: { id: user.userId },
+        data: { postCount: { increment: 1 } },
+      });
+
+      return post;
+    });
+
+    // 查询带关联（author/category/tags）的帖子数据返回
+    const post = await prisma.post.findUnique({
+      where: { id: created.id },
       include: {
         author: {
           select: {
@@ -183,6 +294,17 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             slug: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
           },
         },
       },

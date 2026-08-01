@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { revalidateCommunityHome } from '@/lib/revalidate';
 
 /** GET /api/admin/products/versions - 获取产品版本列表 (?productId=xxx) */
 export async function GET(request: NextRequest) {
@@ -110,6 +111,41 @@ export async function POST(request: NextRequest) {
         detail: `创建版本: ${product.name} ${version}${wantLatest ? ' (设为最新)' : ''}`,
       },
     });
+
+    // ---- 版本发布时自动在论坛公告分类创建更新帖 ----
+    if (created.isPublished) {
+      try {
+        // 查找公告分类（slug=announcement），不存在则跳过
+        const announceCategory = await prisma.category.findUnique({
+          where: { slug: 'announcement' },
+        });
+
+        if (announceCategory) {
+          // 使用管理员账号作为帖子作者
+          const adminUser = await prisma.user.findFirst({
+            where: { role: 'ADMIN' },
+          });
+
+          if (adminUser) {
+            await prisma.post.create({
+              data: {
+                title: `【版本更新】${product.name} ${version} - ${title}`,
+                content: `## ${product.name} ${version}\n\n${title}\n\n### 更新日志\n\n${changelog}\n\n---\n\n> 此帖由系统自动发布，如需讨论请在下方留言。`,
+                categoryId: announceCategory.id,
+                authorId: adminUser.id,
+                status: 'PUBLISHED',
+                postType: 'discussion',
+                isPinned: false,
+              },
+            });
+            revalidateCommunityHome();
+          }
+        }
+      } catch (autoPostError) {
+        // 自动发帖失败不影响版本创建
+        console.error('[VERSION AUTO-POST ERROR]', autoPostError);
+      }
+    }
 
     return NextResponse.json({
       id: created.id,

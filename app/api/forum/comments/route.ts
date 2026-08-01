@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
+import { sendNotification } from '@/lib/notify';
 
 // ============ 简单敏感词列表 ============
 const SENSITIVE_WORDS = [
@@ -293,6 +294,21 @@ export async function POST(request: NextRequest) {
       await prisma.post.update({
         where: { id: postId },
         data: { commentCount: { increment: 1 } },
+      });
+    }
+
+    // ---- 通知帖子作者有新回复（评论者不是作者时） ----
+    if (user.userId !== post.authorId) {
+      const commentSummary =
+        content.trim().length > 50
+          ? `${content.trim().slice(0, 50)}...`
+          : content.trim();
+      await sendNotification({
+        userId: post.authorId,
+        type: 'reply',
+        title: '您的帖子有新回复',
+        content: `${user.username || '匿名用户'} 回复了您：${commentSummary}`,
+        link: `/forum/post/${postId}`,
       });
     }
 
