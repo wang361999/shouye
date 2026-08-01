@@ -25,6 +25,9 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   seo_title: 'ET Studio - 开发者工具集',
   seo_keywords: '开发者,工具,GitHub,AI',
   seo_description: '汇聚实用开发者工具',
+  sponsor_wechat_qr: '',
+  sponsor_alipay_qr: '',
+  sponsor_text: '如果我们的项目对您有帮助，欢迎赞助支持 ❤️',
 };
 
 // ============ 操作日志记录函数 ============

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     const licenses = await prisma.license.findMany({
-      where: { ownerId: userPayload.userId },
+      where: { ownerId: userPayload.userId, status: { not: 'revoked' } },
       orderBy: { createdAt: 'desc' },
       include: {
         domains: true,

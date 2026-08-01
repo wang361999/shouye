@@ -109,6 +109,9 @@ export async function PATCH(request: NextRequest) {
     const isPaying = status === 'paid' && order.status !== 'paid';
     // 若标记为已审核通过：生成授权码
     const isApproving = status === 'approved' && order.status !== 'approved';
+    // 若标记为取消/退款/拒绝：吊销授权码
+    const isRevoking = ['cancelled', 'refunded', 'rejected'].includes(status) &&
+                       !['cancelled', 'refunded', 'rejected'].includes(order.status);
     let createdLicenseKey: string | null = null;
 
     if (isPaying) {
@@ -159,6 +162,14 @@ export async function PATCH(request: NextRequest) {
         // 已有授权码，仅更新订单
         await prisma.order.update({ where: { id }, data: updateData });
       }
+    } else if (isRevoking && order.licenseId) {
+      // 吊销授权码并解除关联
+      await prisma.license.update({
+        where: { id: order.licenseId },
+        data: { status: 'revoked' },
+      });
+      updateData.licenseId = null;
+      await prisma.order.update({ where: { id }, data: updateData });
     } else {
       await prisma.order.update({ where: { id }, data: updateData });
     }
@@ -186,5 +197,51 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error('[ORDERS PATCH ERROR]', error);
     return NextResponse.json({ error: '更新订单失败' }, { status: 500 });
+  }
+}
+
+/** DELETE /api/admin/orders - 删除订单（同时吊销关联授权码） */
+export async function DELETE(request: NextRequest) {
+  try {
+    const admin = adminAuth(request);
+    if (admin instanceof Response) return admin;
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: '缺少订单 ID' }, { status: 400 });
+    }
+
+    const order = await prisma.order.findUnique({ where: { id } });
+    if (!order) {
+      return NextResponse.json({ error: '订单不存在' }, { status: 404 });
+    }
+
+    // 若订单关联了授权码，先吊销
+    if (order.licenseId) {
+      await prisma.license.update({
+        where: { id: order.licenseId },
+        data: { status: 'revoked' },
+      });
+    }
+
+    // 删除订单
+    await prisma.order.delete({ where: { id } });
+
+    await prisma.operationLog.create({
+      data: {
+        userId: admin.userId,
+        username: admin.username,
+        action: 'delete_order',
+        target: 'Order',
+        detail: `删除订单 ${order.orderNo}`,
+      },
+    });
+
+    return NextResponse.json({ message: '订单已删除' });
+  } catch (error) {
+    console.error('[ORDERS DELETE ERROR]', error);
+    return NextResponse.json({ error: '删除订单失败' }, { status: 500 });
   }
 }

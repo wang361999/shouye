@@ -98,6 +98,12 @@ const NAV_GROUPS: NavGroup[] = [
         icon: "⚙️",
       },
       {
+        key: "settings-sponsor",
+        label: "赞助设置",
+        href: "/admin/settings/sponsor",
+        icon: "❤️",
+      },
+      {
         key: "settings-appearance",
         label: "外观定制",
         href: "/admin/settings/appearance",

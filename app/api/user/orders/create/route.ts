@@ -58,9 +58,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!projectType || !PRICE_FIELD_MAP[projectType]) {
+    const resolvedProjectType = projectType || 'standard';
+    if (!PRICE_FIELD_MAP[resolvedProjectType]) {
       return NextResponse.json(
-        { error: '套餐类型无效，可选: basic | standard | premium | enterprise' },
+        { error: '套餐类型无效' },
         { status: 400 },
       );
     }
@@ -85,9 +86,9 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- 根据套餐类型获取价格与域名配额 ----
-    const priceField = PRICE_FIELD_MAP[projectType];
+    const priceField = PRICE_FIELD_MAP[resolvedProjectType];
     const amount = product[priceField];
-    const maxDomains = MAX_DOMAINS_MAP[projectType];
+    const maxDomains = MAX_DOMAINS_MAP[resolvedProjectType];
     const validDays = product.validDays;
 
     if (amount <= 0) {
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
         userId: userPayload.userId,
         productId: product.id,
         productName: product.name,
-        projectType,
+        projectType: resolvedProjectType,
         maxDomains,
         amount,
         validDays,

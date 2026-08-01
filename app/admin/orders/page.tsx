@@ -175,6 +175,10 @@ export default function OrdersPage() {
   // 取消 / 退款 / 拒绝 快捷操作
   const [quickLoadingId, setQuickLoadingId] = useState<string | null>(null);
 
+  // 删除订单确认
+  const [deleteTarget, setDeleteTarget] = useState<Order | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
   // 授权码生成成功展示
   const [generatedLicense, setGeneratedLicense] = useState<{
     orderNo: string;
@@ -431,6 +435,30 @@ export default function OrdersPage() {
       }
     } finally {
       setQuickLoadingId(null);
+    }
+  }
+
+  // ============ 删除订单 ============
+  async function handleDeleteOrder() {
+    if (!token || !deleteTarget) return;
+    try {
+      setDeleteSubmitting(true);
+      const res = await fetch(`/api/admin/orders?id=${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "删除失败");
+        return;
+      }
+      toast.success("订单已删除");
+      setDeleteTarget(null);
+      fetchOrders();
+    } catch {
+      toast.error("删除失败，请稍后重试");
+    } finally {
+      setDeleteSubmitting(false);
     }
   }
 
@@ -762,6 +790,16 @@ export default function OrdersPage() {
                               >
                                 编辑
                               </button>
+                              {/* 已取消/退款/拒绝：删除 */}
+                              {["cancelled", "refunded", "rejected"].includes(order.status) && (
+                                <button
+                                  onClick={() => setDeleteTarget(order)}
+                                  disabled={busy}
+                                  className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  删除
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1189,6 +1227,61 @@ export default function OrdersPage() {
                 className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 我已保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ============ 删除订单 - 确认模态框 ============ */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !deleteSubmitting && setDeleteTarget(null)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900">确认删除订单</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    删除后订单将永久移除，关联的授权码将被吊销。此操作不可撤销。
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="text-xs text-gray-400 mb-0.5">订单号</div>
+                <div className="text-sm font-medium text-gray-700 font-mono">{deleteTarget.orderNo}</div>
+                <div className="text-xs text-gray-400 mt-2 mb-0.5">产品</div>
+                <div className="text-sm font-medium text-gray-700">{deleteTarget.productName}</div>
+                {deleteTarget.licenseKey && (
+                  <>
+                    <div className="text-xs text-gray-400 mt-2 mb-0.5">关联授权码</div>
+                    <div className="text-sm font-mono text-gray-700">{deleteTarget.licenseKey}</div>
+                    <p className="text-xs text-red-500 mt-1">该授权码将被吊销</p>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => !deleteSubmitting && setDeleteTarget(null)}
+                disabled={deleteSubmitting}
+                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDeleteOrder}
+                disabled={deleteSubmitting}
+                className="px-5 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteSubmitting ? "删除中..." : "确认删除"}
               </button>
             </div>
           </div>

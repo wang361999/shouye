@@ -43,66 +43,6 @@ interface Product {
   versions: ProductVersion[];
 }
 
-// ============ 套餐配置 ============
-interface PlanConfig {
-  key: string;
-  label: string;
-  priceField: 'priceBasic' | 'priceStandard' | 'pricePremium' | 'priceEnterprise';
-  domains: number;
-  color: string;
-  bgColor: string;
-  borderColor: string;
-  highlight: boolean;
-  features: string[];
-}
-
-const PLANS: PlanConfig[] = [
-  {
-    key: 'basic',
-    label: '基础版',
-    priceField: 'priceBasic',
-    domains: 1,
-    color: 'text-gray-700',
-    bgColor: 'bg-gray-50',
-    borderColor: 'border-gray-200',
-    highlight: false,
-    features: ['1 个域名授权', `${0} 天有效期`, '社区支持', '基础功能'],
-  },
-  {
-    key: 'standard',
-    label: '标准版',
-    priceField: 'priceStandard',
-    domains: 2,
-    color: 'text-blue-700',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-300',
-    highlight: true,
-    features: ['2 个域名授权', '全部功能', '邮件支持', '免费更新'],
-  },
-  {
-    key: 'premium',
-    label: '高级版',
-    priceField: 'pricePremium',
-    domains: 5,
-    color: 'text-purple-700',
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-200',
-    highlight: false,
-    features: ['5 个域名授权', '全部功能', '优先技术支持', '免费更新'],
-  },
-  {
-    key: 'enterprise',
-    label: '企业版',
-    priceField: 'priceEnterprise',
-    domains: 10,
-    color: 'text-orange-700',
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-200',
-    highlight: false,
-    features: ['10 个域名授权', '全部功能', '专属客服', '定制服务'],
-  },
-];
-
 /** 价格格式化：分 → 元 */
 function formatPrice(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -151,7 +91,7 @@ export default function ProductDetailPage() {
   }, [fetchProduct]);
 
   // ============ 立即购买 ============
-  async function handlePurchase(plan: PlanConfig) {
+  async function handlePurchase() {
     if (!product) return;
 
     // 未登录：跳转登录页并带 redirect 参数
@@ -160,7 +100,7 @@ export default function ProductDetailPage() {
       return;
     }
 
-    setPurchasing(plan.key);
+    setPurchasing('buy');
     try {
       const res = await fetch('/api/user/orders/create', {
         method: 'POST',
@@ -170,7 +110,7 @@ export default function ProductDetailPage() {
         },
         body: JSON.stringify({
           productId: product.id,
-          projectType: plan.key,
+          projectType: 'standard',
         }),
       });
       const data = await res.json();
@@ -327,103 +267,42 @@ export default function ProductDetailPage() {
           </section>
         )}
 
-        {/* ============ 定价方案 ============ */}
+        {/* ============ 获取授权 ============ */}
         <section className="bg-white rounded-2xl border border-gray-200 p-8 mb-8">
-          <div className="text-center mb-8">
+          <div className="text-center">
             <h2 className="text-xl font-bold text-gray-900 mb-2 flex items-center justify-center">
               <span className="mr-2">💎</span>
-              选择适合你的套餐
+              获取授权
             </h2>
-            <p className="text-sm text-gray-500">
-              授权有效期 {product.validDays} 天，支付后即时生成授权码
+            <p className="text-sm text-gray-500 mb-6">
+              授权有效期 {product.validDays} 天，支付后需管理员审核通过生成授权码
             </p>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {PLANS.map((plan) => {
-              const price = product[plan.priceField];
-              return (
-                <div
-                  key={plan.key}
-                  className={cn(
-                    'relative rounded-xl border-2 p-6 flex flex-col transition-all',
-                    plan.borderColor,
-                    plan.bgColor,
-                    plan.highlight && 'lg:scale-105 shadow-md',
-                  )}
-                >
-                  {plan.highlight && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 text-xs font-medium text-white bg-blue-600 rounded-full">
-                      推荐
-                    </span>
-                  )}
+            <div className="inline-block">
+              <div className="text-4xl font-bold text-gray-900 mb-1">
+                ¥{formatPrice(product.priceStandard)}
+              </div>
+              <p className="text-xs text-gray-400 mb-6">一次性付费 · 永久使用</p>
 
-                  {/* 套餐名称 */}
-                  <h3 className={cn('text-lg font-bold mb-1', plan.color)}>
-                    {plan.label}
-                  </h3>
-                  <p className="text-xs text-gray-500 mb-4">
-                    最多 {plan.domains} 个域名
-                  </p>
+              <button
+                onClick={() => handlePurchase()}
+                disabled={purchasing === 'buy'}
+                className="w-full px-8 py-3 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {purchasing === 'buy' ? '处理中...' : isLoggedIn ? '立即购买' : '登录后购买'}
+              </button>
+            </div>
 
-                  {/* 价格 */}
-                  <div className="mb-4">
-                    <span className="text-3xl font-bold text-gray-900">
-                      ¥{formatPrice(price)}
-                    </span>
-                    <span className="text-sm text-gray-400 ml-1">元</span>
-                  </div>
-
-                  {/* 功能列表 */}
-                  <ul className="space-y-2 mb-6 flex-1">
-                    {plan.features.map((f, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-start text-xs text-gray-600"
-                      >
-                        <svg
-                          className="w-3.5 h-3.5 mt-0.5 mr-1.5 flex-shrink-0 text-green-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        <span>{f.replace(`${0} 天有效期`, `${product.validDays} 天有效期`)}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* 购买按钮 */}
-                  <button
-                    onClick={() => handlePurchase(plan)}
-                    disabled={purchasing === plan.key}
-                    className={cn(
-                      'w-full py-2.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-60',
-                      plan.highlight
-                        ? 'text-white bg-blue-600 hover:bg-blue-700'
-                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50',
-                    )}
-                  >
-                    {purchasing === plan.key ? (
-                      <span className="inline-flex items-center">
-                        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-1.5" />
-                        创建中...
-                      </span>
-                    ) : isLoggedIn ? (
-                      '立即购买'
-                    ) : (
-                      '登录后购买'
-                    )}
-                  </button>
-                </div>
-              );
-            })}
+            {/* 赞助入口 */}
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <p className="text-sm text-gray-500">
+                如果这个项目对你有帮助，欢迎
+                <Link href="/sponsor" className="text-blue-600 hover:text-blue-800 font-medium ml-1">
+                  赞助支持
+                </Link>
+                <span className="ml-1">❤️</span>
+              </p>
+            </div>
           </div>
         </section>
 
