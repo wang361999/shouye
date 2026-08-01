@@ -139,17 +139,50 @@ function extractJson(text) {
   const candidate = fenced ? fenced[1].trim() : trimmed;
   const start = candidate.indexOf('{');
   const end = candidate.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    console.error('[free-ai-issue-executor] 模型返回内容（前 800 字符）：', trimmed.slice(0, 800));
-    fail('模型没有返回 JSON 对象');
-  }
+  if (start === -1 || end === -1 || end <= start) return null;
   try {
     return JSON.parse(candidate.slice(start, end + 1));
   } catch (err) {
     console.error('[free-ai-issue-executor] JSON 解析失败：', err.message);
-    console.error('[free-ai-issue-executor] 提取内容（前 800 字符）：', candidate.slice(start, start + 800));
-    fail('模型返回的 JSON 无法解析');
+    return null;
   }
+}
+
+function parseDelimiterFormat(text) {
+  const summaryMatch = text.match(/===SUMMARY===\s*([\s\S]*?)(?=\n===|$)/i);
+  const detailsMatch = text.match(/===DETAILS===\s*([\s\S]*?)(?=\n===|$)/i);
+
+  const summary = summaryMatch ? summaryMatch[1].trim() : 'AI 迭代完成';
+  const details = detailsMatch
+    ? detailsMatch[1].trim().split('\n').filter((l) => l.trim()).map((l) => l.replace(/^[-*]\s*/, '').trim())
+    : [];
+
+  const fileRegex = /===FILE:\s*(.+?)\s*===\s*([\s\S]*?)(?=\n===FILE:|\n===END===|$)/g;
+  const changes = [];
+  let match;
+  while ((match = fileRegex.exec(text)) !== null) {
+    changes.push({ path: match[1].trim(), content: match[2].trim() });
+  }
+
+  if (changes.length === 0 && !summaryMatch) return null;
+  return { summary, details, changes };
+}
+
+function parseResponse(text) {
+  // Try JSON first
+  const jsonResult = extractJson(text);
+  if (jsonResult) return jsonResult;
+
+  // Fall back to delimiter format
+  console.error('[free-ai-issue-executor] 尝试分隔符格式解析...');
+  const delimResult = parseDelimiterFormat(text);
+  if (delimResult) {
+    console.log('[free-ai-issue-executor] 分隔符格式解析成功');
+    return delimResult;
+  }
+
+  console.error('[free-ai-issue-executor] 模型返回内容（前 800 字符）：', text.slice(0, 800));
+  fail('无法解析模型返回内容（JSON 和分隔符格式均失败）');
 }
 
 async function callModel(issue, repoContext) {
@@ -187,19 +220,23 @@ async function callModel(issue, repoContext) {
 
 ## 输出格式
 
-输出严格 JSON，不要 Markdown，不要解释文字：
-{
-  "summary": "一句话说明本次改动",
-  "details": ["改动点 1", "改动点 2"],
-  "changes": [
-    {
-      "path": "相对仓库根目录的文件路径",
-      "content": "该文件修改后的完整内容"
-    }
-  ]
-}
+用以下分隔符格式输出（不要用 JSON，不要用 Markdown 代码块）：
 
-如果确实没有需要修改的代码，在 summary 中详细说明你检查了哪些文件、为什么认为没有问题。
+===SUMMARY===
+一句话说明本次改动
+===DETAILS===
+- 改动点 1
+- 改动点 2
+===FILE: 相对仓库根目录的文件路径===
+该文件修改后的完整内容
+===FILE: 另一个文件路径===
+该文件修改后的完整内容
+===END===
+
+注意：
+- 每个 ===FILE: 后面跟着文件路径，下一行开始就是文件完整内容，直到下一个 ===FILE: 或 ===END=== 为止。
+- 文件内容不要用代码块包裹，直接输出原始代码。
+- 如果确实没有需要修改的代码，在 SUMMARY 中详细说明你检查了哪些文件、为什么认为没有问题，不输出 FILE 部分。
 
 ## 仓库信息
 
@@ -224,12 +261,11 @@ ${repoContext.context}
   const requestBody = {
     model: AI_MODEL,
     temperature: 0.3,
-    max_tokens: 16_000,
-    response_format: { type: 'json_object' },
+    max_tokens: 65_536,
     messages: [
       {
         role: 'system',
-        content: '你是专业的全栈开发工程师。你必须仔细阅读代码、找到问题根因并修复。禁止敷衍回复"没问题"。只输出严格 JSON。',
+        content: '你是专业的全栈开发工程师。你必须仔细阅读代码、找到问题根因并修复。禁止敷衍回复"没问题"。按照指定的分隔符格式输出。',
       },
       {
         role: 'user',
@@ -268,7 +304,7 @@ ${repoContext.context}
   }
   console.log(`[free-ai-issue-executor] 模型返回内容长度：${content.length} 字符`);
   console.log(`[free-ai-issue-executor] 返回内容预览：${content.slice(0, 200)}`);
-  return extractJson(content);
+  return parseResponse(content);
 }
 
 function applyChanges(result) {
