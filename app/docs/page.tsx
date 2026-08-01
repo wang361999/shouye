@@ -37,6 +37,11 @@ const SECTIONS = [
     icon: '📱',
   },
   {
+    id: 'github-code',
+    title: 'GitHub 代码嵌入',
+    icon: '🐙',
+  },
+  {
     id: 'api',
     title: 'API 文档',
     icon: '🔌',
@@ -267,6 +272,72 @@ export default function DocsPage() {
             </div>
           </section>
 
+          {/* GitHub 代码嵌入 */}
+          <section id="github-code" className="scroll-mt-20">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">🐙 GitHub 代码嵌入</h2>
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                在帖子中嵌入 GitHub 仓库的源代码文件，自动获取并语法高亮显示。
+                支持两种方式：搜索引用和手动嵌入。
+              </p>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">方式一：搜索引用（推荐）</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  在发帖编辑器中，点击「GitHub 代码」按钮，输入关键词搜索开源代码，
+                  点击搜索结果即可自动插入代码引用到帖子内容中。
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">方式二：手动嵌入</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  在 Markdown 中使用 <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">github-code</code> 代码块：
+                </p>
+                <div className="bg-gray-900 rounded-lg p-4 text-sm text-gray-300 font-mono overflow-x-auto">
+                  <div>{'```github-code'}</div>
+                  <div>owner/repo/path/to/file.ts</div>
+                  <div>{'```'}</div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">可选参数</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  在路径后添加查询参数：
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1.5 ml-4 list-disc">
+                  <li>
+                    <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">ref=main</code> -
+                    指定分支/tag/commit（默认 HEAD）
+                  </li>
+                  <li>
+                    <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">lines=10-30</code> -
+                    只显示第 10-30 行
+                  </li>
+                  <li>
+                    <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">lines=10</code> -
+                    只显示第 10 行
+                  </li>
+                </ul>
+                <div className="mt-3 bg-gray-900 rounded-lg p-4 text-sm text-gray-300 font-mono overflow-x-auto">
+                  <div>{'```github-code'}</div>
+                  <div>facebook/react/packages/react/index.ts?ref=v18.0.0&amp;lines=1-20</div>
+                  <div>{'```'}</div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">支持的文件类型</h3>
+                <p className="text-sm text-gray-600">
+                  JavaScript、TypeScript、Python、Go、Rust、Java、C/C++、C#、PHP、
+                  Ruby、Swift、Kotlin、Bash、YAML、JSON、XML、HTML、CSS、SCSS、SQL、
+                  Markdown 等主流语言均支持语法高亮。文件大小限制 100KB 以内。
+                </p>
+              </div>
+            </div>
+          </section>
+
           {/* API 文档 */}
           <section id="api" className="scroll-mt-20">
             <h2 className="text-xl font-bold text-gray-900 mb-4">🔌 API 文档</h2>
@@ -345,6 +416,18 @@ export default function DocsPage() {
                       <td className="px-3 py-2 text-gray-600">获取站点统计</td>
                       <td className="px-3 py-2 text-gray-400">否</td>
                     </tr>
+                    <tr>
+                      <td className="px-3 py-2 font-mono text-xs text-gray-700">/api/github/search</td>
+                      <td className="px-3 py-2"><span className="text-green-600">GET</span></td>
+                      <td className="px-3 py-2 text-gray-600">搜索 GitHub 代码</td>
+                      <td className="px-3 py-2 text-gray-400">否</td>
+                    </tr>
+                    <tr>
+                      <td className="px-3 py-2 font-mono text-xs text-gray-700">/api/github/file</td>
+                      <td className="px-3 py-2"><span className="text-green-600">GET</span></td>
+                      <td className="px-3 py-2 text-gray-600">获取 GitHub 文件内容</td>
+                      <td className="px-3 py-2 text-gray-400">否</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -389,6 +472,14 @@ export default function DocsPage() {
                 <p className="text-sm text-gray-600">
                   是的。平台通过全局中间件实时追踪每次请求，数据会记录到数据库中。
                   监控页面每 60 秒自动刷新一次。
+                </p>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-1">如何在帖子中嵌入 GitHub 代码？</h3>
+                <p className="text-sm text-gray-600">
+                  发帖时点击编辑器上方的「GitHub 代码」按钮搜索开源代码，或手动使用
+                  <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600 mx-1">```github-code</code>
+                  代码块格式嵌入。详见上方「GitHub 代码嵌入」章节。
                 </p>
               </div>
             </div>

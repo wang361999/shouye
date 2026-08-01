@@ -214,6 +214,11 @@ export interface EnvConfig {
 
   /** 是否启用 Vercel KV 分布式限流 */
   kvEnabled: boolean;
+
+  /** GitHub Token（只读，用于提高 API 速率限制） */
+  githubToken: string | null;
+  /** GitHub Token 是否已配置 */
+  githubTokenEnabled: boolean;
 }
 
 /**
@@ -253,6 +258,9 @@ export function getEnv(): EnvConfig {
     kvEnabled: Boolean(
       process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
     ),
+
+    githubToken: process.env.GITHUB_TOKEN || null,
+    githubTokenEnabled: Boolean(process.env.GITHUB_TOKEN),
   };
 }
 
@@ -306,6 +314,7 @@ function printEnvSummary(): void {
     `  ADMIN_PASSWORD : ${process.env.ADMIN_PASSWORD ? '**** (已配置)' : '(默认)'}`,
     `  ADMIN_EMAIL    : ${process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL}${process.env.ADMIN_EMAIL ? '' : ' (默认)'}`,
     `  GITHUB OAuth   : ${process.env.GITHUB_CLIENT_ID ? '已配置 Client ID' : '(未配置)'}`,
+    `  GITHUB_TOKEN   : ${process.env.GITHUB_TOKEN ? '已配置 (只读, 提高API限速)' : '(未配置, 速率限制60/h)'}`,
     `  Vercel KV 限流 : ${process.env.KV_REST_API_URL ? '已启用' : '(未启用，使用内存限流)'}`,
     '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
   ];

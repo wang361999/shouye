@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Container } from '@/components/common/Container';
 import UserAvatar from '@/components/common/UserAvatar';
 import CommentList from '@/components/forum/CommentList';
+import GithubCodeBlock from '@/components/forum/GithubCodeBlock';
 import { useAppStore } from '@/lib/store';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
@@ -216,7 +217,28 @@ export default function PostDetailPage({
 
       {/* 帖子正文 - Markdown 渲染 */}
       <div className="prose prose-sm sm:prose-base max-w-none mb-6 markdown-body">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code({ node, className, children, ...props }: any) {
+              const match = /language-(\w+)/.exec(className || "");
+              const lang = match ? match[1] : "";
+              const text = String(children).replace(/\n$/, "");
+              if (lang === "github-code") {
+                const [rawPath, queryString] = text.split("?");
+                const params = new URLSearchParams(queryString || "");
+                return (
+                  <GithubCodeBlock
+                    source={rawPath.trim()}
+                    ref={params.get("ref") || undefined}
+                    lines={params.get("lines") || undefined}
+                  />
+                );
+              }
+              return <code className={className} {...props}>{children}</code>;
+            },
+          }}
+        >
           {post.content}
         </ReactMarkdown>
       </div>

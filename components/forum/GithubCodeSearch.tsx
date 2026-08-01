@@ -1,0 +1,228 @@
+"use client";
+
+import { useState, useCallback, useRef } from "react";
+import { cn } from "@/lib/utils";
+
+interface SearchResult {
+  id: string;
+  name: string;
+  path: string;
+  repo: { name: string; url: string };
+  htmlUrl: string;
+  owner: string;
+  repoName: string;
+  filePath: string;
+}
+
+interface GithubCodeSearchProps {
+  /** 选中文件后回调，返回可插入编辑器的 markdown 片段 */
+  onInsert: (markdown: string) => void;
+}
+
+export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 执行搜索
+  const doSearch = useCallback(
+    async (q: string, p: number = 1) => {
+      if (!q.trim() || q.trim().length < 2) return;
+      setLoading(true);
+      setError(null);
+      setShowResults(true);
+
+      try {
+        const params = new URLSearchParams({
+          q: q.trim(),
+          page: String(p),
+          per_page: "10",
+        });
+        const res = await fetch(`/api/github/search?${params}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "搜索失败");
+        }
+
+        setResults(data.results || []);
+        setTotalCount(data.totalCount || 0);
+        setPage(p);
+      } catch (err: any) {
+        setError(err.message || "搜索失败");
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  // 防抖搜索
+  const handleSearch = useCallback(
+    (value: string) => {
+      setQuery(value);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        if (value.trim().length >= 2) {
+          doSearch(value);
+        } else {
+          setShowResults(false);
+          setResults([]);
+        }
+      }, 500);
+    },
+    [doSearch]
+  );
+
+  // 插入代码引用
+  const handleInsert = (result: SearchResult) => {
+    // 生成 markdown 代码块
+    const source = `${result.owner}/${result.repoName}/${result.filePath}`;
+    const markdown = `\n\`\`\`github-code\n${source}\n\`\`\`\n`;
+    onInsert(markdown);
+    setShowResults(false);
+    setQuery("");
+    setResults([]);
+  };
+
+  // 点击外部关闭
+  const handleBlur = (e: React.FocusEvent) => {
+    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+      // 延迟关闭，允许点击结果项
+      setTimeout(() => setShowResults(false), 200);
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* 搜索框 */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            const input = document.getElementById("github-search-input");
+            input?.focus();
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+          </svg>
+          GitHub 代码
+        </button>
+        <input
+          id="github-search-input"
+          type="text"
+          value={query}
+          onChange={(e) => handleSearch(e.target.value)}
+          onFocus={() => {
+            if (results.length > 0) setShowResults(true);
+          }}
+          onBlur={handleBlur}
+          placeholder="搜索 GitHub 开源代码..."
+          className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+
+      {/* 搜索结果下拉 */}
+      {showResults && (
+        <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto">
+          {/* 加载中 */}
+          {loading && (
+            <div className="flex items-center justify-center py-8 text-sm text-gray-400">
+              <svg className="w-5 h-5 animate-spin mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              搜索中...
+            </div>
+          )}
+
+          {/* 错误 */}
+          {error && !loading && (
+            <div className="px-4 py-6 text-center">
+              <p className="text-sm text-red-500">⚠️ {error}</p>
+              <p className="mt-2 text-xs text-gray-400">
+                提示：GitHub Code Search 搜索词需要包含至少一个搜索词
+              </p>
+            </div>
+          )}
+
+          {/* 无结果 */}
+          {!loading && !error && results.length === 0 && query.trim().length >= 2 && (
+            <div className="px-4 py-6 text-center text-sm text-gray-400">
+              未找到匹配的代码
+            </div>
+          )}
+
+          {/* 结果列表 */}
+          {!loading && !error && results.length > 0 && (
+            <>
+              <div className="px-3 py-2 text-xs text-gray-400 border-b border-gray-100 bg-gray-50">
+                找到 {totalCount > 1000 ? "1000+" : totalCount} 个结果
+              </div>
+              {results.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  onClick={() => handleInsert(result)}
+                  className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                >
+                  {/* 仓库名 */}
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                    </svg>
+                    <span className="font-medium text-gray-700 truncate">
+                      {result.repo.name}
+                    </span>
+                  </div>
+                  {/* 文件路径 */}
+                  <div className="mt-1 flex items-center gap-1 text-xs text-gray-500 font-mono">
+                    <span className="truncate">{result.path}</span>
+                  </div>
+                  {/* 插入提示 */}
+                  <div className="mt-1 text-xs text-blue-500 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    点击插入到帖子
+                  </div>
+                </button>
+              ))}
+
+              {/* 分页 */}
+              {totalCount > 10 && (
+                <div className="flex items-center justify-center gap-2 py-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => doSearch(query, page - 1)}
+                    disabled={page <= 1}
+                    className="px-2 py-1 text-xs text-gray-500 disabled:text-gray-300 disabled:cursor-not-allowed hover:text-blue-600 transition-colors"
+                  >
+                    上一页
+                  </button>
+                  <span className="text-xs text-gray-400">{page}</span>
+                  <button
+                    type="button"
+                    onClick={() => doSearch(query, page + 1)}
+                    disabled={results.length < 10}
+                    className="px-2 py-1 text-xs text-gray-500 disabled:text-gray-300 disabled:cursor-not-allowed hover:text-blue-600 transition-colors"
+                  >
+                    下一页
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

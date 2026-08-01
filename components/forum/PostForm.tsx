@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import GithubCodeSearch from "./GithubCodeSearch";
+import GithubCodeBlock from "./GithubCodeBlock";
 
 interface Category {
   id: string;
@@ -43,6 +45,27 @@ export default function PostForm({
   const [content, setContent] = useState(initialData?.content ?? "");
   const [errors, setErrors] = useState<{ title?: string; category?: string; content?: string }>({});
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 在光标位置插入文本
+  const insertAtCursor = (text: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      // 回退：追加到末尾
+      setContent((prev) => prev + text);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newValue = content.slice(0, start) + text + content.slice(end);
+    setContent(newValue);
+    // 恢复焦点并设置光标位置
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const newPos = start + text.length;
+      textarea.setSelectionRange(newPos, newPos);
+    });
+  };
 
   const validate = (): boolean => {
     const newErrors: typeof errors = {};
@@ -170,26 +193,54 @@ export default function PostForm({
           </div>
         </div>
         {activeTab === "edit" ? (
-          <textarea
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value);
-              if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
-            }}
-            placeholder="请输入帖子内容...（支持 Markdown 格式）"
-            rows={12}
-            className={cn(
-              "w-full px-4 py-3 text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:border-transparent transition-shadow font-mono",
-              errors.content
-                ? "border-red-300 focus:ring-red-500"
-                : "border-gray-300 focus:ring-blue-500"
-            )}
-          />
+          <>
+            {/* 工具栏 */}
+            <div className="mb-2">
+              <GithubCodeSearch onInsert={insertAtCursor} />
+            </div>
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
+              }}
+              placeholder="请输入帖子内容...（支持 Markdown 格式）&#10;&#10;💡 插入 GitHub 代码：使用上方搜索框，或手动输入：&#10;```github-code&#10;owner/repo/path/to/file.ts&#10;```"
+              rows={12}
+              className={cn(
+                "w-full px-4 py-3 text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:border-transparent transition-shadow font-mono",
+                errors.content
+                  ? "border-red-300 focus:ring-red-500"
+                  : "border-gray-300 focus:ring-blue-500"
+              )}
+            />
+          </>
         ) : (
           <div className="w-full min-h-[300px] px-4 py-3 text-sm border border-gray-300 rounded-lg bg-gray-50 overflow-auto">
             {content.trim() ? (
               <div className="prose prose-sm max-w-none markdown-body">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ node, className, children, ...props }: any) {
+                      const match = /language-(\w+)/.exec(className || "");
+                      const lang = match ? match[1] : "";
+                      const text = String(children).replace(/\n$/, "");
+                      if (lang === "github-code") {
+                        const [rawPath, queryString] = text.split("?");
+                        const params = new URLSearchParams(queryString || "");
+                        return (
+                          <GithubCodeBlock
+                            source={rawPath.trim()}
+                            ref={params.get("ref") || undefined}
+                            lines={params.get("lines") || undefined}
+                          />
+                        );
+                      }
+                      return <code className={className} {...props}>{children}</code>;
+                    },
+                  }}
+                >
                   {content}
                 </ReactMarkdown>
               </div>
