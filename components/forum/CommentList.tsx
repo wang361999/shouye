@@ -24,6 +24,44 @@ interface CommentListProps {
   acceptedCommentId?: string | null;
 }
 
+const fallbackAuthor = {
+  id: "",
+  username: "未知用户",
+  avatar: null,
+  reputation: 0,
+  badge: null,
+};
+
+function normalizeComment(comment: any): Comment {
+  const author = comment?.author && typeof comment.author === "object"
+    ? {
+        ...fallbackAuthor,
+        ...comment.author,
+        id: String(comment.author.id || ""),
+        username: comment.author.username || "未知用户",
+      }
+    : fallbackAuthor;
+
+  return {
+    id: String(comment?.id || ""),
+    content: typeof comment?.content === "string" ? comment.content : "",
+    author,
+    likeCount: Number(comment?.likeCount || 0),
+    createdAt: comment?.createdAt || new Date().toISOString(),
+    isApproved: comment?.isApproved,
+    isAccepted: comment?.isAccepted,
+    replies: Array.isArray(comment?.replies)
+      ? comment.replies.map(normalizeComment).filter((reply: Comment) => reply.id)
+      : [],
+  };
+}
+
+function normalizeComments(comments: unknown): Comment[] {
+  return Array.isArray(comments)
+    ? comments.map(normalizeComment).filter((comment) => comment.id)
+    : [];
+}
+
 export default function CommentList({
   comments: initialComments,
   postId,
@@ -33,13 +71,13 @@ export default function CommentList({
 }: CommentListProps) {
   const { user, token } = useAppStore();
   const [content, setContent] = useState("");
-  const [comments, setComments] = useState<Comment[]>(initialComments);
+  const [comments, setComments] = useState<Comment[]>(() => normalizeComments(initialComments));
   const [submitting, setSubmitting] = useState(false);
   const [currentAcceptedId, setCurrentAcceptedId] = useState<string | null>(acceptedCommentId || null);
 
   // 当外部 comments 变化时同步
   useEffect(() => {
-    setComments(initialComments);
+    setComments(normalizeComments(initialComments));
   }, [initialComments]);
 
   useEffect(() => {
@@ -52,7 +90,7 @@ export default function CommentList({
       const res = await fetch(`/api/forum/comments?postId=${postId}`);
       if (res.ok) {
         const data = await res.json();
-        setComments(data);
+        setComments(normalizeComments(data));
       }
     } catch {
       // 静默失败
@@ -160,6 +198,7 @@ export default function CommentList({
               postAuthorId={postAuthorId}
               postType={postType}
               isAcceptedComment={currentAcceptedId === comment.id}
+              acceptedCommentId={currentAcceptedId}
               onReplySuccess={handleReplySuccess}
               onDeleteSuccess={handleDeleteSuccess}
               onAcceptSuccess={handleAcceptSuccess}

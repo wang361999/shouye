@@ -37,6 +37,62 @@ interface Post {
   comments: any[];
 }
 
+const fallbackAuthor = {
+  id: "",
+  username: "未知用户",
+  avatar: null,
+  reputation: 0,
+  badge: null,
+};
+
+const fallbackCategory = {
+  id: "",
+  name: "未分类",
+  slug: "",
+};
+
+function normalizePost(data: any): Post {
+  const author = data?.author && typeof data.author === "object"
+    ? {
+        ...fallbackAuthor,
+        ...data.author,
+        id: String(data.author.id || ""),
+        username: data.author.username || "未知用户",
+      }
+    : fallbackAuthor;
+
+  const category = data?.category && typeof data.category === "object"
+    ? {
+        ...fallbackCategory,
+        ...data.category,
+        id: String(data.category.id || ""),
+        name: data.category.name || "未分类",
+        slug: data.category.slug || "",
+      }
+    : fallbackCategory;
+
+  return {
+    id: String(data?.id || ""),
+    title: data?.title || "无标题帖子",
+    content: typeof data?.content === "string" ? data.content : "",
+    author,
+    category,
+    viewCount: Number(data?.viewCount || 0),
+    likeCount: Number(data?.likeCount || 0),
+    commentCount: Number(data?.commentCount || 0),
+    isPinned: Boolean(data?.isPinned),
+    isEssence: Boolean(data?.isEssence),
+    isLocked: Boolean(data?.isLocked),
+    postType: data?.postType === "question" ? "question" : "discussion",
+    acceptedCommentId: data?.acceptedCommentId || null,
+    tags: Array.isArray(data?.tags)
+      ? data.tags.filter((item: any) => item?.tag && typeof item.tag === "object")
+      : [],
+    createdAt: data?.createdAt || new Date().toISOString(),
+    comments: Array.isArray(data?.comments) ? data.comments : [],
+  };
+}
+
 export default function PostDetailPage({
   params,
 }: {
@@ -67,11 +123,7 @@ export default function PostDetailPage({
           throw new Error('帖子不存在');
         }
         const data = await res.json();
-        setPost({
-          ...data,
-          id: String(data.id),
-          category: data.category || { id: '', name: '未分类', slug: '' },
-        });
+        setPost(normalizePost(data));
       } catch (err: any) {
         toast.error(err.message || '获取帖子失败');
         router.replace('/forum');

@@ -26,6 +26,7 @@ interface CommentItemProps {
   postAuthorId?: string;
   postType?: string;
   isAcceptedComment?: boolean;
+  acceptedCommentId?: string | null;
   onReplySuccess?: () => void;
   onDeleteSuccess?: () => void;
   onAcceptSuccess?: () => void;
@@ -40,6 +41,7 @@ export default function CommentItem({
   postAuthorId,
   postType,
   isAcceptedComment,
+  acceptedCommentId,
   onReplySuccess,
   onDeleteSuccess,
   onAcceptSuccess,
@@ -55,6 +57,14 @@ export default function CommentItem({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [accepting, setAccepting] = useState(false);
+
+  const author = comment.author || {
+    id: "",
+    username: "未知用户",
+    avatar: null,
+    reputation: 0,
+    badge: null,
+  };
 
   const handleLike = () => {
     setLiked(!liked);
@@ -209,27 +219,27 @@ export default function CommentItem({
   };
 
   const maxDepth = 3;
-  const canDelete = currentUserId && (comment.author.id === currentUserId || isAdmin);
-  const canAccept = postType === "question" && currentUserId === postAuthorId && !isAcceptedComment && comment.author.id !== currentUserId;
+  const canDelete = currentUserId && (author.id === currentUserId || isAdmin);
+  const canAccept = postType === "question" && currentUserId === postAuthorId && !isAcceptedComment && author.id !== currentUserId;
 
   return (
     <div className={cn(depth > 0 && "ml-6 sm:ml-10 border-l-2 border-gray-100 pl-4")}>
       <div className={cn("flex space-x-3 py-3", isAcceptedComment && "bg-green-50/50 -mx-4 px-4 rounded-lg")}>
         {/* 头像 */}
-        <UserAvatar username={comment.author.username} avatar={comment.author.avatar} size="sm" />
+        <UserAvatar username={author.username} avatar={author.avatar} size="sm" />
 
         {/* 内容区 */}
         <div className="flex-1 min-w-0">
           {/* 用户名 + 时间 + 声望 */}
           <div className="flex items-center space-x-2 mb-1 flex-wrap">
             <span className="text-sm font-semibold text-gray-800">
-              {comment.author.username}
+              {author.username}
             </span>
-            {comment.author.id === currentUserId && (
+            {author.id === currentUserId && (
               <span className="text-xs text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">我</span>
             )}
-            {comment.author.reputation !== undefined && (
-              <ReputationBadge reputation={comment.author.reputation} badge={comment.author.badge} size="xs" />
+            {author.reputation !== undefined && (
+              <ReputationBadge reputation={author.reputation} badge={author.badge} size="xs" />
             )}
             <span className="text-xs text-gray-400">
               {formatTimeAgo(comment.createdAt)}
@@ -282,7 +292,7 @@ export default function CommentItem({
             )}
 
             {/* 举报按钮 */}
-            {currentUserId && comment.author.id !== currentUserId && (
+            {currentUserId && author.id !== currentUserId && (
               <button
                 onClick={() => setShowReportModal(true)}
                 className="flex items-center space-x-1 text-xs text-gray-400 hover:text-orange-500 transition-colors"
@@ -337,7 +347,7 @@ export default function CommentItem({
               <textarea
                 value={replyContent}
                 onChange={(e) => setReplyContent(e.target.value)}
-                placeholder={`回复 ${comment.author.username}...`}
+                placeholder={`回复 ${author.username}...`}
                 rows={2}
                 className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -376,7 +386,8 @@ export default function CommentItem({
                   isAdmin={isAdmin}
                   postAuthorId={postAuthorId}
                   postType={postType}
-                  isAcceptedComment={isAcceptedComment && reply.id === comment.id}
+                  isAcceptedComment={acceptedCommentId === reply.id}
+                  acceptedCommentId={acceptedCommentId}
                   onReplySuccess={onReplySuccess}
                   onDeleteSuccess={onDeleteSuccess}
                   onAcceptSuccess={onAcceptSuccess}
