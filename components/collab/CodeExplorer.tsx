@@ -212,6 +212,15 @@ export default function CodeExplorer({
   // ---- 移动端文件树切换 ----
   const [showFileTree, setShowFileTree] = useState(false);
 
+  // ---- 新建文件 ----
+  const [showNewFile, setShowNewFile] = useState(false);
+  const [newFilePath, setNewFilePath] = useState('');
+  const [newFileContent, setNewFileContent] = useState('');
+  const [newFileCommitMsg, setNewFileCommitMsg] = useState('');
+  const [creatingFile, setCreatingFile] = useState(false);
+  // 新建文件时所在的目录（空字符串=根目录）
+  const [newFileBaseDir, setNewFileBaseDir] = useState('');
+
   // ============ API: 获取内容（目录或文件） ============
   const fetchContents = useCallback(
     async (path: string, ref: string) => {
@@ -405,6 +414,85 @@ export default function CodeExplorer({
       setSaving(false);
     }
   }, [file, currentBranch, commitMessage, editContent, owner, repo, token, autoSubmitContribution, onSaveSuccess]);
+
+  // ============ 打开新建文件弹窗 ============
+  const openNewFile = useCallback((baseDir?: string) => {
+    setNewFileBaseDir(baseDir || '');
+    setNewFilePath('');
+    setNewFileContent('');
+    setNewFileCommitMsg('');
+    setShowNewFile(true);
+  }, []);
+
+  // ============ 创建新文件 ============
+  const handleCreateFile = useCallback(async () => {
+    if (!currentBranch) return;
+    const trimmedPath = newFilePath.trim();
+    if (!trimmedPath) {
+      toast.error('请输入文件名');
+      return;
+    }
+    if (!newFileCommitMsg.trim()) {
+      toast.error('请填写 commit message');
+      return;
+    }
+    // 拼接完整路径：基础目录 + 输入路径
+    // 支持输入 a/b/c.ts 自动创建嵌套目录
+    // 以 / 结尾表示创建文件夹（用 .gitkeep 占位）
+    let rawPath = newFileBaseDir
+      ? `${newFileBaseDir.replace(/\/$/, '')}/${trimmedPath}`
+      : trimmedPath;
+    // 文件夹处理：路径以 / 结尾时，自动添加 .gitkeep
+    const isFolder = rawPath.endsWith('/');
+    const fullPath = isFolder ? `${rawPath}.gitkeep` : rawPath;
+    const finalContent = isFolder ? '' : newFileContent;
+
+    setCreatingFile(true);
+    try {
+      const res = await fetch('/api/collab/github/edit-file', {
+        method: 'PUT',
+        headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          owner,
+          repo,
+          path: fullPath,
+          content: finalContent,
+          message: newFileCommitMsg,
+          branch: currentBranch,
+          // 不传 sha = 新建文件
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error || '创建文件失败');
+      }
+      // 自动提交贡献记录
+      await autoSubmitContribution({
+        type: 'commit',
+        title: newFileCommitMsg,
+        description: isFolder ? `新建文件夹：${rawPath}` : `新建文件：${fullPath}`,
+        commitSha: json?.commitSha,
+        branch: currentBranch,
+        url: `https://github.com/${owner}/${repo}/commit/${json?.commitSha || ''}`,
+      });
+      toast.success('文件创建成功，贡献已自动记录');
+      setShowNewFile(false);
+      // 刷新文件树（刷新所在目录）
+      setDirCache((prev) => {
+        const next = { ...prev };
+        delete next[newFileBaseDir];
+        return next;
+      });
+      fetchDir(newFileBaseDir);
+      // 自动选中新文件
+      selectFile(fullPath);
+      onSaveSuccess?.();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '创建文件失败');
+    } finally {
+      setCreatingFile(false);
+    }
+  }, [currentBranch, newFilePath, newFileContent, newFileCommitMsg, newFileBaseDir, owner, repo, token, autoSubmitContribution, fetchDir, selectFile, onSaveSuccess]);
 
   // ============ 创建分支 ============
   const handleCreateBranch = useCallback(async () => {
@@ -686,6 +774,18 @@ export default function CodeExplorer({
             'md:block md:w-[280px] md:flex-shrink-0 md:max-h-none',
           )}
         >
+          {/* 文件树头部：新建文件按钮 */}
+          {isMember && (
+            <div className="flex items-center gap-1 mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => openNewFile('')}
+                className="flex-1 h-7 px-2 rounded-md text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                + 新建文件
+              </button>
+            </div>
+          )}
           {rootLoading ? (
             <div className="space-y-2 animate-pulse">
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
@@ -840,6 +940,95 @@ export default function CodeExplorer({
           )}
         </div>
       </div>
+
+      {/* ===== 新建文件弹窗 ===== */}
+      {showNewFile && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">
+                新建文件
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowNewFile(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              {/* 文件路径 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  文件路径 <span className="text-red-500">*</span>
+                </label>
+                {newFileBaseDir && (
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">
+                    📁 {newFileBaseDir}/
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={newFilePath}
+                  onChange={(e) => setNewFilePath(e.target.value)}
+                  placeholder="例如：src/utils/helper.ts 或 README.md"
+                  className="w-full h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                />
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  输入 a/b/c.ts 可自动创建嵌套目录；以 / 结尾则创建该路径下的 .gitkeep 占位文件
+                </p>
+              </div>
+
+              {/* Commit message */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Commit message <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newFileCommitMsg}
+                  onChange={(e) => setNewFileCommitMsg(e.target.value)}
+                  placeholder="例如：新增 helper 工具函数"
+                  className="w-full h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* 文件内容 */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  文件内容（可选）
+                </label>
+                <textarea
+                  value={newFileContent}
+                  onChange={(e) => setNewFileContent(e.target.value)}
+                  placeholder="输入文件内容，留空则创建空文件..."
+                  rows={6}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  spellCheck={false}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowNewFile(false)}
+                className="h-9 px-4 rounded-md text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateFile}
+                disabled={creatingFile}
+                className="h-9 px-4 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creatingFile ? '创建中…' : '创建文件'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== 新建分支弹窗 ===== */}
       {showNewBranch && (
