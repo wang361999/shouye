@@ -7,12 +7,23 @@ export const revalidate = 300;
 
 /**
  * GET /api/community/home - 社区首页聚合数据
- * 一次性返回：最新帖子、热门讨论、活跃成员、社区统计
+ * 一次性返回：最新帖子、热门讨论、活跃成员、社区统计、协作召集令
  */
 export async function GET() {
   try {
+    // 解析 JSON 字符串数组（技术栈、标签），失败时返回空数组
+    const parseJsonArray = (value: string | null): string[] => {
+      if (!value) return [];
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        return [];
+      }
+    };
+
     // 并行查询所有数据
-    const [latestPosts, hotPosts, activeMembers, stats] = await Promise.all([
+    const [latestPosts, hotPosts, activeMembers, stats, collabProjectsRaw] = await Promise.all([
       // 1. 最新帖子（6条）
       prisma.post.findMany({
         where: { status: 'PUBLISHED' },
@@ -90,6 +101,40 @@ export async function GET() {
         ]);
         return { userCount, postCount, commentCount, todayPostCount };
       })(),
+
+      // 5. 协作召集令（招募中的项目，按创建时间倒序，6条）
+      (async () => {
+        try {
+          return await prisma.collabProject.findMany({
+            where: {
+              status: { in: ['recruiting', 'active'] },
+            },
+            orderBy: [{ createdAt: 'desc' }],
+            take: 6,
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              repoOwner: true,
+              repoName: true,
+              status: true,
+              techStack: true,
+              tags: true,
+              memberCount: true,
+              maxMembers: true,
+              taskCount: true,
+              completedTaskCount: true,
+              contributionCount: true,
+              createdAt: true,
+              author: {
+                select: { id: true, username: true, avatar: true },
+              },
+            },
+          });
+        } catch {
+          return [];
+        }
+      })(),
     ]);
 
     // 格式化最新帖子
@@ -131,11 +176,31 @@ export async function GET() {
       commentCount: u.commentCount,
     }));
 
+    // 格式化协作召集令
+    const formattedCollab = collabProjectsRaw.map((p) => ({
+      id: p.id,
+      title: p.title,
+      summary: truncateText(stripMarkdown(p.description), 100),
+      repoOwner: p.repoOwner,
+      repoName: p.repoName,
+      status: p.status,
+      techStack: parseJsonArray(p.techStack),
+      tags: parseJsonArray(p.tags),
+      memberCount: p.memberCount,
+      maxMembers: p.maxMembers,
+      taskCount: p.taskCount,
+      completedTaskCount: p.completedTaskCount,
+      contributionCount: p.contributionCount,
+      timeAgo: formatTimeAgo(p.createdAt),
+      author: p.author,
+    }));
+
     return NextResponse.json({
       latestPosts: formattedLatest,
       hotPosts: formattedHot,
       activeMembers: formattedMembers,
       stats,
+      collabProjects: formattedCollab,
     });
   } catch (error) {
     console.error('[COMMUNITY HOME ERROR]', error);
@@ -144,6 +209,7 @@ export async function GET() {
       hotPosts: [],
       activeMembers: [],
       stats: { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 },
+      collabProjects: [],
     });
   }
 }

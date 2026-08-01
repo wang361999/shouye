@@ -47,6 +47,12 @@ model User {
   // 订单
   orders         Order[]
 
+  // 协作项目
+  collabProjects      CollabProject[]
+  collabMemberships   CollabMember[]
+  collabTasks         CollabTask[]
+  collabContributions CollabContribution[]
+
   @@map("User")
 }
 
@@ -483,4 +489,125 @@ model ExternalDatabase {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("ExternalDatabase")
+}
+
+// ============ GitHub 协作项目 - 召集令 ============
+model CollabProject {
+  id            String   @id @default(cuid())
+  title         String   // 召集令标题
+  description   String   // 项目描述（Markdown）
+  authorId      String   @map("author_id") // 发起人
+
+  // GitHub 仓库信息
+  repoUrl       String   @map("repo_url") // GitHub 仓库完整 URL
+  repoOwner     String   @map("repo_owner") // 仓库所有者（GitHub 用户名/组织）
+  repoName      String   @map("repo_name") // 仓库名称
+  repoCreated   Boolean  @default(false) @map("repo_created") // 是否通过本平台创建（true=OAuth创建，false=手动添加）
+  defaultBranch String?  @map("default_branch") // 默认分支
+
+  // 项目元信息
+  techStack     String?  @map("tech_stack") // 技术栈（JSON 数组）
+  tags          String?  // 标签（JSON 数组）
+  goals         String?  // 项目目标（Markdown）
+  requirements  String?  // 参与要求描述
+
+  // 状态管理
+  status        String   @default("recruiting") // recruiting | active | completed | archived
+  maxMembers    Int      @default(10) @map("max_members") // 最大成员数
+
+  // 统计字段（冗余，提升查询性能）
+  memberCount        Int  @default(1) @map("member_count")
+  taskCount          Int  @default(0) @map("task_count")
+  completedTaskCount Int  @default(0) @map("completed_task_count")
+  contributionCount  Int  @default(0) @map("contribution_count")
+  viewCount          Int  @default(0) @map("view_count")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  author        User              @relation(fields: [authorId], references: [id])
+  members       CollabMember[]
+  tasks         CollabTask[]
+  contributions CollabContribution[]
+
+  @@index([authorId])
+  @@index([status])
+  @@map("CollabProject")
+}
+
+// ============ GitHub 协作项目 - 成员 ============
+model CollabMember {
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  userId      String   @map("user_id")
+  role        String   @default("member") // owner | maintainer | member
+  status      String   @default("active") // pending | active | left
+  githubLogin String?  @map("github_login") // 成员的 GitHub 用户名（用于关联提交）
+  joinedAt    DateTime @default(now()) @map("joined_at")
+  leftAt      DateTime? @map("left_at")
+
+  project     CollabProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("CollabMember")
+}
+
+// ============ GitHub 协作项目 - 任务清单 ============
+model CollabTask {
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  title       String
+  description String?  // 任务描述（Markdown）
+  assigneeId  String?  @map("assignee_id")
+  status      String   @default("open") // open | in_progress | review | completed | cancelled
+  priority    String   @default("medium") // low | medium | high | urgent
+  labels      String?  // 标签（JSON 数组）
+  dueDate     DateTime? @map("due_date")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  project        CollabProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee       User?               @relation(fields: [assigneeId], references: [id])
+  contributions  CollabContribution[]
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+  @@map("CollabTask")
+}
+
+// ============ GitHub 协作项目 - 提交贡献 ============
+model CollabContribution {
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  taskId      String?  @map("task_id")
+  userId      String   @map("user_id")
+
+  // 提交信息
+  type        String   // commit | pull_request | issue | docs | other
+  title       String   // 提交标题
+  description String?  // 提交描述
+  url         String?  // GitHub commit/PR/issue 链接
+  commitSha   String?  @map("commit_sha") // commit SHA（前 7 位）
+  branch      String?  // 分支名
+  additions   Int      @default(0) // 新增行数
+  deletions   Int      @default(0) // 删除行数
+  filesChanged Int     @default(0) @map("files_changed")
+
+  status      String   @default("pending") // pending | approved | rejected
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  project     CollabProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        CollabTask?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([taskId])
+  @@index([userId])
+  @@map("CollabContribution")
 }

@@ -29,10 +29,29 @@ interface ActiveMember {
   commentCount: number;
 }
 
+interface CollabProject {
+  id: string;
+  title: string;
+  summary: string;
+  repoOwner: string;
+  repoName: string;
+  status: string;
+  techStack: string[];
+  tags: string[];
+  memberCount: number;
+  maxMembers: number;
+  taskCount: number;
+  completedTaskCount: number;
+  contributionCount: number;
+  timeAgo: string;
+  author: { id: string; username: string; avatar: string | null };
+}
+
 interface CommunityData {
   latestPosts: CommunityPost[];
   hotPosts: CommunityPost[];
   activeMembers: ActiveMember[];
+  collabProjects: CollabProject[];
   stats: {
     userCount: number;
     postCount: number;
@@ -160,6 +179,79 @@ function PostCard({ post, rank }: { post: CommunityPost; rank?: number }) {
   );
 }
 
+// 协作召集令卡片
+function CollabProjectCard({ project }: { project: CollabProject }) {
+  const techStack = project.techStack.slice(0, 3);
+  const extraTech = Math.max(project.techStack.length - 3, 0);
+
+  return (
+    <Link
+      href={`/collab/${project.id}`}
+      className="group block bg-white rounded-xl border border-gray-200 p-4 transition-all duration-200 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 dark:bg-gray-800 dark:border-gray-700 dark:hover:border-gray-600"
+    >
+      {/* 顶部：标题 + 状态徽章 */}
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <h3 className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1 dark:text-gray-100">
+          {project.title}
+        </h3>
+        {project.status === "recruiting" ? (
+          <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-100 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+            招募中
+          </span>
+        ) : (
+          <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+            进行中
+          </span>
+        )}
+      </div>
+
+      {/* 描述摘要 */}
+      <p className="text-xs text-gray-500 line-clamp-1 mb-2 dark:text-gray-400">
+        {project.summary}
+      </p>
+
+      {/* 仓库信息 */}
+      <div className="flex items-center gap-1 text-xs text-gray-400 mb-2 dark:text-gray-500">
+        <svg className="h-3.5 w-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+        </svg>
+        <span className="truncate">{project.repoOwner}/{project.repoName}</span>
+      </div>
+
+      {/* 技术栈标签 */}
+      {techStack.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1 mb-2">
+          {techStack.map((tech) => (
+            <span
+              key={tech}
+              className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+            >
+              {tech}
+            </span>
+          ))}
+          {extraTech > 0 && (
+            <span className="text-xs text-gray-400 dark:text-gray-500">+{extraTech}</span>
+          )}
+        </div>
+      )}
+
+      {/* 底部统计行 */}
+      <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 mb-2">
+        <span className="flex items-center gap-0.5" title="成员数">👥 {project.memberCount}/{project.maxMembers}</span>
+        <span className="flex items-center gap-0.5" title="任务完成">✅ {project.completedTaskCount}/{project.taskCount}</span>
+        <span className="flex items-center gap-0.5" title="贡献数">📝 {project.contributionCount}</span>
+      </div>
+
+      {/* 发起人 */}
+      <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+        <UserAvatar username={project.author.username} avatar={project.author.avatar} size="sm" />
+        <span className="text-gray-600 dark:text-gray-400">{project.author.username}</span>
+        <span>{project.timeAgo}</span>
+      </div>
+    </Link>
+  );
+}
+
 export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHomeProps) {
   const [data, setData] = useState<CommunityData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -174,10 +266,6 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
       })
       .catch(() => setLoading(false));
   }, []);
-
-  function scrollToForum() {
-    forumRef.current?.scrollIntoView({ behavior: "smooth" });
-  }
 
   const stats = data?.stats ?? { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 };
 
@@ -228,12 +316,12 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5-5 5M6 12h12" />
               </svg>
             </Link>
-            <button
-              onClick={scrollToForum}
+            <Link
+              href="/collab"
               className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/5 px-8 py-3.5 font-semibold text-white backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-white/15"
             >
-              浏览讨论
-            </button>
+              协同创作
+            </Link>
           </div>
 
           {/* Hero 内联统计 */}
@@ -287,10 +375,15 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
                 ))}
               </div>
               <div className="space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white p-4">
-                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white p-4 dark:bg-gray-800 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="h-4 bg-gray-200 rounded w-2/3 dark:bg-gray-700" />
+                      <div className="h-4 bg-gray-200 rounded w-12 dark:bg-gray-700" />
+                    </div>
+                    <div className="h-3 bg-gray-100 rounded w-full mb-2 dark:bg-gray-700" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2 mb-2 dark:bg-gray-700" />
+                    <div className="h-3 bg-gray-100 rounded w-2/3 dark:bg-gray-700" />
                   </div>
                 ))}
               </div>
@@ -321,25 +414,31 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
                 </div>
               </div>
 
-              {/* 右侧：热门讨论 */}
+              {/* 右侧：协同创作召集令 */}
               <div>
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                    <span>🔥</span> 热门讨论
+                  <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-gray-100">
+                    <span>🐙</span> 协同创作召集令
                   </h3>
-                  <Link href="/forum" className="text-sm text-blue-600 hover:text-blue-700 transition-colors">
-                    更多 →
+                  <Link href="/collab" className="text-sm text-blue-600 hover:text-blue-700 transition-colors dark:text-blue-400 dark:hover:text-blue-300">
+                    查看全部 →
                   </Link>
                 </div>
                 <div className="space-y-3">
-                  {data?.hotPosts.length ? (
-                    data.hotPosts.map((post, i) => (
-                      <PostCard key={post.id} post={post} rank={i} />
+                  {(data?.collabProjects ?? []).length ? (
+                    (data?.collabProjects ?? []).map((project) => (
+                      <CollabProjectCard key={project.id} project={project} />
                     ))
                   ) : (
-                    <div className="text-center py-12 text-gray-400">
-                      <p className="text-4xl mb-3">🌟</p>
-                      <p>快来发起第一个讨论吧~</p>
+                    <div className="text-center py-12 text-gray-400 dark:text-gray-500">
+                      <p className="text-4xl mb-3">🚀</p>
+                      <p className="mb-4">还没有协作项目，快来发起第一个召集令吧！</p>
+                      <Link
+                        href="/collab/new"
+                        className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        发起召集令
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -471,18 +570,18 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
               </span>
             </Link>
 
-            {/* 查看工具 */}
+            {/* 协同创作 */}
             <Link
-              href="/#tools"
+              href="/collab"
               className="group rounded-2xl border border-white/15 bg-white/10 p-8 backdrop-blur transition-all hover:-translate-y-1 hover:bg-white/15"
             >
-              <div className="mb-4 text-4xl">🛠️</div>
-              <h3 className="mb-2 text-xl font-bold">查看工具</h3>
+              <div className="mb-4 text-4xl">🚀</div>
+              <h3 className="mb-2 text-xl font-bold">协同创作</h3>
               <p className="text-sm text-blue-100/80">
-                探索精选开发者工具，提升效率，也欢迎在社区分享使用心得
+                发起 GitHub 协作项目，邀请开发者一起写代码
               </p>
               <span className="mt-4 inline-flex items-center text-sm font-medium text-blue-300 group-hover:text-blue-200 transition-colors">
-                浏览工具
+                发起召集令
                 <svg className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
