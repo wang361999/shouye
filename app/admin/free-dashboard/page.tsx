@@ -744,6 +744,8 @@ export default function FreeDashboardPage() {
                 )}
               </div>
             </section>
+          </>
+        ) : (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
             <p className="text-base font-semibold">看板数据暂时没出来</p>
             <p className="mt-2 text-sm">{loadError || "获取看板数据失败，请稍后刷新。"}</p>
