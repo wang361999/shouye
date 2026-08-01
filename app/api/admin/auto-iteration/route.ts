@@ -20,6 +20,24 @@ const DEFAULT_CONFIG = {
   safeMode: true,
 };
 
+const AUTO_ITERATION_RULES = [
+  '先分析影响范围，再修改代码。',
+  '本项目是开源免费项目，免费订单、免费授权、普通用户权限和后台功能可以自动迭代。',
+  '不能泄露或改写 GitHub Token、数据库密码、OAuth 密钥、Vercel Token 等密钥。',
+  '不能删除生产数据，不能执行删除表、删除字段、批量清空或不可回滚的数据迁移。',
+  '涉及真实支付、付费扣款、外部计费服务或产生费用的操作必须人工确认。',
+  '修改后必须说明改了哪里、优化了什么、验证结果。',
+  '需要管理员确认后再上线。',
+];
+
+const AUTO_ITERATION_GUARDRAILS = [
+  '先生成变更日志，再由管理员确认是否上线',
+  '免费订单、免费授权和普通权限逻辑允许自动迭代',
+  '禁止泄露或修改密钥，禁止删除生产数据，禁止破坏性数据库变更',
+  '真实支付、外部计费和任何会产生费用的操作必须人工确认',
+  '必须通过 lint/build 后才能推送',
+];
+
 function toBool(value: string | undefined, fallback: boolean) {
   if (value === undefined) return fallback;
   return value === 'true';
@@ -78,10 +96,7 @@ async function createGitHubIssue(requirement: string) {
         requirement,
         '',
         '## 执行规则',
-        '1. 先分析影响范围，再修改代码。',
-        '2. 默认不改支付、授权、权限、数据库结构和生产数据。',
-        '3. 修改后必须说明改了哪里、优化了什么、验证结果。',
-        '4. 需要管理员确认后再上线。',
+        ...AUTO_ITERATION_RULES.map((rule, index) => `${index + 1}. ${rule}`),
       ].join('\n'),
     }),
   });
@@ -105,11 +120,7 @@ async function triggerAiExecutor(requirement: string, issueUrl?: string) {
       repo: REPO,
       requirement,
       issueUrl,
-      guardrails: [
-        '先生成变更日志，再由管理员确认是否上线',
-        '默认不改支付、授权、权限、数据库结构和生产数据',
-        '必须通过 lint/build 后才能推送',
-      ],
+      guardrails: AUTO_ITERATION_GUARDRAILS,
     }),
   });
 
@@ -234,11 +245,7 @@ export async function POST(request: NextRequest) {
         issueNumber: issue?.number || null,
         executorConfigured: hasExecutor,
         executorStatus: executor?.status || null,
-        guardrails: [
-          '先生成变更日志，再由管理员确认是否上线',
-          '默认不改支付、授权、权限、数据库结构和生产数据',
-          '必须通过 lint/build 后才能推送',
-        ],
+        guardrails: AUTO_ITERATION_GUARDRAILS,
       });
 
       await saveSetting(SETTING_KEYS.lastRequest, requestLog);
