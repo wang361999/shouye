@@ -1,0 +1,46 @@
+name: Auto forum poster
+
+on:
+  schedule:
+    # 每天北京时间 9:00 和 15:00 各发一帖（UTC 01:00 和 07:00）
+    - cron: '0 1 * * *'
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      post_topic:
+        description: "帖子类型：tutorial（教程）/ opensource（开源项目）/ random（随机）"
+        required: false
+        default: 'random'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-forum-poster
+  cancel-in-progress: true
+
+jobs:
+  post:
+    name: Generate and publish forum post
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+      POST_TOPIC: ${{ github.event.inputs.post_topic || 'random' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate and publish post
+        run: node scripts/auto-forum-poster.mjs
