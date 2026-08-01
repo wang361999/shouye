@@ -53,12 +53,45 @@ function basename(path: string): string {
 }
 
 // 步骤配置
-const STEPS: { key: WizardStep; label: string; icon: string }[] = [
-  { key: 'directory', label: '选择目录', icon: '📁' },
-  { key: 'filename', label: '创建文件', icon: '📄' },
-  { key: 'code', label: '编写代码', icon: '✏️' },
-  { key: 'review', label: '提交审核', icon: '📤' },
+const STEPS: { key: WizardStep; label: string }[] = [
+  { key: 'directory', label: '选择目录' },
+  { key: 'filename', label: '创建文件' },
+  { key: 'code', label: '编写代码' },
+  { key: 'review', label: '提交审核' },
 ];
+
+// 步骤图标（SVG）
+function StepIcon({ stepKey, className }: { stepKey: WizardStep; className?: string }) {
+  const common = { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' } as const;
+  switch (stepKey) {
+    case 'directory':
+      return (
+        <svg className={className} {...common}>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+      );
+    case 'filename':
+      return (
+        <svg className={className} {...common}>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      );
+    case 'code':
+      return (
+        <svg className={className} {...common}>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      );
+    case 'review':
+      return (
+        <svg className={className} {...common}>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 // ============ 主组件 ============
 export default function SubmitWizard({
@@ -348,15 +381,15 @@ export default function SubmitWizard({
           <button
             type="button"
             onClick={() => toggleDir(item.path)}
-            className="flex items-center gap-1.5 flex-1 text-left py-1 px-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1.5 flex-1 text-left py-[5px] px-2 rounded-lg text-[13px] text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/60 transition-colors"
             style={{ paddingLeft: `${padLeft}px` }}
           >
-            <span className="text-xs">{isExpanded ? '📂' : '📁'}</span>
+            <span className="text-[13px] leading-none">{isExpanded ? '📂' : '📁'}</span>
             <span className="truncate text-gray-700 dark:text-gray-300">
               {basename(item.path)}
             </span>
             {isLoading && (
-              <span className="ml-auto text-xs text-gray-400 animate-pulse">…</span>
+              <span className="ml-auto flex-shrink-0 w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
             )}
           </button>
           <button
@@ -366,10 +399,10 @@ export default function SubmitWizard({
               toast.success(`已选择目录：${item.path}`);
             }}
             className={cn(
-              'text-xs px-2 py-0.5 rounded transition-colors flex-shrink-0',
+              'text-[11px] px-2 py-0.5 rounded-lg transition-colors flex-shrink-0',
               isSelected
-                ? 'bg-blue-600 text-white'
-                : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+                ? 'bg-indigo-600 text-white'
+                : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20',
             )}
           >
             {isSelected ? '✓ 已选' : '选择'}
@@ -385,39 +418,47 @@ export default function SubmitWizard({
 
   // ============ 渲染 ============
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-2 sm:p-4">
-      <div className="w-full max-w-3xl h-[90vh] sm:h-[85vh] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
+      <div className="w-full max-w-3xl h-[90vh] sm:h-[85vh] rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col overflow-hidden">
         {/* 头部 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 flex-shrink-0">
-          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-            <span>📝</span>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/80 flex-shrink-0">
+          <h3 className="text-[15px] font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
             提交代码贡献
           </h3>
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+            className="text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 transition-colors disabled:opacity-40"
           >
-            ×
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {step === 'success' && createdPR ? (
           /* ===== 成功页面 ===== */
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-            <div className="text-5xl mb-4">🎉</div>
-            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-[15px] font-semibold text-gray-800 dark:text-gray-100 mb-2">
               提交成功！
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <p className="text-[13px] text-gray-500 dark:text-gray-400 mb-1">
               PR #{createdPR.number} 已创建，等待发起人审核
             </p>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-6">
+            <p className="text-[13px] font-medium text-gray-700 dark:text-gray-300 mb-6">
               {createdPR.title}
             </p>
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 max-w-md text-left text-xs text-blue-700 dark:text-blue-300 leading-relaxed mb-6">
-              <p className="font-medium mb-1">📋 审核流程：</p>
+            <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 max-w-md text-left text-[12px] text-indigo-700 dark:text-indigo-300 leading-relaxed mb-6">
+              <p className="font-medium mb-1">审核流程：</p>
               <p>1. 发起人将在项目详情页看到此 PR</p>
               <p>2. 审核通过后，代码将直接合并到 {defaultBranch} 分支</p>
               <p>3. 合并后您的贡献将自动记录</p>
@@ -427,14 +468,14 @@ export default function SubmitWizard({
                 href={createdPR.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
               >
                 在 GitHub 查看 PR ↗
               </a>
               <button
                 type="button"
                 onClick={onClose}
-                className="h-9 px-4 rounded-md text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="h-9 px-4 rounded-lg text-[13px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 完成
               </button>
@@ -443,31 +484,38 @@ export default function SubmitWizard({
         ) : (
           <>
             {/* 步骤指示器 */}
-            <div className="flex items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex-shrink-0">
+            <div className="flex items-center px-5 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 flex-shrink-0">
               {STEPS.map((s, i) => (
                 <div key={s.key} className="flex items-center flex-1 last:flex-none">
                   <div className="flex flex-col items-center gap-1">
                     <div
                       className={cn(
-                        'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors',
+                        'w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-medium transition-colors',
                         i < currentStepIndex
-                          ? 'bg-green-500 text-white'
+                          ? 'bg-emerald-500 text-white'
                           : i === currentStepIndex
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500',
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500',
                       )}
                     >
-                      {i < currentStepIndex ? '✓' : i + 1}
+                      {i < currentStepIndex ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        i + 1
+                      )}
                     </div>
                     <span
                       className={cn(
-                        'text-xs whitespace-nowrap',
+                        'text-[11px] whitespace-nowrap flex items-center gap-1',
                         i === currentStepIndex
-                          ? 'text-blue-600 dark:text-blue-400 font-medium'
+                          ? 'text-indigo-600 dark:text-indigo-400 font-medium'
                           : 'text-gray-400 dark:text-gray-500',
                       )}
                     >
-                      {s.icon} {s.label}
+                      <StepIcon stepKey={s.key} className="w-3 h-3" />
+                      {s.label}
                     </span>
                   </div>
                   {i < STEPS.length - 1 && (
@@ -475,7 +523,7 @@ export default function SubmitWizard({
                       className={cn(
                         'flex-1 h-0.5 mx-2 mb-5 rounded transition-colors',
                         i < currentStepIndex
-                          ? 'bg-green-500'
+                          ? 'bg-emerald-500'
                           : 'bg-gray-200 dark:bg-gray-700',
                       )}
                     />
@@ -485,26 +533,26 @@ export default function SubmitWizard({
             </div>
 
             {/* 内容区 */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-5">
               {/* ===== Step 1: 选择目录 ===== */}
               {step === 'directory' && (
                 <div className="space-y-3">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-[13px] text-gray-600 dark:text-gray-400">
                     选择要在哪个目录下创建文件，也可以直接使用根目录。
                   </div>
                   {/* 当前选择 */}
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+                    <span className="text-[12px] text-indigo-600 dark:text-indigo-400 font-medium">
                       当前选择：
                     </span>
-                    <span className="text-sm font-mono text-blue-700 dark:text-blue-300">
+                    <span className="text-[13px] font-mono text-indigo-700 dark:text-indigo-300">
                       {selectedDir || '（根目录）'}
                     </span>
                     {selectedDir && (
                       <button
                         type="button"
                         onClick={() => setSelectedDir('')}
-                        className="ml-auto text-xs text-red-500 hover:text-red-600"
+                        className="ml-auto text-[12px] text-red-500 hover:text-red-600"
                       >
                         重置为根目录
                       </button>
@@ -515,20 +563,22 @@ export default function SubmitWizard({
                     type="button"
                     onClick={() => setSelectedDir('')}
                     className={cn(
-                      'w-full flex items-center gap-2 py-2 px-3 rounded-md text-sm transition-colors',
+                      'w-full flex items-center gap-2 py-2 px-3 rounded-lg text-[13px] transition-colors',
                       selectedDir === ''
-                        ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700'
+                        ? 'bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-700'
                         : 'hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent',
                     )}
                   >
-                    <span>🏠</span>
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
                     <span className="text-gray-700 dark:text-gray-300">根目录</span>
                     {selectedDir === '' && (
-                      <span className="ml-auto text-xs text-blue-600 dark:text-blue-400">✓ 已选</span>
+                      <span className="ml-auto text-[11px] text-indigo-600 dark:text-indigo-400">✓ 已选</span>
                     )}
                   </button>
                   {/* 目录树 */}
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 max-h-[400px] overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/40">
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 max-h-[400px] overflow-y-auto p-2 bg-gray-50/50 dark:bg-gray-800/30">
                     {loadingDirs.has('') && !dirCache[''] ? (
                       <div className="py-4 space-y-2 animate-pulse">
                         <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
@@ -537,7 +587,7 @@ export default function SubmitWizard({
                     ) : rootDirs.length > 0 ? (
                       rootDirs.map((item) => renderDirNode(item, 0))
                     ) : (
-                      <div className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">
+                      <div className="text-[13px] text-gray-400 dark:text-gray-500 py-4 text-center">
                         仓库中没有子目录
                       </div>
                     )}
@@ -548,20 +598,20 @@ export default function SubmitWizard({
               {/* ===== Step 2: 创建文件 ===== */}
               {step === 'filename' && (
                 <div className="space-y-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-[13px] text-gray-600 dark:text-gray-400">
                     输入要创建的文件路径，支持嵌套目录。
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                       所在目录
                     </label>
-                    <div className="px-3 py-2 rounded-md bg-gray-100 dark:bg-gray-800 text-sm font-mono text-gray-500 dark:text-gray-400">
+                    <div className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 text-[13px] font-mono text-gray-500 dark:text-gray-400">
                       📁 {selectedDir || '（根目录）'}/
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                      文件路径 <span className="text-red-500">*</span>
+                    <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      文件路径 <span className="text-red-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -572,19 +622,19 @@ export default function SubmitWizard({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && canGoNext()) goNext();
                       }}
-                      className="w-full h-10 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
                     />
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
                       输入 a/b/c.ts 可自动创建嵌套目录
                     </p>
                   </div>
                   {/* 完整路径预览 */}
                   {filePath.trim() && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                      <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                      <span className="text-[12px] text-emerald-600 dark:text-emerald-400 font-medium">
                         完整路径：
                       </span>
-                      <span className="text-sm font-mono text-green-700 dark:text-green-300 break-all">
+                      <span className="text-[13px] font-mono text-emerald-700 dark:text-emerald-300 break-all">
                         {selectedDir ? `${selectedDir.replace(/\/$/, '')}/` : ''}{filePath.trim()}
                       </span>
                     </div>
@@ -595,10 +645,10 @@ export default function SubmitWizard({
               {/* ===== Step 3: 编写代码 ===== */}
               {step === 'code' && (
                 <div className="space-y-3 h-full flex flex-col">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-[13px] text-gray-600 dark:text-gray-400">
                     编写文件内容，留空则创建空文件。
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                  <div className="flex items-center gap-2 text-[12px] text-gray-400 dark:text-gray-500">
                     <span>📄</span>
                     <span className="font-mono">
                       {selectedDir ? `${selectedDir.replace(/\/$/, '')}/` : ''}{filePath.trim()}
@@ -608,7 +658,7 @@ export default function SubmitWizard({
                     value={fileContent}
                     onChange={(e) => setFileContent(e.target.value)}
                     placeholder="// 输入文件内容..."
-                    className="flex-1 min-h-[300px] w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                    className="flex-1 min-h-[300px] w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[13px] font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y"
                     spellCheck={false}
                   />
                 </div>
@@ -617,15 +667,15 @@ export default function SubmitWizard({
               {/* ===== Step 4: 提交审核 ===== */}
               {step === 'review' && (
                 <div className="space-y-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-[13px] text-gray-600 dark:text-gray-400">
                     确认提交信息，提交后发起人将收到审核请求。
                   </div>
                   {/* 提交摘要 */}
                   <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700 text-[12px] font-medium text-gray-500 dark:text-gray-400">
                       提交摘要
                     </div>
-                    <div className="p-3 space-y-2 text-sm">
+                    <div className="p-3 space-y-2 text-[13px]">
                       <div className="flex gap-2">
                         <span className="text-gray-400 dark:text-gray-500 w-20 flex-shrink-0">目录：</span>
                         <span className="font-mono text-gray-700 dark:text-gray-300">
@@ -640,7 +690,7 @@ export default function SubmitWizard({
                       </div>
                       <div className="flex gap-2">
                         <span className="text-gray-400 dark:text-gray-500 w-20 flex-shrink-0">完整路径：</span>
-                        <span className="font-mono text-blue-600 dark:text-blue-400 break-all">
+                        <span className="font-mono text-indigo-600 dark:text-indigo-400 break-all">
                           {selectedDir ? `${selectedDir.replace(/\/$/, '')}/` : ''}{filePath.trim()}
                         </span>
                       </div>
@@ -661,35 +711,35 @@ export default function SubmitWizard({
 
                   {/* Commit message */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                      Commit message <span className="text-red-500">*</span>
+                    <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      Commit message <span className="text-red-400">*</span>
                     </label>
                     <input
                       type="text"
                       value={commitMsg}
                       onChange={(e) => setCommitMsg(e.target.value)}
                       placeholder="例如：feat: 新增用户登录组件"
-                      className="w-full h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
                     />
                   </div>
 
                   {/* PR 标题 */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                      PR 标题 <span className="text-red-500">*</span>
+                    <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                      PR 标题 <span className="text-red-400">*</span>
                     </label>
                     <input
                       type="text"
                       value={prTitle}
                       onChange={(e) => setPrTitle(e.target.value)}
                       placeholder="例如：新增用户登录页"
-                      className="w-full h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
                     />
                   </div>
 
                   {/* PR 描述 */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                       PR 描述（可选）
                     </label>
                     <textarea
@@ -697,13 +747,15 @@ export default function SubmitWizard({
                       onChange={(e) => setPrBody(e.target.value)}
                       placeholder="描述本次变更的内容与目的…"
                       rows={3}
-                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                      className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y"
                     />
                   </div>
 
                   {/* 流程说明 */}
-                  <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400">
-                    <span className="flex-shrink-0">ℹ️</span>
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[12px] text-amber-700 dark:text-amber-400">
+                    <svg className="w-4 h-4 flex-shrink-0 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                     <span>
                       提交后将自动创建分支并发起 PR，发起人审核通过后代码将合并到{' '}
                       <span className="font-mono font-medium">{defaultBranch || 'main'}</span> 分支。
@@ -714,12 +766,15 @@ export default function SubmitWizard({
             </div>
 
             {/* 底部操作栏 */}
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 flex-shrink-0">
-              <div className="text-xs text-gray-400 dark:text-gray-500">
-                {step === 'directory' && '💡 提示：不选目录则默认在根目录创建'}
-                {step === 'filename' && '💡 提示：支持 a/b/c.ts 嵌套路径'}
-                {step === 'code' && '💡 提示：可留空创建空文件'}
-                {step === 'review' && '💡 提示：提交后可在 GitHub 查看审核状态'}
+            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/80 flex-shrink-0">
+              <div className="text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {step === 'directory' && '提示：不选目录则默认在根目录创建'}
+                {step === 'filename' && '提示：支持 a/b/c.ts 嵌套路径'}
+                {step === 'code' && '提示：可留空创建空文件'}
+                {step === 'review' && '提示：提交后可在 GitHub 查看审核状态'}
               </div>
               <div className="flex items-center gap-2">
                 {step !== 'directory' && (
@@ -727,7 +782,7 @@ export default function SubmitWizard({
                     type="button"
                     onClick={goPrev}
                     disabled={submitting}
-                    className="h-9 px-4 rounded-md text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                    className="h-9 px-4 rounded-lg text-[13px] font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
                   >
                     上一步
                   </button>
@@ -737,7 +792,7 @@ export default function SubmitWizard({
                     type="button"
                     onClick={goNext}
                     disabled={!canGoNext()}
-                    className="h-9 px-4 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-9 px-4 rounded-lg text-[13px] font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     下一步
                   </button>
@@ -746,9 +801,16 @@ export default function SubmitWizard({
                     type="button"
                     onClick={handleSubmit}
                     disabled={submitting || !canGoNext()}
-                    className="h-9 px-6 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-9 px-6 rounded-lg text-[13px] font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
-                    {submitting ? '提交中…' : '📤 提交审核'}
+                    {submitting ? (
+                      <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    )}
+                    {submitting ? '提交中' : '提交审核'}
                   </button>
                 )}
               </div>

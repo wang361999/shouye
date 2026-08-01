@@ -1769,16 +1769,18 @@ function GithubTab({
       {hasRepo && (
         <SectionCard title="💻 在线代码编辑">
           <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-            <div className="text-4xl mb-3">💻</div>
+            <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+            </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md">
               浏览仓库文件、在线编辑代码、创建分支和发起 PR
             </p>
             <button
               type="button"
               onClick={() => setShowCodeExplorer(true)}
-              className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
             >
-              <span>📂</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
               打开在线编辑器
             </button>
             <div className="flex items-center gap-4 mt-4">
@@ -1786,7 +1788,7 @@ function GithubTab({
                 href={`https://github.com/codespaces/new/${project.repoOwner}/${project.repoName}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
               >
                 Codespaces ↗
               </a>
@@ -1794,7 +1796,7 @@ function GithubTab({
                 href={`https://gitpod.io/#https://github.com/${project.repoOwner}/${project.repoName}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
               >
                 Gitpod ↗
               </a>
@@ -1819,23 +1821,23 @@ function GithubTab({
 
       {/* 在线代码编辑器弹窗 */}
       {showCodeExplorer && hasRepo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
-          <div className="w-full max-w-5xl h-[92vh] sm:h-[85vh] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+          <div className="w-full max-w-5xl h-screen sm:h-[90vh] sm:rounded-xl bg-white dark:bg-gray-950 border-0 sm:border sm:border-gray-200 dark:sm:border-gray-800 shadow-2xl flex flex-col overflow-hidden">
             {/* 弹窗头部 */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                <span>💻</span>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm flex-shrink-0">
+              <h3 className="text-[14px] font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
                 在线代码编辑
-                <span className="text-xs font-normal text-gray-400 dark:text-gray-500">
+                <span className="text-[11px] font-normal text-gray-400 dark:text-gray-500 font-mono">
                   {project.repoOwner}/{project.repoName}
                 </span>
               </h3>
               <button
                 type="button"
                 onClick={() => setShowCodeExplorer(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
-                ×
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
             {/* 弹窗内容 */}
