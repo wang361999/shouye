@@ -371,13 +371,15 @@ export default function ForumPostsPage() {
                       className="hover:bg-gray-50 transition-colors"
                     >
                       <td className="px-4 py-3 max-w-[240px]">
-                        <Link
-                          href={`/forum/post/${post.id}`}
-                          className="text-gray-900 hover:text-blue-600 hover:underline line-clamp-1 block"
-                          title={post.title}
-                        >
-                          {post.title}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/forum/post/${post.id}`}
+                            className="text-gray-900 hover:text-blue-600 hover:underline line-clamp-1 block"
+                            title={post.title}
+                          >
+                            {post.title}
+                          </Link>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                         {post.category?.name || "-"}
@@ -428,11 +430,18 @@ export default function ForumPostsPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-0.5 flex-wrap">
                           <Link
-                            href={`/forum/post/${post.id}`}
-                            title="编辑/查看"
+                            href={`/forum/post/${post.id}/edit`}
+                            title="编辑"
                             className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           >
                             ✏️
+                          </Link>
+                          <Link
+                            href={`/forum/post/${post.id}`}
+                            title="查看"
+                            className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+                          >
+                            👁
                           </Link>
                           <button
                             onClick={() => patchPost(post, "pin")}

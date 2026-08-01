@@ -33,9 +33,10 @@ export default function PostDetailPage({
 }) {
   const { id } = params;
   const router = useRouter();
-  const { token } = useAppStore();
+  const { token, user } = useAppStore();
 
   const [post, setPost] = useState<Post | null>(null);
+  const [authorId, setAuthorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const [favorited, setFavorited] = useState(false);
@@ -49,6 +50,7 @@ export default function PostDetailPage({
           throw new Error('帖子不存在');
         }
         const data = await res.json();
+        setAuthorId(data.authorId || null);
         setPost({
           ...data,
           id: String(data.id),
@@ -265,6 +267,16 @@ export default function PostDetailPage({
         >
           🔗 分享
         </button>
+
+        {/* 编辑（仅作者或管理员可见） */}
+        {user && (authorId === user.id || user.role === 'ADMIN') && (
+          <Link
+            href={`/forum/post/${id}/edit`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+          >
+            ✏️ 编辑
+          </Link>
+        )}
       </div>
 
       {/* 分割线 */}
