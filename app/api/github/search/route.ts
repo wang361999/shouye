@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
  * GET /api/github/search?q=...&page=1&per_page=10
  *
  * 搜索 GitHub 代码
- * 使用 GITHUB_TOKEN 环境变量提高速率限制（5000/h vs 60/h）
+ * 必须配置 GITHUB_TOKEN 环境变量（GitHub Code Search API 强制要求认证）
+ * 配置后速率限制为 5000/h
  * GitHub Code Search API: https://docs.github.com/en/rest/search#search-code
  *
  * 返回：
@@ -36,15 +37,27 @@ export async function GET(request: NextRequest) {
       'User-Agent': 'ET-Studio-Forum',
     };
 
-    // 如果配置了 GITHUB_TOKEN，添加认证头提高速率限制
+    // GitHub Code Search API 强制要求认证，无 Token 时直接返回友好错误
     const token = process.env.GITHUB_TOKEN;
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (!token) {
+      return NextResponse.json(
+        {
+          error: 'GitHub 代码搜索需要配置 GITHUB_TOKEN 环境变量。请在 Vercel 项目设置 → Environment Variables 中添加 GITHUB_TOKEN（只需 public_repo 只读权限即可）。',
+        },
+        { status: 503 }
+      );
     }
+    headers['Authorization'] = `Bearer ${token}`;
 
     const response = await fetch(searchUrl.toString(), { headers });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        return NextResponse.json(
+          { error: 'GITHUB_TOKEN 无效或已过期，请检查 Vercel 环境变量中的 Token 配置' },
+          { status: 503 }
+        );
+      }
       if (response.status === 403) {
         // 检查是否是速率限制
         const rateLimitRemaining = response.headers.get('x-ratelimit-remaining');

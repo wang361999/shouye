@@ -148,9 +148,16 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
           {error && !loading && (
             <div className="px-4 py-6 text-center">
               <p className="text-sm text-red-500">⚠️ {error}</p>
-              <p className="mt-2 text-xs text-gray-400">
-                提示：GitHub Code Search 搜索词需要包含至少一个搜索词
-              </p>
+              {error.includes("GITHUB_TOKEN") && (
+                <p className="mt-2 text-xs text-gray-400">
+                  管理员请前往 Vercel → Settings → Environment Variables 添加 GITHUB_TOKEN
+                </p>
+              )}
+              {!error.includes("GITHUB_TOKEN") && (
+                <p className="mt-2 text-xs text-gray-400">
+                  提示：GitHub Code Search 搜索词需要包含至少一个搜索词
+                </p>
+              )}
             </div>
           )}
 
