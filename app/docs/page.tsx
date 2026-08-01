@@ -304,7 +304,30 @@ export default function DocsPage() {
               </div>
 
               <div>
-                <h3 className="text-base font-semibold text-gray-800 mb-2">方式二：手动嵌入</h3>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">方式二：粘贴链接自动识别</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  在编辑器中直接粘贴 GitHub 文件链接，系统会自动识别并转换为代码块：
+                </p>
+                <div className="bg-gray-900 rounded-lg p-4 text-sm text-gray-300 font-mono overflow-x-auto">
+                  <div>https://github.com/facebook/react/blob/main/README.md</div>
+                </div>
+                <p className="mt-2 text-xs text-gray-400">
+                  粘贴后自动转换为 github-code 代码块，支持 blob 链接和 raw 链接
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">方式三：短代码</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  使用 <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">[github]URL[/github]</code> 短代码包裹 GitHub 链接：
+                </p>
+                <div className="bg-gray-900 rounded-lg p-4 text-sm text-gray-300 font-mono overflow-x-auto">
+                  <div>[github]https://github.com/owner/repo/blob/main/web3.md[/github]</div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 mb-2">方式四：手动嵌入</h3>
                 <p className="text-sm text-gray-600 mb-2">
                   在 Markdown 中使用 <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">github-code</code> 代码块：
                 </p>

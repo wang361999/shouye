@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import GithubCodeSearch from "./GithubCodeSearch";
 import GithubCodeBlock from "./GithubCodeBlock";
+import { parseGithubUrl, preprocessGithubShortcodes } from "@/lib/github-url";
 
 interface Category {
   id: string;
@@ -66,6 +67,23 @@ export default function PostForm({
       textarea.setSelectionRange(newPos, newPos);
     });
   };
+
+  // 粘贴事件处理：自动检测 GitHub 文件链接并转换
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const pastedText = e.clipboardData.getData("text/plain").trim();
+
+      // 检测是否为 GitHub 文件链接
+      const parsed = parseGithubUrl(pastedText);
+      if (parsed) {
+        e.preventDefault();
+        // 转换为 github-code 代码块并插入
+        const markdown = `\n\`\`\`github-code\n${parsed.source}\n\`\`\`\n`;
+        insertAtCursor(markdown);
+      }
+    },
+    [content] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const validate = (): boolean => {
     const newErrors: typeof errors = {};
@@ -205,7 +223,8 @@ export default function PostForm({
                 setContent(e.target.value);
                 if (errors.content) setErrors((prev) => ({ ...prev, content: undefined }));
               }}
-              placeholder="请输入帖子内容...（支持 Markdown 格式）&#10;&#10;💡 插入 GitHub 代码：使用上方搜索框，或手动输入：&#10;```github-code&#10;owner/repo/path/to/file.ts&#10;```"
+              onPaste={handlePaste}
+              placeholder="请输入帖子内容...（支持 Markdown 格式）&#10;&#10;💡 插入 GitHub 代码：&#10;1. 直接粘贴 GitHub 文件链接，自动识别转换&#10;2. 使用上方搜索框搜索引用&#10;3. 使用短代码: [github]https://github.com/owner/repo/blob/main/file.ts[/github]&#10;4. 手动输入: ```github-code&#10;owner/repo/path/to/file.ts&#10;```"
               rows={12}
               className={cn(
                 "w-full px-4 py-3 text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:border-transparent transition-shadow font-mono",
@@ -241,7 +260,7 @@ export default function PostForm({
                     },
                   }}
                 >
-                  {content}
+                  {preprocessGithubShortcodes(content)}
                 </ReactMarkdown>
               </div>
             ) : (

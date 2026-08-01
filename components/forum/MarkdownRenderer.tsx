@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import GithubCodeBlock from "./GithubCodeBlock";
+import { preprocessGithubShortcodes } from "@/lib/github-url";
 
 interface MarkdownRendererProps {
   content: string;
@@ -12,13 +14,19 @@ interface MarkdownRendererProps {
 /**
  * 统一 Markdown 渲染器
  *
- * 支持 GFM 语法 + 自定义 github-code 代码块
+ * 支持 GFM 语法 + 自定义 github-code 代码块 + GitHub 短代码
  *
- * github-code 用法（在 Markdown 中）：
+ * 支持的语法：
  *
+ * 1. github-code 代码块：
  * ```github-code
  * owner/repo/path/to/file.ts
  * ```
+ *
+ * 2. 短代码：
+ * [github]https://github.com/owner/repo/blob/main/file.ts[/github]
+ *
+ * 3. 裸 GitHub 链接（独立行自动转换）
  *
  * 可选参数（通过在路径后添加查询参数）：
  * ```github-code
@@ -29,6 +37,12 @@ export default function MarkdownRenderer({
   content,
   className = "",
 }: MarkdownRendererProps) {
+  // 预处理内容：将短代码和裸链接转换为 github-code 代码块
+  const processedContent = useMemo(
+    () => preprocessGithubShortcodes(content),
+    [content]
+  );
+
   return (
     <div className={`prose prose-sm sm:prose-base max-w-none markdown-body ${className}`}>
       <ReactMarkdown
@@ -81,7 +95,7 @@ export default function MarkdownRenderer({
           },
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

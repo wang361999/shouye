@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
@@ -8,6 +8,7 @@ import UserAvatar from '@/components/common/UserAvatar';
 import CommentList from '@/components/forum/CommentList';
 import GithubCodeBlock from '@/components/forum/GithubCodeBlock';
 import { useAppStore } from '@/lib/store';
+import { preprocessGithubShortcodes } from '@/lib/github-url';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -42,6 +43,12 @@ export default function PostDetailPage({
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const [favorited, setFavorited] = useState(false);
+
+  // 预处理帖子内容：将 GitHub 短代码和裸链接转换为 github-code 代码块
+  const processedContent = useMemo(
+    () => (post ? preprocessGithubShortcodes(post.content) : ""),
+    [post]
+  );
 
   // 获取帖子详情
   useEffect(() => {
@@ -239,7 +246,7 @@ export default function PostDetailPage({
             },
           }}
         >
-          {post.content}
+          {processedContent}
         </ReactMarkdown>
       </div>
 
