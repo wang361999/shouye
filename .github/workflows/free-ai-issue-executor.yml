@@ -34,7 +34,7 @@ jobs:
     env:
       ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
       AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
-      AI_MODEL: gemini-2.5-flash
+      AI_MODEL: gemini-3.6-flash
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

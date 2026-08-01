@@ -10,7 +10,7 @@ const {
   ISSUE_NUMBER,
   AI_API_KEY = '',
   AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  AI_MODEL = 'gemini-2.5-flash',
+  AI_MODEL = 'gemini-3.6-flash',
 } = process.env;
 
 const MAX_CONTEXT_CHARS = 5_000;
