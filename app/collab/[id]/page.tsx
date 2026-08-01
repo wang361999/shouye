@@ -1285,8 +1285,8 @@ function ContributionsTab({
       ) : (
         <div className="space-y-3">
           {contributions.map((contrib) => {
-            const typeCfg = contributionTypeConfig[contrib.type];
-            const statusCfg = contributionStatusConfig[contrib.status];
+            const typeCfg = contributionTypeConfig[contrib.type] || contributionTypeConfig.other;
+            const statusCfg = contributionStatusConfig[contrib.status] || contributionStatusConfig.pending;
             const canReview = canManage && contrib.status === 'pending';
             return (
               <div

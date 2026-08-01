@@ -65,6 +65,8 @@ export async function GET(request: NextRequest) {
       // 前端 Project 类型期望 taskTotal / taskCompleted 字段名
       taskTotal: project.taskCount,
       taskCompleted: project.completedTaskCount,
+      // 前端 Project 类型期望 owner 字段名（API 返回的是 author）
+      owner: project.author,
     }));
 
     return NextResponse.json({
