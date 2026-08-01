@@ -12,6 +12,11 @@ const DEFAULT_SCHEDULE = {
   posterEnabled: true,
   posterHour1: 9,       // 第一篇帖子时间
   posterHour2: 15,      // 第二篇帖子时间
+  seoEnabled: true,
+  seoHour: 14,          // SEO 优化时间
+  creatorEnabled: true,
+  creatorHour: 16,      // 博客文章时间
+  replyEnabled: true,   // 论坛自动回复（每2小时检查）
 };
 
 function parseConfig(value: string | undefined) {
@@ -51,6 +56,11 @@ export async function POST(request: NextRequest) {
       posterEnabled: body.posterEnabled !== false,
       posterHour1: Math.max(0, Math.min(23, Number(body.posterHour1) || 9)),
       posterHour2: Math.max(0, Math.min(23, Number(body.posterHour2) || 15)),
+      seoEnabled: body.seoEnabled !== false,
+      seoHour: Math.max(0, Math.min(23, Number(body.seoHour) || 14)),
+      creatorEnabled: body.creatorEnabled !== false,
+      creatorHour: Math.max(0, Math.min(23, Number(body.creatorHour) || 16)),
+      replyEnabled: body.replyEnabled !== false,
     };
 
     await prisma.systemSetting.upsert({

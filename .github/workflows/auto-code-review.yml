@@ -1,0 +1,50 @@
+name: Auto code review
+
+# PR 打开时自动进行 AI 代码审查，并将审查结果作为评论发布到 PR。
+# 排除 ai-iteration/ 开头的分支（AI 自动生成的 PR 不再审）。
+
+on:
+  pull_request:
+    types:
+      - opened
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+  contents: read
+
+concurrency:
+  group: auto-code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: AI code review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # 跳过 AI 自动生成的 PR（ai-iteration/ 开头的分支）
+    if: ${{ !startsWith(github.head_ref, 'ai-iteration/') }}
+
+    env:
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run AI code review
+        run: node scripts/auto-code-review.mjs

@@ -11,6 +11,11 @@ const DEFAULT_SCHEDULE = {
   posterEnabled: true,
   posterHour1: 9,
   posterHour2: 15,
+  seoEnabled: true,
+  seoHour: 14,
+  creatorEnabled: true,
+  creatorHour: 16,
+  replyEnabled: true,
 };
 
 export async function GET() {

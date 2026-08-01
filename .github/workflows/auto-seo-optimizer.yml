@@ -1,0 +1,220 @@
+name: Auto SEO optimizer
+
+on:
+  schedule:
+    # 每小时检查一次，到设定时间才执行
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "强制执行（忽略时间检查）"
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: auto-seo-optimizer
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check schedule
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+    steps:
+      - name: Check if it's time to run
+        id: check
+        run: |
+          FORCE="${{ github.event.inputs.force || 'false' }}"
+          if [ "$FORCE" = "true" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$SITE_URL" ]; then
+            echo "SITE_URL 未配置，使用默认时间 14:00"
+            SEO_ENABLED="True"
+            SEO_HOUR=14
+          else
+            CONFIG=$(curl -s "${SITE_URL}/api/schedule-config" 2>/dev/null || echo '{}')
+            SEO_ENABLED=$(echo "$CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('seoEnabled', True))" 2>/dev/null || echo "True")
+            SEO_HOUR=$(echo "$CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('seoHour', 14))" 2>/dev/null || echo "14")
+          fi
+
+          if [ "$SEO_ENABLED" = "False" ]; then
+            echo "自动 SEO 优化已关闭"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 当前北京时间（UTC+8）
+          CURRENT_HOUR=$(TZ='Asia/Shanghai' date +%H)
+          echo "当前北京时间: ${CURRENT_HOUR}:00"
+          echo "设定 SEO 优化时间: ${SEO_HOUR}:00"
+
+          if [ "$CURRENT_HOUR" = "$SEO_HOUR" ]; then
+            echo "时间匹配，开始 SEO 优化"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "未到 SEO 优化时间，跳过"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  optimize:
+    name: Scan and optimize SEO
+    needs: check
+    if: needs.check.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run SEO optimizer
+        run: node scripts/auto-seo-optimizer.mjs
+
+      - name: Check generated diff
+        id: diff
+        run: |
+          # 检测已修改的已跟踪文件
+          if git diff --quiet; then
+            # 再检测是否有新增的未跟踪文件（AI 创建的新文件）
+            UNTRACKED=$(git ls-files --others --exclude-standard | head -1)
+            if [ -z "$UNTRACKED" ]; then
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip when no changes
+        if: steps.diff.outputs.has_changes == 'false'
+        run: |
+          echo "本次扫描未发现需要 SEO 优化的页面，或 AI 未生成改动。"
+          if [ -f AI_ITERATION_SUMMARY.md ]; then
+            echo "--- AI_ITERATION_SUMMARY.md ---"
+            cat AI_ITERATION_SUMMARY.md
+          fi
+
+      - name: Create working branch
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="ai-seo/${GITHUB_RUN_ID}"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          git switch -c "$BRANCH"
+
+      - name: Run validation
+        if: steps.diff.outputs.has_changes == 'true'
+        id: validation
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            echo "## npm run lint"
+            npm run lint
+            echo
+            echo "## npm run build"
+            npm run build
+          } 2>&1 | tee ai-validation.log
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/ethhy?schema=public
+          JWT_SECRET: ci-only-jwt-secret
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+      - name: Commit and push changes
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          git add -A
+          git commit -m "AI auto SEO optimization"
+          git push --set-upstream origin "$BRANCH"
+
+      - name: Create pull request
+        if: steps.diff.outputs.has_changes == 'true'
+        id: pr
+        run: |
+          STATUS="通过"
+          if [ "${{ steps.validation.outcome }}" != "success" ]; then
+            STATUS="未通过，需要人工检查"
+          fi
+
+          BODY="$(cat AI_ITERATION_SUMMARY.md)
+
+          ## 验证结果
+
+          lint/build：${STATUS}
+
+          > 本 PR 由自动 SEO 优化工作流生成。
+          "
+
+          PR_URL="$(gh pr create \
+            --title "AI 自动 SEO 优化" \
+            --body "$BODY" \
+            --base main \
+            --head "$BRANCH")"
+
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$(echo "$PR_URL" | grep -o '[0-9]*$')" >> "$GITHUB_OUTPUT"
+
+      - name: Auto merge PR when validation passes
+        if: |
+          steps.diff.outputs.has_changes == 'true' &&
+          steps.validation.outcome == 'success'
+        run: |
+          echo "lint/build 通过，开始自动合并 PR #${{ steps.pr.outputs.pr_number }}..."
+          AI_SUMMARY=$(sed -n '/^## 摘要/,/^## /{ /^## 摘要/d; /^## /d; p; }' AI_ITERATION_SUMMARY.md | head -1 | sed 's/^ *//' || echo "")
+          if [ -z "$AI_SUMMARY" ]; then
+            AI_SUMMARY="自动 SEO 优化"
+          fi
+          AI_FILES=$(grep '`[^`]*`' AI_ITERATION_SUMMARY.md | sed 's/.*`\([^`]*\)`.*/\1/' | head -10 | tr '\n' ',' | sed 's/,$//')
+
+          gh pr merge "${{ steps.pr.outputs.pr_number }}" \
+            --squash \
+            --delete-branch \
+            --subject "AI SEO 优化：${AI_SUMMARY}" \
+            --body "lint/build 全部通过，自动合并上线。| 改动文件：${AI_FILES}"
+          echo "PR 已合并，Vercel 将自动部署。"
+
+      - name: Report result
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          STATUS="通过"
+          if [ "${{ steps.validation.outcome }}" != "success" ]; then
+            STATUS="未通过，需要人工检查"
+          fi
+
+          if [ "${{ steps.validation.outcome }}" == "success" ]; then
+            echo "✅ lint/build 通过，PR 已自动合并，Vercel 正在部署。"
+          else
+            echo "⚠️ lint/build 未通过，需要人工检查：${{ steps.pr.outputs.pr_url }}"
+          fi

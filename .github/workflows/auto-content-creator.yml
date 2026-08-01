@@ -1,0 +1,98 @@
+name: Auto content creator
+
+on:
+  schedule:
+    # 每小时检查一次，到设定时间才执行
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      post_topic:
+        description: "文章类型：tutorial / blog / trend / random"
+        required: false
+        default: 'random'
+      force:
+        description: "强制执行（忽略时间检查）"
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-content-creator
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check schedule
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+    steps:
+      - name: Check if it's time to run
+        id: check
+        run: |
+          FORCE="${{ github.event.inputs.force || 'false' }}"
+          if [ "$FORCE" = "true" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$SITE_URL" ]; then
+            echo "SITE_URL 未配置，使用默认时间 16:00"
+            CREATOR_ENABLED="True"
+            CREATOR_HOUR=16
+          else
+            CONFIG=$(curl -s "${SITE_URL}/api/schedule-config" 2>/dev/null || echo '{}')
+            CREATOR_ENABLED=$(echo "$CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('creatorEnabled', True))" 2>/dev/null || echo "True")
+            CREATOR_HOUR=$(echo "$CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('creatorHour', 16))" 2>/dev/null || echo "16")
+          fi
+
+          if [ "$CREATOR_ENABLED" = "False" ]; then
+            echo "自动内容创作已关闭"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 当前北京时间（UTC+8）
+          CURRENT_HOUR=$(TZ='Asia/Shanghai' date +%H)
+          echo "当前北京时间: ${CURRENT_HOUR}:00"
+          echo "设定内容创作时间: ${CREATOR_HOUR}:00"
+
+          if [ "$CURRENT_HOUR" = "$CREATOR_HOUR" ]; then
+            echo "时间匹配，开始内容创作"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "未到内容创作时间，跳过"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  create:
+    name: Generate and publish article
+    needs: check
+    if: needs.check.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+      POST_TOPIC: ${{ github.event.inputs.post_topic || 'random' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate and publish article
+        run: node scripts/auto-content-creator.mjs

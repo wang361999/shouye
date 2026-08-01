@@ -1,0 +1,102 @@
+name: Auto CI Fix
+
+# 在 PR 触发的 CI 中，当 lint/build 失败时自动调用 AI 修复并推送到 PR 分支。
+# 实现方式：在本工作流内以 continue-on-error 运行 lint/build，
+# 任一失败则运行 scripts/auto-ci-fix.mjs（内置最多 2 次重试）。
+# 注意：使用 GITHUB_TOKEN 推送的提交不会再次触发 pull_request 工作流，
+# 配合脚本内的 2 次重试上限，可避免死循环。
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-ci-fix-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-fix:
+    name: Auto fix lint/build failures
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # 仅处理本仓库的 PR（fork PR 无法 push 回去）
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      MAX_RETRIES: '2'
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        id: lint
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee ci-lint.log
+
+      - name: Run build
+        id: build
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/ethhy?schema=public
+          JWT_SECRET: ci-only-jwt-secret
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee ci-build.log
+
+      - name: Run AI auto fix
+        id: fix
+        if: steps.lint.outcome == 'failure' || steps.build.outcome == 'failure'
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/ethhy?schema=public
+          JWT_SECRET: ci-only-jwt-secret
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          LINT_FAILED: ${{ steps.lint.outcome == 'failure' }}
+          BUILD_FAILED: ${{ steps.build.outcome == 'failure' }}
+          LINT_LOG_PATH: ci-lint.log
+          BUILD_LOG_PATH: ci-build.log
+        run: node scripts/auto-ci-fix.mjs
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Auto CI Fix 结果" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- lint: ${{ steps.lint.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- build: ${{ steps.build.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.fix.outcome }}" != "skipped" ]; then
+            echo "- auto-fix: ${{ steps.fix.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- auto-fix: skipped（lint/build 均通过）" >> "$GITHUB_STEP_SUMMARY"
+          fi

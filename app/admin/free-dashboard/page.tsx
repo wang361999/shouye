@@ -163,6 +163,11 @@ export default function FreeDashboardPage() {
     posterEnabled: true,
     posterHour1: 9,
     posterHour2: 15,
+    seoEnabled: true,
+    seoHour: 14,
+    creatorEnabled: true,
+    creatorHour: 16,
+    replyEnabled: true,
   });
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
@@ -764,6 +769,66 @@ export default function FreeDashboardPage() {
                       <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="rounded-xl border border-purple-100 bg-white p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-800">自动 SEO 优化</span>
+                    <button
+                      onClick={() => setSchedule({ ...schedule, seoEnabled: !schedule.seoEnabled })}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${schedule.seoEnabled ? "bg-green-500" : "bg-gray-300"}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${schedule.seoEnabled ? "translate-x-5" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2">自动补充页面 meta 标签和 SEO 元素</p>
+                  <select
+                    value={schedule.seoHour}
+                    onChange={(e) => setSchedule({ ...schedule, seoHour: Number(e.target.value) })}
+                    disabled={!schedule.seoEnabled}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="rounded-xl border border-purple-100 bg-white p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-800">自动写博客</span>
+                    <button
+                      onClick={() => setSchedule({ ...schedule, creatorEnabled: !schedule.creatorEnabled })}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${schedule.creatorEnabled ? "bg-green-500" : "bg-gray-300"}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${schedule.creatorEnabled ? "translate-x-5" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2">自动生成深度技术文章并发布</p>
+                  <select
+                    value={schedule.creatorHour}
+                    onChange={(e) => setSchedule({ ...schedule, creatorHour: Number(e.target.value) })}
+                    disabled={!schedule.creatorEnabled}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="rounded-xl border border-purple-100 bg-white p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-800">自动回复论坛</span>
+                    <button
+                      onClick={() => setSchedule({ ...schedule, replyEnabled: !schedule.replyEnabled })}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${schedule.replyEnabled ? "bg-green-500" : "bg-gray-300"}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${schedule.replyEnabled ? "translate-x-5" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-2">每 2 小时检查并回复无评论的帖子</p>
+                  <div className="text-sm text-gray-400 py-2">自动运行，无需设定时间</div>
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-3">
