@@ -36,6 +36,7 @@ interface PostListProps {
   categories: Category[];
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  showActions?: boolean;
 }
 
 type SortType = 'latest' | 'hot' | 'essence';
@@ -50,6 +51,7 @@ export default function PostList({
   categories,
   searchQuery = "",
   onSearchChange,
+  showActions = false,
 }: PostListProps) {
   const [searchInput, setSearchInput] = useState(searchQuery);
   const [sortBy, setSortBy] = useState<SortType>('latest');
@@ -204,7 +206,7 @@ export default function PostList({
             <p className="text-sm">暂无帖子</p>
           </div>
         ) : (
-          sortedPosts.map((post) => <PostCard key={post.id} post={post} />)
+          sortedPosts.map((post) => <PostCard key={post.id} post={post} showActions={showActions} />)
         )}
       </div>
 

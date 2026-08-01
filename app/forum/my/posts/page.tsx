@@ -28,6 +28,7 @@ interface Post {
   isPinned: boolean;
   isEssence: boolean;
   createdAt: string;
+  authorId?: string;
 }
 
 export default function MyPostsPage() {
@@ -99,6 +100,7 @@ export default function MyPostsPage() {
             isPinned: p.isPinned,
             isEssence: p.isEssence,
             createdAt: p.createdAt,
+            authorId: p.authorId,
           }));
           setPosts(formattedPosts);
           setTotalPages(data.totalPages || 1);
@@ -176,6 +178,7 @@ export default function MyPostsPage() {
           onCategoryChange={handleCategoryChange}
           currentCategory="all"
           categories={categories}
+          showActions
         />
       )}
     </Container>

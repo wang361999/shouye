@@ -154,6 +154,34 @@ export default function PostDetailPage({
     }
   };
 
+  // 删除帖子
+  const handleDelete = async () => {
+    if (!token) {
+      toast.error('请先登录');
+      return;
+    }
+    if (!confirm('确定要删除这篇帖子吗？删除后无法恢复。')) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/forum/posts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        toast.success('帖子已删除');
+        router.push('/forum');
+      } else {
+        const errData = await res.json();
+        toast.error(errData.error || '删除失败');
+      }
+    } catch (err) {
+      toast.error('删除帖子失败');
+    }
+  };
+
   // 格式化日期
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -301,12 +329,20 @@ export default function PostDetailPage({
 
         {/* 编辑（仅作者或管理员可见） */}
         {user && (authorId === user.id || user.role === 'ADMIN') && (
-          <Link
-            href={`/forum/post/${id}/edit`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-          >
-            ✏️ 编辑
-          </Link>
+          <>
+            <Link
+              href={`/forum/post/${id}/edit`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+            >
+              ✏️ 编辑
+            </Link>
+            <button
+              onClick={handleDelete}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            >
+              🗑️ 删除
+            </button>
+          </>
         )}
       </div>
 

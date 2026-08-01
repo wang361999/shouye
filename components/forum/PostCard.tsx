@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatTimeAgo, truncateText, stripMarkdown, cn } from "@/lib/utils";
 import UserAvatar from "@/components/common/UserAvatar";
+import { useAppStore } from "@/lib/store";
+import toast from "react-hot-toast";
 
 interface Post {
   id: string;
@@ -16,10 +19,12 @@ interface Post {
   isPinned: boolean;
   isEssence: boolean;
   createdAt: string;
+  authorId?: string;
 }
 
 interface PostCardProps {
   post: Post;
+  showActions?: boolean;
 }
 
 // 分类 → 图标 & 颜色
@@ -49,11 +54,42 @@ const categoryMap: Record<
   },
 };
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, showActions = false }: PostCardProps) {
+  const router = useRouter();
+  const { user, token } = useAppStore();
   const category = categoryMap[post.category] ?? {
     icon: "📋",
     label: post.category,
     colorClass: "bg-gray-50 text-gray-700 border-gray-200",
+  };
+
+  const canManage = showActions && user && (post.authorId === user.id || user.role === 'ADMIN');
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!token) {
+      toast.error('请先登录');
+      return;
+    }
+    if (!confirm('确定要删除这篇帖子吗？删除后无法恢复。')) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/forum/posts/${post.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        toast.success('帖子已删除');
+        router.refresh();
+      } else {
+        const errData = await res.json();
+        toast.error(errData.error || '删除失败');
+      }
+    } catch {
+      toast.error('删除帖子失败');
+    }
   };
 
   return (
@@ -143,6 +179,25 @@ export default function PostCard({ post }: PostCardProps) {
           </svg>
           {post.commentCount}
         </span>
+
+        {/* 管理按钮（仅作者/管理员在 showActions 模式下显示） */}
+        {canManage && (
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              href={`/forum/post/${post.id}/edit`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+            >
+              ✏️ 编辑
+            </Link>
+            <button
+              onClick={handleDelete}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 transition-colors"
+            >
+              🗑️ 删除
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
