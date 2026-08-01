@@ -200,6 +200,9 @@ export default function CodeExplorer({
   const [createdPR, setCreatedPR] = useState<CreatedPR | null>(null);
   const [prError, setPrError] = useState<string | null>(null);
 
+  // ---- 移动端文件树切换 ----
+  const [showFileTree, setShowFileTree] = useState(false);
+
   // ============ API: 获取内容（目录或文件） ============
   const fetchContents = useCallback(
     async (path: string, ref: string) => {
@@ -284,6 +287,8 @@ export default function CodeExplorer({
       setMode('view');
       setFile(null);
       setFileLoading(true);
+      // 移动端选中文件后自动关闭文件树
+      setShowFileTree(false);
       try {
         const json = await fetchContents(path, currentBranch);
         const data = json?.data;
@@ -612,9 +617,18 @@ export default function CodeExplorer({
       </div>
 
       {/* ===== 主体：文件树 + 编辑器 ===== */}
-      <div className="flex h-[548px]">
+      <div className="flex flex-col md:flex-row md:h-[548px]">
         {/* 左侧文件树 */}
-        <div className="w-[280px] flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 overflow-y-auto p-2">
+        {/* 移动端：可切换的抽屉；桌面端：固定宽度侧边栏 */}
+        <div
+          className={cn(
+            'border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 overflow-y-auto p-2',
+            // 移动端：默认隐藏，点击切换显示
+            showFileTree ? 'block max-h-[200px]' : 'hidden',
+            // 桌面端：始终显示
+            'md:block md:w-[280px] md:flex-shrink-0 md:max-h-none',
+          )}
+        >
           {rootLoading ? (
             <div className="space-y-2 animate-pulse">
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
@@ -644,9 +658,26 @@ export default function CodeExplorer({
         </div>
 
         {/* 右侧编辑器 */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900">
+        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-900 min-h-[400px]">
+          {/* 移动端文件树切换按钮 */}
+          <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+            <button
+              type="button"
+              onClick={() => setShowFileTree((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span>📁</span>
+              {showFileTree ? '隐藏文件树' : '显示文件树'}
+            </button>
+            {selectedPath && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                {basename(selectedPath)}
+              </span>
+            )}
+          </div>
+
           {!selectedPath ? (
-            <div className="flex-1 flex items-center justify-center text-sm text-gray-400 dark:text-gray-500">
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-400 dark:text-gray-500 p-4 text-center">
               从左侧选择一个文件以查看内容
             </div>
           ) : fileLoading ? (
@@ -713,6 +744,22 @@ export default function CodeExplorer({
                 )}
               </div>
 
+              {/* 编辑模式下的 commit message 输入栏（置于编辑器上方，确保移动端可见） */}
+              {mode === 'edit' && (
+                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-blue-50/50 dark:bg-blue-900/10">
+                  <label className="block text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">
+                    ✏️ Commit message（必填，保存时需填写）
+                  </label>
+                  <input
+                    type="text"
+                    value={commitMessage}
+                    onChange={(e) => setCommitMessage(e.target.value)}
+                    placeholder="例如：更新 README 说明"
+                    className="w-full h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+
               {/* 文件内容区 */}
               <div className="flex-1 overflow-auto p-4">
                 {mode === 'view' ? (
@@ -720,26 +767,12 @@ export default function CodeExplorer({
                     {file.content}
                   </pre>
                 ) : (
-                  <div className="flex flex-col gap-3 h-full">
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="flex-1 w-full min-h-[400px] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-                      spellCheck={false}
-                    />
-                    <div>
-                      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        Commit message <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={commitMessage}
-                        onChange={(e) => setCommitMessage(e.target.value)}
-                        placeholder="例如：更新 README 说明"
-                        className="w-full h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full min-h-[300px] md:min-h-[400px] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 text-sm font-mono text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                    spellCheck={false}
+                  />
                 )}
               </div>
             </>
