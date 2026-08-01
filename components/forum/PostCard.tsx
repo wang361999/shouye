@@ -20,6 +20,8 @@ interface Post {
   isEssence: boolean;
   createdAt: string;
   authorId?: string;
+  postType?: string;
+  tags?: { tag: { id: string; name: string; slug: string } }[];
 }
 
 interface PostCardProps {
@@ -139,6 +141,18 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
                 ⭐ 精华
               </span>
             )}
+
+            {post.postType === 'question' && (
+              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-green-50 text-green-600 border border-green-200">
+                ❓ 问答
+              </span>
+            )}
+
+            {post.postType === 'question' && post.commentCount === 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+                待回答
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -157,6 +171,22 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
       <p className="text-sm text-gray-500 mb-3 leading-relaxed ml-12 line-clamp-2">
         {truncateText(stripMarkdown(post.content), 120)}
       </p>
+
+      {/* 标签 */}
+      {post.tags && post.tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 ml-12 mb-3">
+          {post.tags.slice(0, 4).map(({ tag }) => (
+            <Link
+              key={tag.id}
+              href={`/forum?tag=${encodeURIComponent(tag.slug)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-blue-500 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
+            >
+              {tag.name}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* 底部统计行 */}
       <div className="flex items-center gap-4 ml-12 text-xs text-gray-400">

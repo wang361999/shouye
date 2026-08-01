@@ -8,28 +8,43 @@ import CommentItem from "./CommentItem";
 interface Comment {
   id: string;
   content: string;
-  author: { id: string; username: string; avatar: string | null };
+  author: { id: string; username: string; avatar: string | null; reputation?: number; badge?: string | null };
   likeCount: number;
   createdAt: string;
   isApproved?: boolean;
+  isAccepted?: boolean;
   replies?: Comment[];
 }
 
 interface CommentListProps {
   comments: Comment[];
   postId: string;
+  postAuthorId?: string;
+  postType?: string;
+  acceptedCommentId?: string | null;
 }
 
-export default function CommentList({ comments: initialComments, postId }: CommentListProps) {
+export default function CommentList({
+  comments: initialComments,
+  postId,
+  postAuthorId,
+  postType,
+  acceptedCommentId,
+}: CommentListProps) {
   const { user, token } = useAppStore();
   const [content, setContent] = useState("");
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [submitting, setSubmitting] = useState(false);
+  const [currentAcceptedId, setCurrentAcceptedId] = useState<string | null>(acceptedCommentId || null);
 
   // 当外部 comments 变化时同步
   useEffect(() => {
     setComments(initialComments);
   }, [initialComments]);
+
+  useEffect(() => {
+    setCurrentAcceptedId(acceptedCommentId || null);
+  }, [acceptedCommentId]);
 
   // 刷新评论列表
   const refreshComments = useCallback(async () => {
@@ -101,6 +116,18 @@ export default function CommentList({ comments: initialComments, postId }: Comme
     refreshComments();
   }, [refreshComments]);
 
+  // 采纳成功后刷新
+  const handleAcceptSuccess = useCallback(() => {
+    refreshComments();
+    // 重新获取帖子详情以更新 acceptedCommentId
+    fetch(`/api/forum/posts/${postId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setCurrentAcceptedId(data.acceptedCommentId || null);
+      })
+      .catch(() => {});
+  }, [postId, refreshComments]);
+
   return (
     <div className="mt-8">
       {/* 标题 */}
@@ -108,6 +135,11 @@ export default function CommentList({ comments: initialComments, postId }: Comme
         <span className="text-lg font-semibold text-gray-800">
           💬 全部评论 ({comments.length})
         </span>
+        {postType === "question" && currentAcceptedId && (
+          <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+            已有采纳答案
+          </span>
+        )}
       </div>
 
       {/* 评论列表 */}
@@ -125,8 +157,12 @@ export default function CommentList({ comments: initialComments, postId }: Comme
               postId={postId}
               currentUserId={user?.id}
               isAdmin={user?.role === "ADMIN"}
+              postAuthorId={postAuthorId}
+              postType={postType}
+              isAcceptedComment={currentAcceptedId === comment.id}
               onReplySuccess={handleReplySuccess}
               onDeleteSuccess={handleDeleteSuccess}
+              onAcceptSuccess={handleAcceptSuccess}
               depth={0}
             />
           ))}
@@ -140,7 +176,7 @@ export default function CommentList({ comments: initialComments, postId }: Comme
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="写下你的评论..."
+              placeholder={postType === "question" ? "写下你的回答..." : "写下你的评论..."}
               rows={3}
               className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
             />
@@ -155,7 +191,7 @@ export default function CommentList({ comments: initialComments, postId }: Comme
                     : "text-gray-300 bg-gray-100 cursor-not-allowed"
                 }`}
               >
-                {submitting ? "发表中..." : "发表评论"}
+                {submitting ? "发表中..." : postType === "question" ? "发表回答" : "发表评论"}
               </button>
             </div>
           </div>

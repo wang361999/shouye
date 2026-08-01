@@ -16,6 +16,8 @@ interface Post {
   isPinned: boolean;
   isEssence: boolean;
   createdAt: string;
+  postType?: string;
+  tags?: { tag: { id: string; name: string; slug: string } }[];
 }
 
 interface Category {

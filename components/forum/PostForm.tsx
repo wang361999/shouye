@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import GithubCodeSearch from "./GithubCodeSearch";
 import GithubCodeBlock from "./GithubCodeBlock";
+import TagInput from "./TagInput";
 import { parseGithubUrl, preprocessGithubShortcodes } from "@/lib/github-url";
 
 interface Category {
@@ -28,22 +29,30 @@ interface Post {
   createdAt: string;
 }
 
+type PostType = "discussion" | "question";
+
 interface PostFormProps {
   categories: Category[];
   initialData?: Post;
-  onSubmit: (data: { title: string; category: string; content: string }) => void;
+  initialTags?: string[];
+  initialPostType?: PostType;
+  onSubmit: (data: { title: string; category: string; content: string; tags: string[]; postType: PostType }) => void;
   onCancel: () => void;
 }
 
 export default function PostForm({
   categories,
   initialData,
+  initialTags = [],
+  initialPostType = "discussion",
   onSubmit,
   onCancel,
 }: PostFormProps) {
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [category, setCategory] = useState(initialData?.category ?? "");
   const [content, setContent] = useState(initialData?.content ?? "");
+  const [tags, setTags] = useState<string[]>(initialTags);
+  const [postType, setPostType] = useState<PostType>(initialPostType);
   const [errors, setErrors] = useState<{ title?: string; category?: string; content?: string }>({});
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -52,7 +61,6 @@ export default function PostForm({
   const insertAtCursor = (text: string) => {
     const textarea = textareaRef.current;
     if (!textarea) {
-      // 回退：追加到末尾
       setContent((prev) => prev + text);
       return;
     }
@@ -60,7 +68,6 @@ export default function PostForm({
     const end = textarea.selectionEnd;
     const newValue = content.slice(0, start) + text + content.slice(end);
     setContent(newValue);
-    // 恢复焦点并设置光标位置
     requestAnimationFrame(() => {
       textarea.focus();
       const newPos = start + text.length;
@@ -72,12 +79,9 @@ export default function PostForm({
   const handlePaste = useCallback(
     (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const pastedText = e.clipboardData.getData("text/plain").trim();
-
-      // 检测是否为 GitHub 文件链接
       const parsed = parseGithubUrl(pastedText);
       if (parsed) {
         e.preventDefault();
-        // 转换为 github-code 代码块并插入
         const markdown = `\n\`\`\`github-code\n${parsed.source}\n\`\`\`\n`;
         insertAtCursor(markdown);
       }
@@ -87,7 +91,6 @@ export default function PostForm({
 
   const validate = (): boolean => {
     const newErrors: typeof errors = {};
-
     if (!title.trim()) {
       newErrors.title = "请输入标题";
     } else if (title.trim().length < 2) {
@@ -95,17 +98,14 @@ export default function PostForm({
     } else if (title.trim().length > 100) {
       newErrors.title = "标题不能超过 100 个字符";
     }
-
     if (!category) {
       newErrors.category = "请选择分类";
     }
-
     if (!content.trim()) {
       newErrors.content = "请输入内容";
     } else if (content.trim().length < 10) {
       newErrors.content = "内容至少需要 10 个字符";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -113,12 +113,48 @@ export default function PostForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
-      onSubmit({ title: title.trim(), category, content: content.trim() });
+      onSubmit({ title: title.trim(), category, content: content.trim(), tags, postType });
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* 帖子类型切换 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          类型
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPostType("discussion")}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border transition-colors",
+              postType === "discussion"
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+            )}
+          >
+            💬 讨论
+          </button>
+          <button
+            type="button"
+            onClick={() => setPostType("question")}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border transition-colors",
+              postType === "question"
+                ? "bg-green-600 text-white border-green-600"
+                : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+            )}
+          >
+            ❓ 问答
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-gray-400">
+          {postType === "question" ? "问答帖可以采纳最佳回答，提问者可标记满意答案" : "讨论帖用于分享观点和交流经验"}
+        </p>
+      </div>
+
       {/* 标题 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -131,7 +167,7 @@ export default function PostForm({
             setTitle(e.target.value);
             if (errors.title) setErrors((prev) => ({ ...prev, title: undefined }));
           }}
-          placeholder="请输入帖子标题..."
+          placeholder={postType === "question" ? "请输入你的问题..." : "请输入帖子标题..."}
           maxLength={100}
           className={cn(
             "w-full px-4 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
@@ -140,9 +176,7 @@ export default function PostForm({
               : "border-gray-300 focus:ring-blue-500"
           )}
         />
-        {errors.title && (
-          <p className="mt-1 text-xs text-red-500">{errors.title}</p>
-        )}
+        {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title}</p>}
         <p className="mt-1 text-xs text-gray-400 text-right">{title.length}/100</p>
       </div>
 
@@ -171,9 +205,15 @@ export default function PostForm({
             </option>
           ))}
         </select>
-        {errors.category && (
-          <p className="mt-1 text-xs text-red-500">{errors.category}</p>
-        )}
+        {errors.category && <p className="mt-1 text-xs text-red-500">{errors.category}</p>}
+      </div>
+
+      {/* 标签 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          标签
+        </label>
+        <TagInput value={tags} onChange={setTags} maxTags={5} />
       </div>
 
       {/* 内容 */}
@@ -182,7 +222,6 @@ export default function PostForm({
           <label className="block text-sm font-medium text-gray-700">
             内容 <span className="text-red-500">*</span>
           </label>
-          {/* 编辑/预览切换 */}
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
             <button
               type="button"
@@ -212,7 +251,6 @@ export default function PostForm({
         </div>
         {activeTab === "edit" ? (
           <>
-            {/* 工具栏 */}
             <div className="mb-2">
               <GithubCodeSearch onInsert={insertAtCursor} />
             </div>
@@ -268,9 +306,7 @@ export default function PostForm({
             )}
           </div>
         )}
-        {errors.content && (
-          <p className="mt-1 text-xs text-red-500">{errors.content}</p>
-        )}
+        {errors.content && <p className="mt-1 text-xs text-red-500">{errors.content}</p>}
         <p className="mt-1 text-xs text-gray-400">
           💡 支持使用 Markdown 语法编写内容
         </p>
@@ -289,7 +325,7 @@ export default function PostForm({
           type="submit"
           className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
         >
-          {initialData ? "保存修改" : "发表帖子"}
+          {initialData ? "保存修改" : postType === "question" ? "发布问题" : "发表帖子"}
         </button>
       </div>
     </form>

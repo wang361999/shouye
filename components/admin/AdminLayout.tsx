@@ -66,6 +66,12 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin/forum/categories",
         icon: "🏷️",
       },
+      {
+        key: "forum-reports",
+        label: "举报管理",
+        href: "/admin/forum/reports",
+        icon: "🚩",
+      },
     ],
   },
   {

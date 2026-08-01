@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
 import PostForm from '@/components/forum/PostForm';
@@ -16,9 +16,14 @@ interface Category {
 
 export default function NewPostPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, token } = useAppStore();
   const [categories, setCategories] = useState<Category[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // 从 URL 获取预设的分类和帖子类型
+  const presetCategory = searchParams.get('category') || '';
+  const presetPostType = (searchParams.get('type') === 'question' ? 'question' : 'discussion') as 'discussion' | 'question';
 
   // 未登录时重定向到登录页
   useEffect(() => {
@@ -53,6 +58,8 @@ export default function NewPostPage() {
     title: string;
     category: string;
     content: string;
+    tags: string[];
+    postType: 'discussion' | 'question';
   }) => {
     if (!token) return;
     setSubmitting(true);
@@ -67,6 +74,8 @@ export default function NewPostPage() {
           title: data.title,
           content: data.content,
           categoryId: data.category || undefined,
+          tags: data.tags.length > 0 ? data.tags : undefined,
+          postType: data.postType,
         }),
       });
 
@@ -76,7 +85,7 @@ export default function NewPostPage() {
       }
 
       const post = await res.json();
-      toast.success('帖子发布成功！');
+      toast.success(data.postType === 'question' ? '问题发布成功！' : '帖子发布成功！');
       router.push(`/forum/post/${post.id}`);
     } catch (err: any) {
       toast.error(err.message || '发布帖子失败');
@@ -105,13 +114,14 @@ export default function NewPostPage() {
 
       {/* 页面标题 */}
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        ✏️ 发布新帖
+        {presetPostType === 'question' ? '❓ 提问' : '✏️ 发布新帖'}
       </h1>
 
       {/* 发布表单 */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <PostForm
           categories={categories}
+          initialPostType={presetPostType}
           onSubmit={handleSubmit}
           onCancel={() => router.back()}
         />

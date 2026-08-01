@@ -7,17 +7,22 @@ import { Container } from '@/components/common/Container';
 import UserAvatar from '@/components/common/UserAvatar';
 import CommentList from '@/components/forum/CommentList';
 import GithubCodeBlock from '@/components/forum/GithubCodeBlock';
+import { ReputationBadge, FollowButton } from '@/components/forum/ReputationBadge';
 import { useAppStore } from '@/lib/store';
 import { preprocessGithubShortcodes } from '@/lib/github-url';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+interface PostTag {
+  tag: { id: string; name: string; slug: string };
+}
+
 interface Post {
   id: string;
   title: string;
   content: string;
-  author: { username: string; avatar?: string | null };
+  author: { id: string; username: string; avatar?: string | null; reputation?: number; badge?: string | null };
   category: { id: string; name: string; slug: string };
   viewCount: number;
   likeCount: number;
@@ -25,6 +30,9 @@ interface Post {
   isPinned: boolean;
   isEssence: boolean;
   isLocked: boolean;
+  postType: string;
+  acceptedCommentId: string | null;
+  tags?: PostTag[];
   createdAt: string;
   comments: any[];
 }
@@ -39,12 +47,12 @@ export default function PostDetailPage({
   const { token, user } = useAppStore();
 
   const [post, setPost] = useState<Post | null>(null);
-  const [authorId, setAuthorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const [favorited, setFavorited] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
-  // 预处理帖子内容：将 GitHub 短代码和裸链接转换为 github-code 代码块
+  // 预处理帖子内容
   const processedContent = useMemo(
     () => (post ? preprocessGithubShortcodes(post.content) : ""),
     [post]
@@ -59,7 +67,6 @@ export default function PostDetailPage({
           throw new Error('帖子不存在');
         }
         const data = await res.json();
-        setAuthorId(data.authorId || null);
         setPost({
           ...data,
           id: String(data.id),
@@ -135,7 +142,7 @@ export default function PostDetailPage({
     }
   };
 
-  // 分享（复制链接）
+  // 分享
   const handleShare = () => {
     const url = window.location.href;
     if (navigator.clipboard) {
@@ -143,7 +150,6 @@ export default function PostDetailPage({
         toast.success('链接已复制到剪贴板');
       });
     } else {
-      // fallback
       const textarea = document.createElement('textarea');
       textarea.value = url;
       document.body.appendChild(textarea);
@@ -182,6 +188,38 @@ export default function PostDetailPage({
     }
   };
 
+  // 举报帖子
+  const handleReport = async (reason: string, description: string) => {
+    if (!token) {
+      toast.error('请先登录');
+      return;
+    }
+    try {
+      const res = await fetch('/api/forum/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          targetType: 'post',
+          targetId: id,
+          reason,
+          description: description || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || '举报失败');
+        return;
+      }
+      toast.success('举报已提交，管理员将尽快处理');
+      setShowReportModal(false);
+    } catch {
+      toast.error('网络错误，请稍后重试');
+    }
+  };
+
   // 格式化日期
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -213,6 +251,8 @@ export default function PostDetailPage({
     );
   }
 
+  const isQuestion = post.postType === 'question';
+
   return (
     <Container className="py-8 max-w-4xl">
       {/* 返回链接 */}
@@ -235,17 +275,44 @@ export default function PostDetailPage({
       </h1>
 
       {/* 帖子元信息 */}
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-6">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-4">
         <UserAvatar username={post.author.username} avatar={post.author.avatar} size="sm" />
+        <span className="font-medium text-gray-700">{post.author.username}</span>
+        {post.author.reputation !== undefined && (
+          <ReputationBadge reputation={post.author.reputation} badge={post.author.badge} size="xs" />
+        )}
+        <span>·</span>
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium">
           {post.category.name}
         </span>
-        <span className="font-medium text-gray-700">{post.author.username}</span>
+        {/* 帖子类型标识 */}
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+          isQuestion
+            ? 'bg-green-50 text-green-700 border-green-200'
+            : 'bg-gray-50 text-gray-600 border-gray-200'
+        }`}>
+          {isQuestion ? '❓ 问答' : '💬 讨论'}
+        </span>
         <span>·</span>
         <span>{formatDate(post.createdAt)}</span>
         <span>·</span>
         <span>👁 {post.viewCount} 次浏览</span>
       </div>
+
+      {/* 标签展示 */}
+      {post.tags && post.tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {post.tags.map(({ tag }) => (
+            <Link
+              key={tag.id}
+              href={`/forum?tag=${encodeURIComponent(tag.slug)}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+            >
+              🏷️ {tag.name}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* 分割线 */}
       <hr className="border-gray-200 mb-6" />
@@ -304,7 +371,7 @@ export default function PostDetailPage({
           }}
           className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
         >
-          💬 评论({post.commentCount})
+          💬 {isQuestion ? '回答' : '评论'}({post.commentCount})
         </button>
 
         {/* 收藏 */}
@@ -327,8 +394,23 @@ export default function PostDetailPage({
           🔗 分享
         </button>
 
+        {/* 关注作者 */}
+        {user && post.author.id !== user.id && (
+          <FollowButton targetId={post.author.id} targetType="user" size="sm" />
+        )}
+
+        {/* 举报 */}
+        {user && post.author.id !== user.id && (
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-400 hover:text-orange-500 hover:border-orange-200 transition-colors"
+          >
+            🚩 举报
+          </button>
+        )}
+
         {/* 编辑（仅作者或管理员可见） */}
-        {user && (authorId === user.id || user.role === 'ADMIN') && (
+        {user && (post.author.id === user.id || user.role === 'ADMIN') && (
           <>
             <Link
               href={`/forum/post/${id}/edit`}
@@ -346,6 +428,28 @@ export default function PostDetailPage({
         )}
       </div>
 
+      {/* 问答帖采纳提示 */}
+      {isQuestion && post.acceptedCommentId && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm text-green-700 flex items-center gap-2">
+            ✓ 该问题已有采纳答案，请查看下方标记为「已采纳」的回答
+          </p>
+        </div>
+      )}
+
+      {/* 举报弹窗 */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">🚩 举报帖子</h3>
+              <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <ReportForm onSubmit={handleReport} onCancel={() => setShowReportModal(false)} />
+          </div>
+        </div>
+      )}
+
       {/* 分割线 */}
       <hr className="border-gray-200 mb-6" />
 
@@ -354,8 +458,71 @@ export default function PostDetailPage({
         <CommentList
           comments={post.comments || []}
           postId={id}
+          postAuthorId={post.author.id}
+          postType={post.postType}
+          acceptedCommentId={post.acceptedCommentId}
         />
       </div>
     </Container>
+  );
+}
+
+// 举报表单组件
+function ReportForm({ onSubmit, onCancel }: { onSubmit: (reason: string, description: string) => void; onCancel: () => void }) {
+  const [reason, setReason] = useState("");
+  const [description, setDescription] = useState("");
+
+  const reasons = [
+    { value: "spam", label: "垃圾广告 / 推广", icon: "📢" },
+    { value: "abuse", label: "辱骂 / 人身攻击", icon: "💢" },
+    { value: "inappropriate", label: "不当内容", icon: "⚠️" },
+    { value: "other", label: "其他", icon: "📋" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2">
+        {reasons.map((r) => (
+          <button
+            key={r.value}
+            onClick={() => setReason(r.value)}
+            className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors text-left ${
+              reason === r.value
+                ? "bg-orange-50 text-orange-600 border-orange-300"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            <span className="text-base">{r.icon}</span>
+            <span>{r.label}</span>
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="补充说明（可选）"
+        rows={3}
+        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+      />
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 text-sm font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          取消
+        </button>
+        <button
+          onClick={() => reason && onSubmit(reason, description)}
+          disabled={!reason}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            reason
+              ? "text-white bg-orange-500 hover:bg-orange-600"
+              : "text-gray-300 bg-gray-200 cursor-not-allowed"
+          }`}
+        >
+          提交举报
+        </button>
+      </div>
+    </div>
   );
 }

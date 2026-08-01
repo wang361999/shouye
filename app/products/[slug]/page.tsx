@@ -82,6 +82,8 @@ export default function ProductDetailPage() {
   const [authStatus, setAuthStatus] = useState<AuthorizeStatus | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [discussionPosts, setDiscussionPosts] = useState<any[]>([]);
+  const [discussionLoading, setDiscussionLoading] = useState(false);
 
   // ============ 客户端水合 ============
   useEffect(() => {
@@ -157,6 +159,26 @@ export default function ProductDetailPage() {
       fetchAuthStatus();
     }
   }, [_hydrated, user, token, product, fetchAuthStatus]);
+
+  // ============ 获取项目讨论区帖子 ============
+  useEffect(() => {
+    if (!product) return;
+    const fetchDiscussions = async () => {
+      setDiscussionLoading(true);
+      try {
+        const res = await fetch(`/api/forum/posts?limit=5&search=${encodeURIComponent(product.name)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDiscussionPosts(data.posts || []);
+        }
+      } catch {
+        // 静默失败
+      } finally {
+        setDiscussionLoading(false);
+      }
+    };
+    fetchDiscussions();
+  }, [product]);
 
   // ============ 提交免费授权申请 ============
   async function handleFreeAuthorize() {
@@ -468,6 +490,74 @@ export default function ProductDetailPage() {
                 </div>
               </section>
             )}
+
+            {/* 项目讨论区 */}
+            <section className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l3.414-3.414z" />
+                  </svg>
+                  项目讨论区
+                </h2>
+                <Link
+                  href={`/forum/new?category=&type=discussion`}
+                  className="text-xs text-blue-500 hover:text-blue-600"
+                >
+                  发起讨论 →
+                </Link>
+              </div>
+              {discussionLoading ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-12 bg-gray-50 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              ) : discussionPosts.length > 0 ? (
+                <div className="space-y-3">
+                  {discussionPosts.map((post: any) => (
+                    <Link
+                      key={post.id}
+                      href={`/forum/post/${post.id}`}
+                      className="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 line-clamp-1">{post.title}</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                            <span>{post.author?.username || '匿名'}</span>
+                            <span>👁 {post.viewCount || 0}</span>
+                            <span>💬 {post.commentCount || 0}</span>
+                          </div>
+                        </div>
+                        {post.postType === 'question' && (
+                          <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">❓ 问答</span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-3xl mb-2 opacity-40">💬</p>
+                  <p className="text-sm text-gray-400 mb-4">还没有关于此项目的讨论</p>
+                  <Link
+                    href="/forum/new"
+                    className="inline-block px-4 py-2 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    发起第一个讨论
+                  </Link>
+                </div>
+              )}
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <Link
+                  href="/forum"
+                  className="text-sm text-blue-500 hover:text-blue-600"
+                >
+                  查看更多社区讨论 →
+                </Link>
+              </div>
+            </section>
           </div>
 
           {/* ============ 右侧侧边栏 ============ */}
