@@ -67,6 +67,19 @@
 2. 配置 `GITHUB_TOKEN`：GitHub Issue 迭代队列。
 3. 配置 `AI_ITERATION_WEBHOOK_URL`：外部 AI 执行器。
 
+## GitHub 自动合并
+
+仓库已补充 GitHub 免费自动化配置，详见 `docs/github-automation-guide.md`。
+
+这部分可以做到比较彻底的自动化：
+
+1. Dependabot 自动提交依赖更新 PR。
+2. PR 自动执行 lint 和 build。
+3. 小版本和补丁更新自动合并。
+4. 大版本更新保留人工确认。
+
+这适合依赖维护，不等于后台能自动实现任意业务功能。业务功能仍然需要进入站内队列、GitHub Issue 队列，或交给外部 AI 执行器。
+
 建议每次 AI 完成后输出这三类日志：
 
 1. 修改位置：列出新增或修改的文件。

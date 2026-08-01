@@ -1,0 +1,29 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    labels:
+      - "dependencies"
+      - "dependabot"
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "next"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "react"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "react-dom"
+        update-types:
+          - "version-update:semver-major"
