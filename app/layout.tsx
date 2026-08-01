@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Header } from '@/components/common/Header';
 import { Footer } from '@/components/common/Footer';
+import MobileNav from '@/components/common/MobileNav';
 import { Toaster } from 'react-hot-toast';
 import prisma from '@/lib/prisma';
 
@@ -60,9 +61,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="zh-CN">
       <body className="min-h-screen flex flex-col bg-gray-50">
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var saved = localStorage.getItem('theme');
+              var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+              if (saved === 'dark' || (!saved && prefersDark)) {
+                document.documentElement.classList.add('dark');
+              }
+            } catch(e) {}
+          })();
+        `}} />
         <Header siteName={siteName} />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 pb-14 md:pb-0">{children}</main>
         <Footer siteName={siteName} />
+        <MobileNav />
         <Toaster position="top-center" />
       </body>
     </html>

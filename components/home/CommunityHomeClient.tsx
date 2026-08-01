@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Container } from "@/components/common/Container";
 import { cn } from "@/lib/utils";
+import UserAvatar from "@/components/common/UserAvatar";
 
 interface CommunityPost {
   id: string;
@@ -93,26 +94,6 @@ function CountUp({ end, duration = 1800, suffix = "" }: { end: number; duration?
   );
 }
 
-// 头像组件
-function Avatar({ username, avatar, size = "md" }: { username: string; avatar: string | null; size?: "sm" | "md" | "lg" }) {
-  const sizeMap = {
-    sm: "w-8 h-8 text-xs",
-    md: "w-10 h-10 text-sm",
-    lg: "w-12 h-12 text-base",
-  };
-  if (avatar) {
-    return <img src={avatar} alt={username} className={cn("rounded-full object-cover flex-shrink-0", sizeMap[size])} />;
-  }
-  const initial = username.charAt(0).toUpperCase();
-  const colors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-orange-500", "bg-pink-500", "bg-indigo-500"];
-  const colorIndex = username.charCodeAt(0) % colors.length;
-  return (
-    <div className={cn("rounded-full flex items-center justify-center text-white font-medium flex-shrink-0", sizeMap[size], colors[colorIndex])}>
-      {initial}
-    </div>
-  );
-}
-
 // 帖子卡片（用于最新帖子和热门帖子）
 function PostCard({ post, rank }: { post: CommunityPost; rank?: number }) {
   return (
@@ -165,7 +146,7 @@ function PostCard({ post, rank }: { post: CommunityPost; rank?: number }) {
           {/* 底部信息 */}
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <div className="flex items-center gap-1">
-              <Avatar username={post.author.username} avatar={post.author.avatar} size="sm" />
+              <UserAvatar username={post.author.username} avatar={post.author.avatar} size="sm" />
               <span className="text-gray-600">{post.author.username}</span>
             </div>
             <span>{post.timeAgo}</span>
@@ -420,7 +401,7 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
                   href={`/profile`}
                   className="group flex flex-col items-center rounded-2xl border border-gray-200 bg-white p-6 text-center transition-all hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg"
                 >
-                  <Avatar username={member.username} avatar={member.avatar} size="lg" />
+                  <UserAvatar username={member.username} avatar={member.avatar} size="lg" />
                   <h3 className="mt-3 text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                     {member.username}
                   </h3>

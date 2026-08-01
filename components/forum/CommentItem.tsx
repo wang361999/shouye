@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { formatTimeAgo, cn } from "@/lib/utils";
+import UserAvatar from "@/components/common/UserAvatar";
 import toast from "react-hot-toast";
 
 interface Reply {
@@ -23,22 +24,6 @@ interface CommentItemProps {
   onReplySuccess?: () => void;
   onDeleteSuccess?: () => void;
   depth?: number;
-}
-
-// 根据用户名首字母生成背景色
-function getAvatarColor(name: string): string {
-  const colors = [
-    "bg-blue-500",
-    "bg-green-500",
-    "bg-purple-500",
-    "bg-orange-500",
-    "bg-pink-500",
-    "bg-teal-500",
-    "bg-indigo-500",
-    "bg-red-500",
-  ];
-  const index = name.charCodeAt(0) % colors.length;
-  return colors[index];
 }
 
 export default function CommentItem({
@@ -149,21 +134,13 @@ export default function CommentItem({
   };
 
   const maxDepth = 3; // 最大递归深度
-  const initial = comment.author.username.charAt(0).toUpperCase();
   const canDelete = currentUserId && (comment.author.id === currentUserId || isAdmin);
 
   return (
     <div className={cn(depth > 0 && "ml-6 sm:ml-10 border-l-2 border-gray-100 pl-4")}>
       <div className="flex space-x-3 py-3">
         {/* 头像 */}
-        <div
-          className={cn(
-            "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium",
-            getAvatarColor(comment.author.username)
-          )}
-        >
-          {initial}
-        </div>
+        <UserAvatar username={comment.author.username} avatar={comment.author.avatar} size="sm" />
 
         {/* 内容区 */}
         <div className="flex-1 min-w-0">

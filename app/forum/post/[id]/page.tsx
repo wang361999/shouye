@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
+import UserAvatar from '@/components/common/UserAvatar';
 import CommentList from '@/components/forum/CommentList';
 import { useAppStore } from '@/lib/store';
 import toast from 'react-hot-toast';
@@ -14,7 +15,7 @@ interface Post {
   id: string;
   title: string;
   content: string;
-  author: { username: string };
+  author: { username: string; avatar?: string | null };
   category: { id: string; name: string; slug: string };
   viewCount: number;
   likeCount: number;
@@ -199,10 +200,11 @@ export default function PostDetailPage({
 
       {/* 帖子元信息 */}
       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-6">
+        <UserAvatar username={post.author.username} avatar={post.author.avatar} size="sm" />
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium">
           {post.category.name}
         </span>
-        <span>{post.author.username}</span>
+        <span className="font-medium text-gray-700">{post.author.username}</span>
         <span>·</span>
         <span>{formatDate(post.createdAt)}</span>
         <span>·</span>

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import ThemeToggle from "./ThemeToggle";
 
 const toolLinks = [
   { name: "浏览全部工具", href: "/#tools" },
@@ -68,6 +69,7 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
   const [forumOpen, setForumOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [siteName, setSiteName] = useState<string>(initialSiteName);
+  const [searchQuery, setSearchQuery] = useState("");
   const toolRef = useRef<HTMLDivElement>(null);
   const forumRef = useRef<HTMLDivElement>(null);
   // 记录已为哪个用户拉取过头像，避免 avatar 为 null 时重复请求导致死循环
@@ -181,6 +183,28 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
 
           {/* 桌面端导航 */}
           <nav className="hidden md:flex items-center space-x-1">
+            {/* 搜索框 */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (searchQuery.trim()) {
+                  window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+                }
+              }}
+              className="relative hidden md:block"
+            >
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索..."
+                className="w-40 lg:w-56 pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+              />
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </form>
+
             {/* 论坛下拉（社区为主，放第一位） */}
             <div className="relative" ref={forumRef}>
               <button
@@ -282,7 +306,7 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
 
             {/* 文档 */}
             <Link
-              href="/products"
+              href="/docs"
               className="px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
             >
               文档
@@ -291,6 +315,8 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
 
           {/* 右侧用户区 */}
           <div className="hidden md:flex items-center space-x-3">
+            {/* 主题切换 */}
+            <ThemeToggle />
             {user ? (
               <div className="flex items-center space-x-3">
                 {/* 通知铃铛 */}
@@ -440,7 +466,7 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
 
             {/* 文档 */}
             <Link
-              href="/products"
+              href="/docs"
               onClick={() => setMobileMenuOpen(false)}
               className="block px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
             >

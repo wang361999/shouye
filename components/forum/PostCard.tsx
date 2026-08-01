@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatTimeAgo, truncateText, stripMarkdown, cn } from "@/lib/utils";
+import UserAvatar from "@/components/common/UserAvatar";
 
 interface Post {
   id: string;
@@ -48,34 +49,6 @@ const categoryMap: Record<
   },
 };
 
-// 头像占位组件
-function Avatar({ username, avatar }: { username: string; avatar?: string | null }) {
-  if (avatar) {
-    return (
-      <img
-        src={avatar}
-        alt={username}
-        className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-      />
-    );
-  }
-  // 取用户名第一个字符作为头像占位
-  const initial = username.charAt(0).toUpperCase();
-  const colors = [
-    "bg-blue-500", "bg-green-500", "bg-purple-500",
-    "bg-orange-500", "bg-pink-500", "bg-indigo-500",
-  ];
-  const colorIndex = username.charCodeAt(0) % colors.length;
-  return (
-    <div className={cn(
-      "w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0",
-      colors[colorIndex]
-    )}>
-      {initial}
-    </div>
-  );
-}
-
 export default function PostCard({ post }: PostCardProps) {
   const category = categoryMap[post.category] ?? {
     icon: "📋",
@@ -93,7 +66,7 @@ export default function PostCard({ post }: PostCardProps) {
       {/* 顶部：用户信息 + 分类标签 */}
       <div className="flex items-start gap-3 mb-2.5">
         {/* 头像 */}
-        <Avatar username={post.author.username} avatar={post.author.avatar} />
+        <UserAvatar username={post.author.username} avatar={post.author.avatar} size="md" />
 
         <div className="flex-1 min-w-0">
           {/* 用户名 + 时间 */}

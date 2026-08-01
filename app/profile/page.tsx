@@ -49,12 +49,13 @@ interface MyComment {
   createdAt: string;
 }
 
-type TabKey = 'profile' | 'posts' | 'comments';
+type TabKey = 'profile' | 'posts' | 'comments' | 'likes';
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'profile', label: '个人资料', icon: '👤' },
   { key: 'posts', label: '我的帖子', icon: '📝' },
   { key: 'comments', label: '我的评论', icon: '💬' },
+  { key: 'likes', label: '我的点赞', icon: '❤️' },
 ];
 
 export default function ProfilePage() {
@@ -85,6 +86,12 @@ export default function ProfilePage() {
   // ---- 我的评论状态 ----
   const [comments, setComments] = useState<MyComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+
+  // ---- 我的点赞状态 ----
+  const [likedPosts, setLikedPosts] = useState<MyPost[]>([]);
+  const [likesLoading, setLikesLoading] = useState(false);
+  const [likesPage, setLikesPage] = useState(1);
+  const [likesTotalPages, setLikesTotalPages] = useState(1);
 
   // ============ 客户端水合 ============
   useEffect(() => {
@@ -228,6 +235,52 @@ export default function ProfilePage() {
       fetchComments();
     }
   }, [user, activeTab, comments.length, fetchComments]);
+
+  // ============ 获取我的点赞 ============
+  const fetchLikes = useCallback(
+    async (page: number) => {
+      if (!token) return;
+      setLikesLoading(true);
+      try {
+        const res = await fetch(`/api/user/likes?page=${page}&limit=10`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('获取点赞列表失败');
+        const data = await res.json();
+        const formatted: MyPost[] = (data.posts || []).map((p: any) => ({
+          id: String(p.id),
+          title: p.title,
+          summary: p.summary || '',
+          category: p.category
+            ? {
+                id: String(p.category.id),
+                name: p.category.name,
+                slug: p.category.slug,
+              }
+            : null,
+          viewCount: p.viewCount || 0,
+          likeCount: p.likeCount || 0,
+          commentCount: p.commentCount || 0,
+          isPinned: p.isPinned || false,
+          isEssence: p.isEssence || false,
+          createdAt: p.createdAt,
+        }));
+        setLikedPosts(formatted);
+        setLikesTotalPages(data.totalPages || 1);
+      } catch (err: any) {
+        toast.error(err.message || '获取点赞列表失败');
+      } finally {
+        setLikesLoading(false);
+      }
+    },
+    [token],
+  );
+
+  useEffect(() => {
+    if (user && token && activeTab === 'likes') {
+      fetchLikes(likesPage);
+    }
+  }, [user, token, activeTab, likesPage, fetchLikes]);
 
   // ============ 保存个人资料 ============
   async function handleSaveProfile(e: React.FormEvent) {
@@ -953,6 +1006,128 @@ export default function ProfilePage() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ============ Tab: 我的点赞 ============ */}
+      {activeTab === 'likes' && (
+        <div>
+          {likesLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-lg border border-gray-200 p-5 animate-pulse"
+                >
+                  <div className="h-5 bg-gray-200 rounded w-3/4 mb-3" />
+                  <div className="h-3 bg-gray-100 rounded w-full mb-2" />
+                  <div className="h-3 bg-gray-100 rounded w-1/3" />
+                </div>
+              ))}
+            </div>
+          ) : likedPosts.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+              <p className="text-4xl mb-3">❤️</p>
+              <p className="text-gray-400 mb-4">还没有点赞过帖子</p>
+              <Link
+                href="/forum"
+                className="inline-block px-4 py-2 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                去论坛看看
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {likedPosts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="bg-white rounded-lg border border-gray-200 p-4 sm:p-5 hover:shadow-sm transition-shadow"
+                  >
+                    {/* 标签行 */}
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      {post.category && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                          {post.category.name}
+                        </span>
+                      )}
+                      {post.isPinned && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-600 border border-red-200">
+                          📌 置顶
+                        </span>
+                      )}
+                      {post.isEssence && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                          ⭐ 精华
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 标题 */}
+                    <h3 className="text-base sm:text-lg font-semibold mb-1.5">
+                      <Link
+                        href={`/forum/post/${post.id}`}
+                        className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                      >
+                        {post.title}
+                      </Link>
+                    </h3>
+
+                    {/* 摘要 */}
+                    <p className="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                      {post.summary}
+                    </p>
+
+                    {/* 底部统计 */}
+                    <div className="flex items-center text-xs text-gray-400 space-x-3">
+                      <span>{formatTimeAgo(post.createdAt)}</span>
+                      <span>·</span>
+                      <span>👁 {post.viewCount}</span>
+                      <span>·</span>
+                      <span>❤️ {post.likeCount}</span>
+                      <span>·</span>
+                      <span>💬 {post.commentCount}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 分页 */}
+              {likesTotalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-6">
+                  <button
+                    onClick={() => setLikesPage((p) => Math.max(1, p - 1))}
+                    disabled={likesPage <= 1}
+                    className={cn(
+                      'px-3 py-1.5 text-sm rounded-md border transition-colors',
+                      likesPage <= 1
+                        ? 'text-gray-300 border-gray-200 cursor-not-allowed'
+                        : 'text-gray-600 border-gray-300 hover:bg-gray-50',
+                    )}
+                  >
+                    上一页
+                  </button>
+                  <span className="px-3 py-1.5 text-sm text-gray-600">
+                    {likesPage} / {likesTotalPages}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setLikesPage((p) => Math.min(likesTotalPages, p + 1))
+                    }
+                    disabled={likesPage >= likesTotalPages}
+                    className={cn(
+                      'px-3 py-1.5 text-sm rounded-md border transition-colors',
+                      likesPage >= likesTotalPages
+                        ? 'text-gray-300 border-gray-200 cursor-not-allowed'
+                        : 'text-gray-600 border-gray-300 hover:bg-gray-50',
+                    )}
+                  >
+                    下一页
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

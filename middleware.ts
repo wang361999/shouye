@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server';
  * 全局中间件 - 安全头 + 请求追踪
  *
  * 1. 为所有响应注入安全头
- * 2. 轻量级请求追踪（仅 API 路由，fire-and-forget）
+ * 2. 请求追踪（使用 fetch keepalive 确保追踪请求在响应返回后仍能完成）
  */
 
 // 需要跳过追踪的路径
@@ -30,17 +30,14 @@ const SECURITY_HEADERS: Record<string, string> = {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 跳过静态资源
+  // 跳过静态资源（仍注入安全头）
   if (SKIP_PATHS.some((p) => pathname.startsWith(p))) {
     const response = NextResponse.next();
-    // 即使是静态资源也注入安全头
     for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
       response.headers.set(key, value);
     }
     return response;
   }
-
-  const start = Date.now();
 
   // 获取响应
   const response = NextResponse.next({
@@ -57,23 +54,12 @@ export function middleware(request: NextRequest) {
   // 隐藏 Server 头
   response.headers.delete('X-Powered-By');
 
-  // 仅追踪 API 路由（减少 Serverless 函数调用开销）
+  // 判断是否为 API 路由
   const isApi = pathname.startsWith('/api/');
-  if (!isApi) {
-    return response;
-  }
 
-  // 采样率控制：仅 10% 的请求被追踪，减少 Serverless 函数调用开销
-  // 完整统计可通过 Vercel Analytics 获取
-  if (Math.random() > 0.1) {
-    return response;
-  }
-
-  const duration = Date.now() - start;
-  const contentLength = response.headers.get('content-length');
-  const estimatedBytes = contentLength ? parseInt(contentLength, 10) : 0;
-
-  // fire-and-forget 追踪，不阻塞响应
+  // 使用 fetch keepalive 发送追踪请求
+  // keepalive 选项确保请求在页面/中间件卸载后仍能完成
+  // 这是浏览器和 Edge Runtime 标准的 beacon 发送方式
   try {
     const trackUrl = new URL('/api/_monitor/track', request.url);
     fetch(trackUrl.toString(), {
@@ -85,15 +71,12 @@ export function middleware(request: NextRequest) {
       body: JSON.stringify({
         path: pathname,
         method: request.method,
-        duration,
         isApi,
-        dataBytes: estimatedBytes,
-        statusCode: response.status,
       }),
       keepalive: true,
     }).catch(() => {});
   } catch {
-    // 忽略
+    // 忽略追踪错误，不影响正常请求
   }
 
   return response;
