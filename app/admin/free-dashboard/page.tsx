@@ -62,6 +62,20 @@ interface FreeDashboardData {
     detail: string | null;
     createdAt: string;
   }>;
+  codeIterations: Array<{
+    sha: string;
+    shortSha: string;
+    title: string;
+    detail: string;
+    url: string;
+    committedAt: string | null;
+  }>;
+  visibleChanges: Array<{
+    title: string;
+    desc: string;
+    href: string;
+    tag: string;
+  }>;
   autoIteration: {
     enabled: boolean;
     requireApproval: boolean;
@@ -359,6 +373,70 @@ export default function FreeDashboardPage() {
                       : "未配置 Deploy Hook，确认会先写入日志。"}
                   </p>
                 </div>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 xl:col-span-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="font-semibold text-emerald-950">这次 AI 改了什么</h2>
+                    <p className="mt-1 text-sm text-emerald-700">
+                      以后这里直接展示可见功能入口，不用只看提交号。
+                    </p>
+                  </div>
+                  {data.deploy.shortSha && (
+                    <span className="w-fit rounded-full bg-white px-3 py-1 text-xs text-emerald-700">
+                      当前线上提交：{data.deploy.shortSha}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {data.visibleChanges.map((item) => (
+                    <Link
+                      key={item.title}
+                      href={item.href}
+                      className="rounded-xl border border-emerald-100 bg-white/80 p-3 transition-colors hover:bg-white"
+                    >
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                        {item.tag}
+                      </span>
+                      <p className="mt-2 text-sm font-semibold text-gray-900">{item.title}</p>
+                      <p className="mt-1 text-xs text-gray-600">{item.desc}</p>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 xl:col-span-2">
+                <h2 className="font-semibold text-gray-900 mb-4">最近代码迭代</h2>
+                {data.codeIterations.length === 0 ? (
+                  <p className="text-sm text-gray-400">暂时读取不到 GitHub 提交记录。</p>
+                ) : (
+                  <div className="space-y-3">
+                    {data.codeIterations.map((item) => (
+                      <a
+                        key={item.sha}
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded-xl border border-gray-100 p-3 hover:bg-gray-50"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="line-clamp-2 text-sm font-medium text-gray-800">
+                            {item.title}
+                          </p>
+                          <span className="shrink-0 rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-500">
+                            {item.shortSha}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-400">
+                          {item.committedAt ? new Date(item.committedAt).toLocaleString() : "暂无时间"}
+                        </p>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
 

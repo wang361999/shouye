@@ -24,6 +24,17 @@ const AUTO_ITERATION_KEYS = [
 
 type DeployStatus = 'success' | 'pending' | 'failure' | 'unknown';
 
+type GitHubCommitItem = {
+  sha?: string;
+  html_url?: string;
+  commit?: {
+    message?: string;
+    committer?: {
+      date?: string;
+    };
+  };
+};
+
 async function fetchDeployStatus() {
   try {
     const commitRes = await fetch(`https://api.github.com/repos/${REPO}/commits/${MAIN_BRANCH}`, {
@@ -75,6 +86,40 @@ async function fetchDeployStatus() {
   }
 }
 
+async function fetchRecentCodeIterations() {
+  try {
+    const commitsRes = await fetch(
+      `https://api.github.com/repos/${REPO}/commits?sha=${MAIN_BRANCH}&per_page=5`,
+      {
+        next: { revalidate: 60 },
+        headers: {
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'shouye-admin-dashboard',
+        },
+      },
+    );
+
+    if (!commitsRes.ok) {
+      throw new Error('无法读取 GitHub 提交记录');
+    }
+
+    const commits = (await commitsRes.json()) as GitHubCommitItem[];
+    return commits.map((item) => {
+      const message = item.commit?.message || '无提交说明';
+      return {
+        sha: item.sha || '',
+        shortSha: item.sha?.slice(0, 7) || '',
+        title: message.split('\n')[0],
+        detail: message,
+        url: item.html_url || '',
+        committedAt: item.commit?.committer?.date || null,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 function percent(used: number, total: number) {
   if (!total) return 0;
   return Number(Math.min(100, (used / total) * 100).toFixed(2));
@@ -118,6 +163,7 @@ export async function GET(request: NextRequest) {
       hotTools,
       recentLogs,
       autoIterationSettings,
+      codeIterations,
     ] = await Promise.all([
       fetchDeployStatus(),
       prisma.tool.count(),
@@ -156,6 +202,7 @@ export async function GET(request: NextRequest) {
       prisma.systemSetting.findMany({
         where: { key: { in: AUTO_ITERATION_KEYS } },
       }),
+      fetchRecentCodeIterations(),
     ]);
 
     const autoIterationMap = Object.fromEntries(
@@ -285,6 +332,27 @@ export async function GET(request: NextRequest) {
       suggestions,
       hotTools,
       recentLogs,
+      codeIterations,
+      visibleChanges: [
+        {
+          title: '免费看板增加 AI 自动迭代实验区',
+          desc: '可以开启实验、触发巡检、记录“我确认，可以上线”。',
+          href: '/admin/free-dashboard',
+          tag: '后台入口',
+        },
+        {
+          title: '用量监控改成站内真实埋点趋势',
+          desc: '显示最近入库时间、路由样本数，并明确不是 Vercel 官方账单。',
+          href: '/admin/monitoring',
+          tag: '监控修复',
+        },
+        {
+          title: '自动迭代和部署说明已写进文档',
+          desc: '补充先出日志、再由管理员确认上线的免费流程。',
+          href: '/docs',
+          tag: '文档',
+        },
+      ],
       autoIteration: {
         enabled: toBool(autoIterationMap.auto_iteration_enabled, false),
         requireApproval: toBool(autoIterationMap.auto_iteration_require_approval, true),
