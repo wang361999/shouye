@@ -10,10 +10,9 @@ const DEFAULT_SITE_NAME = 'ET Studio';
 const DEFAULT_SITE_DESC = '开发者工具与社区';
 
 /**
- * generateMetadata - 服务端动态生成页面元数据
- * 从数据库读取网站名称和描述，使后台修改后全站标题立即生效
+ * 从数据库获取站点设置（服务端调用，供 generateMetadata 和 RootLayout 共用）
  */
-export async function generateMetadata(): Promise<Metadata> {
+async function getSiteSettings() {
   let siteName = DEFAULT_SITE_NAME;
   let siteDescription = DEFAULT_SITE_DESC;
   let siteFavicon = '';
@@ -33,6 +32,16 @@ export async function generateMetadata(): Promise<Metadata> {
     // 数据库不可用时降级使用默认值
   }
 
+  return { siteName, siteDescription, siteFavicon };
+}
+
+/**
+ * generateMetadata - 服务端动态生成页面元数据
+ * 从数据库读取网站名称和描述，使后台修改后全站标题立即生效
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteName, siteDescription, siteFavicon } = await getSiteSettings();
+
   const icons = siteFavicon
     ? { icon: siteFavicon, shortcut: siteFavicon }
     : undefined;
@@ -45,13 +54,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { siteName, siteDescription } = await getSiteSettings();
+
   return (
     <html lang="zh-CN">
       <body className="min-h-screen flex flex-col bg-gray-50">
-        <Header />
+        <Header siteName={siteName} />
         <main className="flex-1">{children}</main>
-        <Footer />
+        <Footer siteName={siteName} />
         <Toaster position="top-center" />
       </body>
     </html>

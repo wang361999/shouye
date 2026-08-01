@@ -1,29 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 
-export default function Footer() {
-  const [siteName, setSiteName] = useState<string>("ET Studio");
-
-  // 动态获取网站名称（fetch 失败时静默降级为默认值）
-  useEffect(() => {
-    let active = true;
-    fetch("/api/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (active && data?.site_name) {
-          setSiteName(data.site_name);
-        }
-      })
-      .catch(() => {
-        // 静默降级，不弹 toast
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
+export default function Footer({ siteName = "ET Studio" }: { siteName?: string }) {
   return (
     <footer className="bg-gray-800 text-gray-300">
       <div className="max-w-7xl mx-auto px-4 py-8">

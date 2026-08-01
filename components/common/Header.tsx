@@ -19,12 +19,12 @@ const forumLinks = [
   { name: "🗣️ 闲聊", href: "/forum/category/chat", icon: "🗣️" },
 ];
 
-export default function Header() {
+export default function Header({ siteName: initialSiteName = "ET Studio" }: { siteName?: string }) {
   const { user, logout, hydrate } = useAppStore();
   const [toolOpen, setToolOpen] = useState(false);
   const [forumOpen, setForumOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [siteName, setSiteName] = useState<string>("ET Studio");
+  const [siteName, setSiteName] = useState<string>(initialSiteName);
   const toolRef = useRef<HTMLDivElement>(null);
   const forumRef = useRef<HTMLDivElement>(null);
 
@@ -53,8 +53,10 @@ export default function Header() {
       });
   }, []);
 
-  // 动态获取网站名称（fetch 失败时静默降级为默认值）
+  // 动态获取网站名称（仅当 prop 为默认值时才请求，避免不必要的 fetch）
   useEffect(() => {
+    // 如果 prop 已经是数据库中的值，不需要再 fetch
+    if (initialSiteName !== "ET Studio") return;
     let active = true;
     fetch("/api/settings")
       .then((res) => res.json())
@@ -69,7 +71,7 @@ export default function Header() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [initialSiteName]);
 
   // 点击外部关闭下拉菜单
   useEffect(() => {
