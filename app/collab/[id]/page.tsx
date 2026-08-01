@@ -60,6 +60,7 @@ interface Contribution {
   deletions?: number;
   status: ContributionStatus;
   contributor: UserRef;
+  user?: UserRef; // API 可能返回 user 而非 contributor
   task?: { id: string; title: string } | null;
   createdAt: string;
 }
@@ -1336,8 +1337,12 @@ function ContributionsTab({
                     {/* 元信息 */}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-gray-400 dark:text-gray-500">
                       <span className="inline-flex items-center gap-1">
-                        <UserAvatar username={contrib.contributor.username} avatar={contrib.contributor.avatar} size="xs" />
-                        {contrib.contributor.username}
+                        <UserAvatar
+                          username={contrib.contributor?.username || contrib.user?.username || '未知用户'}
+                          avatar={contrib.contributor?.avatar ?? contrib.user?.avatar ?? null}
+                          size="xs"
+                        />
+                        {contrib.contributor?.username || contrib.user?.username || '未知用户'}
                       </span>
                       {contrib.task && (
                         <span className="inline-flex items-center gap-1">

@@ -34,6 +34,7 @@ interface Project {
   taskCompleted: number;
   contributionCount: number;
   owner: ProjectOwner;
+  author?: ProjectOwner; // API 可能返回 author 而非 owner
   createdAt: string;
 }
 
@@ -372,13 +373,13 @@ function ProjectCard({ project }: { project: Project }) {
       <div className="mt-auto flex items-center justify-between pt-2">
         <div className="flex items-center gap-2 min-w-0">
           <UserAvatar
-            username={project.owner.username}
-            avatar={project.owner.avatar}
+            username={project.owner?.username || project.author?.username || '未知用户'}
+            avatar={project.owner?.avatar ?? project.author?.avatar ?? null}
             size="sm"
           />
           <div className="min-w-0">
             <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
-              {project.owner.username}
+              {project.owner?.username || project.author?.username || '未知用户'}
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500">
               {formatTimeAgo(project.createdAt)}

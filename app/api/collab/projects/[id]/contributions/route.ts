@@ -52,7 +52,7 @@ export async function GET(
       where.status = status;
     }
 
-    const contributions = await prisma.collabContribution.findMany({
+    const contributionsRaw = await prisma.collabContribution.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }],
       include: {
@@ -73,6 +73,19 @@ export async function GET(
         },
       },
     });
+
+    // 映射为前端期望的结构：user → contributor(扁平)、githubLogin → githubUsername
+    const contributions = contributionsRaw.map((c) => ({
+      ...c,
+      contributor: c.user
+        ? {
+            id: c.user.id,
+            username: c.user.username,
+            avatar: c.user.avatar ?? null,
+            githubUsername: c.user.githubLogin ?? undefined,
+          }
+        : { id: '', username: '未知用户', avatar: null },
+    }));
 
     return NextResponse.json({
       data: contributions,
@@ -249,7 +262,20 @@ export async function POST(
       return created;
     });
 
-    return NextResponse.json(contribution, { status: 201 });
+    // 映射为前端期望的结构
+    const contributionMapped = {
+      ...contribution,
+      contributor: contribution.user
+        ? {
+            id: contribution.user.id,
+            username: contribution.user.username,
+            avatar: contribution.user.avatar ?? null,
+            githubUsername: contribution.user.githubLogin ?? undefined,
+          }
+        : { id: '', username: '未知用户', avatar: null },
+    };
+
+    return NextResponse.json(contributionMapped, { status: 201 });
   } catch (error) {
     console.error('[COLLAB CONTRIBUTION CREATE ERROR]', error);
     return NextResponse.json(
