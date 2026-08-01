@@ -44,13 +44,47 @@ interface DatabaseData {
   totalTables: number;
 }
 
+// ============ 备份恢复相关类型 ============
+interface RestorePreview {
+  valid: boolean;
+  version: string;
+  exportedAt: string;
+  exportedBy: string;
+  totalRecords: number;
+  tables: Array<{ table: string; count: number }>;
+  totalTables: number;
+}
+
+interface RestoreResult {
+  success: boolean;
+  message: string;
+  summary: {
+    mode: string;
+    tablesProcessed: number;
+    totalDeleted: number;
+    totalInserted: number;
+    hasError: boolean;
+  };
+  details: Array<{ table: string; action: string; count: number; error?: string }>;
+}
+
 export default function DatabasePage() {
   const { token } = useAppStore();
   const [data, setData] = useState<DatabaseData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "tables" | "cleanup" | "maintenance">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "tables" | "cleanup" | "maintenance" | "backup">("overview");
   const [cleaning, setCleaning] = useState<string | null>(null);
   const [confirmTable, setConfirmTable] = useState<string | null>(null);
+
+  // 备份恢复状态
+  const [backingUp, setBackingUp] = useState(false);
+  const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(null);
+  const [restoreMode, setRestoreMode] = useState<"replace" | "merge">("replace");
+  const [restoring, setRestoring] = useState(false);
+  const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
+  const [confirmRestore, setConfirmRestore] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!token) return;
@@ -154,6 +188,139 @@ export default function DatabasePage() {
     }
   };
 
+  // ============ 备份操作 ============
+  const handleBackup = async () => {
+    if (!token) return;
+    setBackingUp(true);
+    try {
+      const tablesParam =
+        selectedTables.size > 0 ? `?tables=${Array.from(selectedTables).join(",")}` : "";
+      const res = await fetch(`/api/admin/database/backup${tablesParam}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "备份失败");
+        return;
+      }
+
+      // 获取文件名
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = disposition.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : `db-backup-${Date.now()}.json`;
+
+      // 转为 Blob 并下载
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("备份文件已下载");
+    } catch {
+      toast.error("网络错误，备份失败");
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
+  // ============ 恢复预检 ============
+  const handleFileSelect = async (file: File | null) => {
+    if (!file || !token) return;
+
+    setRestoreFile(file);
+    setRestorePreview(null);
+    setRestoreResult(null);
+    setConfirmRestore(false);
+
+    try {
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+
+      // 预检
+      const res = await fetch("/api/admin/database/restore", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ backupData }),
+      });
+
+      const result = await res.json();
+      if (res.ok && result.valid) {
+        setRestorePreview(result);
+      } else {
+        toast.error(result.error || "无效的备份文件");
+      }
+    } catch {
+      toast.error("文件解析失败，请检查文件格式");
+    }
+  };
+
+  // ============ 执行恢复 ============
+  const handleRestore = async () => {
+    if (!token || !restoreFile) return;
+    setRestoring(true);
+    setConfirmRestore(false);
+
+    try {
+      const text = await restoreFile.text();
+      const backupData = JSON.parse(text);
+
+      const res = await fetch("/api/admin/database/restore", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ backupData, mode: restoreMode }),
+      });
+
+      const result = await res.json();
+      if (res.ok && result.success) {
+        setRestoreResult(result);
+        toast.success(result.message);
+        // 恢复后刷新数据
+        fetchData();
+      } else {
+        setRestoreResult(result);
+        toast.error(result.error || "恢复失败");
+      }
+    } catch {
+      toast.error("网络错误，恢复失败");
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  // ============ 全选/取消全选表 ============
+  const toggleTableSelection = (tableName: string) => {
+    setSelectedTables((prev) => {
+      const next = new Set(prev);
+      if (next.has(tableName)) {
+        next.delete(tableName);
+      } else {
+        next.add(tableName);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!data) return;
+    if (selectedTables.size === data.tables.length) {
+      setSelectedTables(new Set());
+    } else {
+      setSelectedTables(new Set(data.tables.map((t) => t.name)));
+    }
+  };
+
   // 格式化文件大小
   function formatBytes(bytes: number): string {
     if (bytes === 0) return "0 B";
@@ -188,6 +355,7 @@ export default function DatabasePage() {
     { key: "tables" as const, label: "数据表", icon: "📋" },
     { key: "cleanup" as const, label: "数据清理", icon: "🧹" },
     { key: "maintenance" as const, label: "维护操作", icon: "🔧" },
+    { key: "backup" as const, label: "备份恢复", icon: "💾" },
   ];
 
   return (
@@ -688,6 +856,411 @@ export default function DatabasePage() {
                   <p>• 建议在低峰期执行维护操作</p>
                   <p>• 清理操作不可恢复，请确认后再执行</p>
                   <p>• 核心数据表（用户、产品、订单等）不支持直接清理</p>
+                </div>
+              </div>
+            )}
+
+            {/* ===== 备份恢复 Tab ===== */}
+            {activeTab === "backup" && (
+              <div className="space-y-6">
+                {/* ---- 备份区域 ---- */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl">📤</span>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-800">数据库备份</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        导出全部或选中数据表的数据为 JSON 文件
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 表选择 */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-500">
+                        选择备份的表（不选则备份全部）
+                      </span>
+                      <button
+                        onClick={toggleSelectAll}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        {selectedTables.size === data.tables.length ? "取消全选" : "全选"}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-3 bg-gray-50 rounded-lg">
+                      {data.tables.map((table) => (
+                        <label
+                          key={table.name}
+                          className="flex items-center gap-2 text-xs cursor-pointer hover:bg-white px-2 py-1.5 rounded transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTables.has(table.name)}
+                            onChange={() => toggleTableSelection(table.name)}
+                            className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-gray-700 truncate">
+                            {table.displayName}
+                          </span>
+                          <span className="text-gray-400">({formatNumber(table.count)})</span>
+                        </label>
+                      ))}
+                    </div>
+                    {selectedTables.size > 0 && (
+                      <p className="text-xs text-blue-600 mt-2">
+                        已选 {selectedTables.size} 张表
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 备份按钮 */}
+                  <button
+                    onClick={handleBackup}
+                    disabled={backingUp}
+                    className="w-full px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {backingUp ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        正在导出...
+                      </>
+                    ) : (
+                      <>
+                        💾 下载备份文件
+                      </>
+                    )}
+                  </button>
+
+                  {/* 备份说明 */}
+                  <div className="mt-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                    <p className="mb-1">📋 备份说明：</p>
+                    <p>• 备份格式为 JSON，包含所有表数据和元信息</p>
+                    <p>• 建议定期备份，重要操作前先备份</p>
+                    <p>• 备份文件可用于跨环境迁移数据</p>
+                    <p>• BigInt 和日期字段已特殊编码，可直接用于恢复</p>
+                  </div>
+                </div>
+
+                {/* ---- 恢复区域 ---- */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl">📥</span>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-800">数据恢复</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        上传备份文件，恢复数据到数据库
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 文件上传 */}
+                  <div className="mb-4">
+                    <label
+                      className="block w-full border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files[0];
+                        if (file) handleFileSelect(file);
+                      }}
+                    >
+                      <input
+                        type="file"
+                        accept=".json"
+                        className="hidden"
+                        onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                      />
+                      {restoreFile ? (
+                        <div>
+                          <p className="text-2xl mb-2">📄</p>
+                          <p className="text-sm font-medium text-gray-700">
+                            {restoreFile.name}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {formatBytes(restoreFile.size)}
+                          </p>
+                          <p className="text-xs text-blue-600 mt-2">点击更换文件</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-3xl mb-2">📁</p>
+                          <p className="text-sm text-gray-500">
+                            点击选择或拖拽 JSON 备份文件到此处
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            仅支持本系统导出的 .json 备份文件
+                          </p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* 恢复预览 */}
+                  {restorePreview && (
+                    <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h4 className="text-xs font-semibold text-gray-600 mb-3">
+                        🔍 备份文件预览
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        <div>
+                          <div className="text-xs text-gray-400">备份版本</div>
+                          <div className="text-sm font-medium text-gray-700">
+                            {restorePreview.version}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">导出时间</div>
+                          <div className="text-sm font-medium text-gray-700">
+                            {restorePreview.exportedAt !== "未知"
+                              ? new Date(restorePreview.exportedAt).toLocaleString("zh-CN")
+                              : "未知"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">导出人</div>
+                          <div className="text-sm font-medium text-gray-700">
+                            {restorePreview.exportedBy}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">总记录数</div>
+                          <div className="text-sm font-bold text-blue-600">
+                            {formatNumber(restorePreview.totalRecords)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 表数据预览 */}
+                      <div className="max-h-40 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="text-left py-1.5 px-2 text-gray-500">表名</th>
+                              <th className="text-right py-1.5 px-2 text-gray-500">记录数</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {restorePreview.tables.map((t) => (
+                              <tr key={t.table}>
+                                <td className="py-1.5 px-2 font-mono text-gray-600">
+                                  {t.table}
+                                </td>
+                                <td className="py-1.5 px-2 text-right text-gray-700">
+                                  {formatNumber(t.count)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 恢复模式选择 */}
+                  {restorePreview && (
+                    <div className="mb-4">
+                      <label className="text-xs font-medium text-gray-500 block mb-2">
+                        恢复模式
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <label
+                          className={`flex items-start gap-2 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                            restoreMode === "replace"
+                              ? "border-red-300 bg-red-50/50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="restoreMode"
+                            value="replace"
+                            checked={restoreMode === "replace"}
+                            onChange={() => setRestoreMode("replace")}
+                            className="mt-0.5 text-red-600 focus:ring-red-500"
+                          />
+                          <div>
+                            <div className="text-xs font-medium text-gray-700">
+                              覆盖恢复
+                            </div>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              先删除现有数据再导入，完全替换
+                            </div>
+                          </div>
+                        </label>
+                        <label
+                          className={`flex items-start gap-2 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                            restoreMode === "merge"
+                              ? "border-blue-300 bg-blue-50/50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="restoreMode"
+                            value="merge"
+                            checked={restoreMode === "merge"}
+                            onChange={() => setRestoreMode("merge")}
+                            className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <div className="text-xs font-medium text-gray-700">
+                              合并恢复
+                            </div>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              跳过已存在的记录，仅添加新数据
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 恢复结果 */}
+                  {restoreResult && (
+                    <div
+                      className={`mb-4 p-4 rounded-lg border ${
+                        restoreResult.summary.hasError
+                          ? "bg-yellow-50 border-yellow-200"
+                          : "bg-green-50 border-green-200"
+                      }`}
+                    >
+                      <h4 className="text-xs font-semibold text-gray-600 mb-2">
+                        {restoreResult.summary.hasError ? "⚠️ " : "✅ "}
+                        恢复结果
+                      </h4>
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        <div>
+                          <div className="text-xs text-gray-400">处理表数</div>
+                          <div className="text-sm font-bold text-gray-700">
+                            {restoreResult.summary.tablesProcessed}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">删除记录</div>
+                          <div className="text-sm font-bold text-red-600">
+                            {formatNumber(restoreResult.summary.totalDeleted)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-400">插入记录</div>
+                          <div className="text-sm font-bold text-green-600">
+                            {formatNumber(restoreResult.summary.totalInserted)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 详细结果 */}
+                      {restoreResult.details.length > 0 && (
+                        <details className="mt-2">
+                          <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                            查看详细结果（{restoreResult.details.length} 项）
+                          </summary>
+                          <div className="mt-2 max-h-40 overflow-y-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  <th className="text-left py-1 px-2 text-gray-500">表</th>
+                                  <th className="text-left py-1 px-2 text-gray-500">操作</th>
+                                  <th className="text-right py-1 px-2 text-gray-500">数量</th>
+                                  <th className="text-left py-1 px-2 text-gray-500">备注</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {restoreResult.details.map((d, i) => (
+                                  <tr key={i}>
+                                    <td className="py-1 px-2 font-mono text-gray-600">
+                                      {d.table}
+                                    </td>
+                                    <td className="py-1 px-2 text-gray-500">{d.action}</td>
+                                    <td className="py-1 px-2 text-right text-gray-700">
+                                      {formatNumber(d.count)}
+                                    </td>
+                                    <td
+                                      className={`py-1 px-2 ${
+                                        d.error ? "text-red-500" : "text-gray-300"
+                                      }`}
+                                    >
+                                      {d.error || "-"}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 恢复按钮 */}
+                  {restorePreview && !restoreResult && (
+                    <>
+                      {confirmRestore ? (
+                        <div className="space-y-3">
+                          {restoreMode === "replace" && (
+                            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                              ⚠️ 覆盖模式将删除所有现有数据并用备份替换！此操作不可撤销！
+                            </div>
+                          )}
+                          <div className="flex gap-3">
+                            <button
+                              onClick={handleRestore}
+                              disabled={restoring}
+                              className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                              {restoring ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                  正在恢复...
+                                </>
+                              ) : (
+                                "确认恢复"
+                              )}
+                            </button>
+                            <button
+                              onClick={() => setConfirmRestore(false)}
+                              disabled={restoring}
+                              className="px-4 py-2.5 text-sm font-medium text-gray-500 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                              取消
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmRestore(true)}
+                          className="w-full px-4 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          📥 开始恢复
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {/* 重新恢复按钮 */}
+                  {restoreResult && (
+                    <button
+                      onClick={() => {
+                        setRestoreFile(null);
+                        setRestorePreview(null);
+                        setRestoreResult(null);
+                        setConfirmRestore(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      恢复其他文件
+                    </button>
+                  )}
+
+                  {/* 恢复注意事项 */}
+                  <div className="mt-4 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700">
+                    <p className="mb-1">⚠️ 恢复注意事项：</p>
+                    <p>• 覆盖模式会删除现有数据，请确保备份文件正确</p>
+                    <p>• 恢复前建议先下载当前数据备份</p>
+                    <p>• 大数据量恢复可能需要较长时间（最长30秒）</p>
+                    <p>• 恢复过程中请勿关闭页面</p>
+                  </div>
                 </div>
               </div>
             )}
