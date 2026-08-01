@@ -431,3 +431,35 @@ model Order {
   @@index([status])
   @@map("Order")
 }
+
+// ============ 监控统计 - 每日用量 ============
+model MonitoringDaily {
+  id                  String   @id @default(cuid())
+  date                DateTime @db.Date
+  functionInvocations Int      @default(0) @map("function_invocations")
+  edgeRequests        Int      @default(0) @map("edge_requests")
+  cpuTimeMs           Int      @default(0) @map("cpu_time_ms")
+  dataTransferBytes   BigInt   @default(0) @map("data_transfer_bytes")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@unique([date])
+  @@map("MonitoringDaily")
+}
+
+// ============ 监控统计 - 路由级别明细 ============
+model MonitoringRoute {
+  id                  String   @id @default(cuid())
+  date                DateTime @db.Date
+  path                String
+  method              String
+  requestCount        Int      @default(0) @map("request_count")
+  totalCpuMs          Int      @default(0) @map("total_cpu_ms")
+  totalDataBytes      BigInt   @default(0) @map("total_data_bytes")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@unique([date, path, method])
+  @@index([date])
+  @@map("MonitoringRoute")
+}

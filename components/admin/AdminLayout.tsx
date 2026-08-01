@@ -21,7 +21,10 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   {
     title: "概览",
-    items: [{ key: "dashboard", label: "仪表盘", href: "/admin", icon: "📊" }],
+    items: [
+      { key: "dashboard", label: "仪表盘", href: "/admin", icon: "📊" },
+      { key: "monitoring", label: "用量监控", href: "/admin/monitoring", icon: "📈" },
+    ],
   },
   {
     title: "工具管理",
