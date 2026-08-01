@@ -9,8 +9,8 @@ const {
   GITHUB_REPOSITORY,
   ISSUE_NUMBER,
   AI_API_KEY = '',
-  AI_API_BASE = 'https://api.groq.com/openai/v1/chat/completions',
-  AI_MODEL = 'llama-3.3-70b-versatile',
+  AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+  AI_MODEL = 'gemini-2.5-flash',
 } = process.env;
 
 const MAX_CONTEXT_CHARS = 5_000;
@@ -26,7 +26,7 @@ function fail(message) {
 if (!GITHUB_TOKEN) fail('缺少 GITHUB_TOKEN');
 if (!GITHUB_REPOSITORY) fail('缺少 GITHUB_REPOSITORY');
 if (!ISSUE_NUMBER) fail('缺少 ISSUE_NUMBER');
-if (!AI_API_KEY) fail('缺少 AI_API_KEY。请在 GitHub 仓库 Settings → Secrets → Actions 中添加 AI_API_KEY（免费获取：https://console.groq.com/keys）');
+if (!AI_API_KEY) fail('缺少 AI_API_KEY。请在 GitHub 仓库 Settings → Secrets → Actions 中添加 AI_API_KEY（免费获取：https://aistudio.google.com/apikey）');
 
 function run(command, args) {
   return execFileSync(command, args, { encoding: 'utf8' }).trim();

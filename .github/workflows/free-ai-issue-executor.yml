@@ -33,8 +33,8 @@ jobs:
 
     env:
       ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
-      AI_API_BASE: https://api.groq.com/openai/v1/chat/completions
-      AI_MODEL: llama-3.3-70b-versatile
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-2.5-flash
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
