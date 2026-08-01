@@ -1,11 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
 /**
- * GET /api/github/search?q=...&page=1&per_page=10
+ * 从环境变量或数据库获取 GitHub Token
+ * 优先使用环境变量，回退到数据库 SystemSetting
+ */
+async function getGithubToken(): Promise<string | null> {
+  // 优先使用环境变量
+  if (process.env.GITHUB_TOKEN) {
+    return process.env.GITHUB_TOKEN;
+  }
+
+  // 回退到数据库
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'github_token' },
+    });
+    return setting?.value || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * GET /api/github/search?q=...&page=1&per_page=10&language=...&repo=...&user=...&extension=...
  *
  * 搜索 GitHub 代码
- * 必须配置 GITHUB_TOKEN 环境变量（GitHub Code Search API 强制要求认证）
- * 配置后速率限制为 5000/h
+ * 支持筛选条件：
+ *   - language: 编程语言（如 typescript, python, go）
+ *   - repo: 限定仓库（格式: owner/repo）
+ *   - user: 限定用户/组织
+ *   - extension: 文件扩展名（如 ts, py, go）
+ *   - filename: 文件名关键词
+ *   - size: 文件大小范围（如 ">1000"）
+ *
+ * Token 来源优先级：环境变量 GITHUB_TOKEN > 数据库 SystemSetting.github_token
  * GitHub Code Search API: https://docs.github.com/en/rest/search#search-code
  *
  * 返回：
@@ -18,6 +47,14 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const perPage = Math.min(parseInt(searchParams.get('per_page') || '10', 10), 30);
 
+    // 筛选条件
+    const language = searchParams.get('language') || '';
+    const repo = searchParams.get('repo') || '';
+    const user = searchParams.get('user') || '';
+    const extension = searchParams.get('extension') || '';
+    const filename = searchParams.get('filename') || '';
+    const size = searchParams.get('size') || '';
+
     if (!q || q.trim().length < 2) {
       return NextResponse.json(
         { error: '搜索关键词至少需要 2 个字符' },
@@ -25,9 +62,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // 构建搜索查询字符串
+    // GitHub Code Search 支持限定符语法: keyword language:typescript repo:owner/repo extension:ts
+    let searchQuery = q.trim();
+
+    if (language) {
+      searchQuery += ` language:${language}`;
+    }
+    if (repo) {
+      // 支持 owner/repo 格式
+      const repoStr = repo.includes('/') ? repo : repo;
+      searchQuery += ` repo:${repoStr}`;
+    }
+    if (user) {
+      searchQuery += ` user:${user}`;
+    }
+    if (extension) {
+      searchQuery += ` extension:${extension.replace(/^\./, '')}`;
+    }
+    if (filename) {
+      searchQuery += ` filename:${filename}`;
+    }
+    if (size) {
+      // 支持格式: ">1000" 或 "1000..5000"
+      searchQuery += ` size:${size}`;
+    }
+
     // 构建 GitHub Code Search API URL
     const searchUrl = new URL('https://api.github.com/search/code');
-    searchUrl.searchParams.set('q', q.trim());
+    searchUrl.searchParams.set('q', searchQuery);
     searchUrl.searchParams.set('page', String(page));
     searchUrl.searchParams.set('per_page', String(perPage));
 
@@ -37,12 +100,12 @@ export async function GET(request: NextRequest) {
       'User-Agent': 'ET-Studio-Forum',
     };
 
-    // GitHub Code Search API 强制要求认证，无 Token 时直接返回友好错误
-    const token = process.env.GITHUB_TOKEN;
+    // 获取 Token（环境变量优先，数据库回退）
+    const token = await getGithubToken();
     if (!token) {
       return NextResponse.json(
         {
-          error: 'GitHub 代码搜索需要配置 GITHUB_TOKEN 环境变量。请在 Vercel 项目设置 → Environment Variables 中添加 GITHUB_TOKEN（只需 public_repo 只读权限即可）。',
+          error: 'GitHub 代码搜索需要配置 GITHUB_TOKEN。请前往后台 → 安全设置 → GitHub API Token 中配置，或在 Vercel 环境变量中添加 GITHUB_TOKEN。',
         },
         { status: 503 }
       );
@@ -54,7 +117,7 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       if (response.status === 401) {
         return NextResponse.json(
-          { error: 'GITHUB_TOKEN 无效或已过期，请检查 Vercel 环境变量中的 Token 配置' },
+          { error: 'GITHUB_TOKEN 无效或已过期，请检查后台安全设置或 Vercel 环境变量中的 Token 配置' },
           { status: 503 }
         );
       }
@@ -68,7 +131,7 @@ export async function GET(request: NextRequest) {
             : '稍后';
           return NextResponse.json(
             {
-              error: `GitHub API 速率限制已用尽，将在 ${resetDate} 重置。请在 Vercel 环境变量中配置 GITHUB_TOKEN 以提高限制。`,
+              error: `GitHub API 速率限制已用尽，将在 ${resetDate} 重置。`,
             },
             { status: 429 }
           );
@@ -113,6 +176,15 @@ export async function GET(request: NextRequest) {
       totalCount: data.total_count || 0,
       page,
       perPage,
+      // 返回当前筛选条件，方便前端回显
+      filters: {
+        language,
+        repo,
+        user,
+        extension,
+        filename,
+        size,
+      },
     }, {
       headers: {
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',

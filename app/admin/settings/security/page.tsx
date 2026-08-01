@@ -34,6 +34,11 @@ export default function SecuritySettingsPage() {
   const [githubSecretSet, setGithubSecretSet] = useState(false);
   const [savingGithub, setSavingGithub] = useState(false);
 
+  // GitHub API Token（用于代码搜索和嵌入功能）
+  const [githubApiToken, setGithubApiToken] = useState("");
+  const [githubApiTokenSet, setGithubApiTokenSet] = useState(false);
+  const [savingGithubToken, setSavingGithubToken] = useState(false);
+
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
@@ -55,6 +60,8 @@ export default function SecuritySettingsPage() {
         smtp_from_name: data.smtp_from_name || "",
         smtp_secure: data.smtp_secure === "true",
       });
+      // 检查 GitHub API Token 是否已配置（不返回实际值，仅标记）
+      setGithubApiTokenSet(!!data.github_token);
     } catch {
       toast.error("获取设置失败");
     } finally {
@@ -118,6 +125,74 @@ export default function SecuritySettingsPage() {
       toast.error("保存失败，请稍后重试");
     } finally {
       setSavingGithub(false);
+    }
+  }
+
+  // 保存 GitHub API Token
+  async function handleSaveGithubToken() {
+    if (!githubApiToken.trim()) {
+      toast.error("请输入 GitHub Token");
+      return;
+    }
+    try {
+      setSavingGithubToken(true);
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          settings: {
+            github_token: githubApiToken.trim(),
+          },
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "保存失败");
+        return;
+      }
+      toast.success("GitHub API Token 已保存");
+      setGithubApiToken("");
+      setGithubApiTokenSet(true);
+    } catch {
+      toast.error("保存失败，请稍后重试");
+    } finally {
+      setSavingGithubToken(false);
+    }
+  }
+
+  // 删除 GitHub API Token
+  async function handleDeleteGithubToken() {
+    if (!confirm("确定要删除 GitHub API Token 吗？删除后代码搜索功能将不可用。")) {
+      return;
+    }
+    try {
+      setSavingGithubToken(true);
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          settings: {
+            github_token: "",
+          },
+        }),
+      });
+      if (!res.ok) {
+        toast.error("删除失败");
+        return;
+      }
+      toast.success("GitHub API Token 已删除");
+      setGithubApiToken("");
+      setGithubApiTokenSet(false);
+    } catch {
+      toast.error("删除失败，请稍后重试");
+    } finally {
+      setSavingGithubToken(false);
     }
   }
 
@@ -493,6 +568,80 @@ export default function SecuritySettingsPage() {
           >
             {saving ? "保存中..." : "保存设置"}
           </button>
+        </div>
+
+        {/* ========== GitHub API Token 配置 ========== */}
+        <div className="bg-white rounded-lg shadow p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+            <h2 className="text-base font-semibold text-gray-800">
+              🐙 GitHub API Token
+            </h2>
+            <span className="text-xs text-gray-400">
+              用于帖子中的 GitHub 代码搜索和嵌入功能
+            </span>
+          </div>
+
+          {/* Token 状态 */}
+          <div className={`rounded-lg p-4 ${githubApiTokenSet ? "bg-green-50" : "bg-amber-50"}`}>
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-medium ${githubApiTokenSet ? "text-green-700" : "text-amber-700"}`}>
+                {githubApiTokenSet ? "✓ Token 已配置" : "⚠️ Token 未配置"}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              {githubApiTokenSet
+                ? "GitHub 代码搜索功能可用，速率限制 5000 次/小时"
+                : "未配置 Token 时代码搜索功能不可用（GitHub Code Search API 强制要求认证）"}
+            </p>
+          </div>
+
+          {/* Token 输入 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1.5">
+              GitHub Personal Access Token
+            </label>
+            <input
+              type="password"
+              value={githubApiToken}
+              onChange={(e) => setGithubApiToken(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+              placeholder={githubApiTokenSet ? "已配置，如需更换请输入新 Token" : "ghp_xxxxxxxxxxxx"}
+            />
+          </div>
+
+          {/* 配置指引 */}
+          <div className="bg-blue-50 rounded-lg p-4 space-y-2">
+            <p className="text-xs font-medium text-blue-700">📋 获取 Token 步骤：</p>
+            <ol className="text-xs text-blue-600 space-y-1 list-decimal list-inside">
+              <li>前往 GitHub → Settings → Developer settings → Personal access tokens</li>
+              <li>选择 Tokens (classic) → Generate new token (classic)</li>
+              <li>只需勾选 public_repo（只读公开仓库权限）即可</li>
+              <li>复制生成的 Token 粘贴到上方输入框，点击保存</li>
+            </ol>
+            <p className="text-xs text-blue-500 mt-2">
+              💡 Token 保存在数据库中，仅用于服务端调用 GitHub API，不会暴露给前端
+            </p>
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex items-center gap-3 border-t border-gray-100 pt-4">
+            <button
+              onClick={handleSaveGithubToken}
+              disabled={savingGithubToken || !githubApiToken.trim()}
+              className="px-6 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {savingGithubToken ? "保存中..." : "保存 Token"}
+            </button>
+            {githubApiTokenSet && (
+              <button
+                onClick={handleDeleteGithubToken}
+                disabled={savingGithubToken}
+                className="px-4 py-2.5 text-red-600 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+              >
+                删除 Token
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ========== GitHub OAuth 配置 ========== */}

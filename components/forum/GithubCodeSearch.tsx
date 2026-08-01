@@ -19,6 +19,31 @@ interface GithubCodeSearchProps {
   onInsert: (markdown: string) => void;
 }
 
+// 常用编程语言列表
+const LANGUAGES = [
+  { value: "", label: "全部语言" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "python", label: "Python" },
+  { value: "go", label: "Go" },
+  { value: "rust", label: "Rust" },
+  { value: "java", label: "Java" },
+  { value: "c", label: "C" },
+  { value: "cpp", label: "C++" },
+  { value: "csharp", label: "C#" },
+  { value: "php", label: "PHP" },
+  { value: "ruby", label: "Ruby" },
+  { value: "swift", label: "Swift" },
+  { value: "kotlin", label: "Kotlin" },
+  { value: "shell", label: "Shell" },
+  { value: "html", label: "HTML" },
+  { value: "css", label: "CSS" },
+  { value: "sql", label: "SQL" },
+  { value: "markdown", label: "Markdown" },
+  { value: "yaml", label: "YAML" },
+  { value: "json", label: "JSON" },
+];
+
 export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -30,9 +55,15 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // 筛选条件
+  const [language, setLanguage] = useState("");
+  const [repo, setRepo] = useState("");
+  const [user, setUser] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
   // 执行搜索
   const doSearch = useCallback(
-    async (q: string, p: number = 1) => {
+    async (q: string, p: number = 1, filters?: { language?: string; repo?: string; user?: string }) => {
       if (!q.trim() || q.trim().length < 2) return;
       setLoading(true);
       setError(null);
@@ -44,6 +75,12 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
           page: String(p),
           per_page: "10",
         });
+
+        const fl = filters || { language, repo, user };
+        if (fl.language) params.set("language", fl.language);
+        if (fl.repo) params.set("repo", fl.repo);
+        if (fl.user) params.set("user", fl.user);
+
         const res = await fetch(`/api/github/search?${params}`);
         const data = await res.json();
 
@@ -61,7 +98,7 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
         setLoading(false);
       }
     },
-    []
+    [language, repo, user]
   );
 
   // 防抖搜索
@@ -71,7 +108,7 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         if (value.trim().length >= 2) {
-          doSearch(value);
+          doSearch(value, 1);
         } else {
           setShowResults(false);
           setResults([]);
@@ -81,9 +118,43 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
     [doSearch]
   );
 
+  // 语言筛选变化时重新搜索
+  const handleLanguageChange = (value: string) => {
+    setLanguage(value);
+    if (query.trim().length >= 2) {
+      doSearch(query, 1, { language: value, repo, user });
+    }
+  };
+
+  // 仓库筛选变化时重新搜索
+  const handleRepoChange = (value: string) => {
+    setRepo(value);
+  };
+
+  // 用户筛选变化时重新搜索
+  const handleUserChange = (value: string) => {
+    setUser(value);
+  };
+
+  // 应用筛选条件重新搜索
+  const applyFilters = () => {
+    if (query.trim().length >= 2) {
+      doSearch(query, 1, { language, repo, user });
+    }
+  };
+
+  // 重置筛选
+  const resetFilters = () => {
+    setLanguage("");
+    setRepo("");
+    setUser("");
+    if (query.trim().length >= 2) {
+      doSearch(query, 1, { language: "", repo: "", user: "" });
+    }
+  };
+
   // 插入代码引用
   const handleInsert = (result: SearchResult) => {
-    // 生成 markdown 代码块
     const source = `${result.owner}/${result.repoName}/${result.filePath}`;
     const markdown = `\n\`\`\`github-code\n${source}\n\`\`\`\n`;
     onInsert(markdown);
@@ -95,14 +166,16 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
   // 点击外部关闭
   const handleBlur = (e: React.FocusEvent) => {
     if (!containerRef.current?.contains(e.relatedTarget as Node)) {
-      // 延迟关闭，允许点击结果项
       setTimeout(() => setShowResults(false), 200);
     }
   };
 
+  // 当前激活的筛选条件数量
+  const activeFilterCount = [language, repo, user].filter(Boolean).length;
+
   return (
     <div ref={containerRef} className="relative">
-      {/* 搜索框 */}
+      {/* 搜索框 + 筛选按钮 */}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -129,7 +202,105 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
           placeholder="搜索 GitHub 开源代码..."
           className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
+        {/* 筛选切换按钮 */}
+        <button
+          type="button"
+          onClick={() => setShowFilters(!showFilters)}
+          className={cn(
+            "flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-lg transition-colors whitespace-nowrap",
+            showFilters || activeFilterCount > 0
+              ? "bg-blue-50 text-blue-600 border-blue-300"
+              : "text-gray-600 border-gray-300 hover:bg-gray-50"
+          )}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          筛选
+          {activeFilterCount > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 text-xs text-white bg-blue-500 rounded-full">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* 筛选条件面板 */}
+      {showFilters && (
+        <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+          {/* 语言选择 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">编程语言</label>
+            <div className="flex flex-wrap gap-1.5">
+              {LANGUAGES.map((lang) => (
+                <button
+                  key={lang.value || "all"}
+                  type="button"
+                  onClick={() => handleLanguageChange(lang.value)}
+                  className={cn(
+                    "px-2 py-0.5 text-xs rounded-full border transition-colors",
+                    language === lang.value
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-600 border-gray-300 hover:border-blue-300"
+                  )}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 仓库和用户筛选 */}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1">限定仓库 (owner/repo)</label>
+              <input
+                type="text"
+                value={repo}
+                onChange={(e) => handleRepoChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyFilters();
+                }}
+                placeholder="如 facebook/react"
+                className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-500 mb-1">限定用户/组织</label>
+              <input
+                type="text"
+                value={user}
+                onChange={(e) => handleUserChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyFilters();
+                }}
+                placeholder="如 facebook"
+                className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={applyFilters}
+              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+            >
+              应用筛选
+            </button>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-red-500 transition-colors"
+              >
+                重置筛选
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 搜索结果下拉 */}
       {showResults && (
@@ -150,13 +321,35 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
               <p className="text-sm text-red-500">⚠️ {error}</p>
               {error.includes("GITHUB_TOKEN") && (
                 <p className="mt-2 text-xs text-gray-400">
-                  管理员请前往 Vercel → Settings → Environment Variables 添加 GITHUB_TOKEN
+                  管理员请前往后台 → 安全设置 → GitHub API Token 中配置
                 </p>
               )}
               {!error.includes("GITHUB_TOKEN") && (
                 <p className="mt-2 text-xs text-gray-400">
                   提示：GitHub Code Search 搜索词需要包含至少一个搜索词
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* 当前筛选条件展示 */}
+          {!loading && !error && results.length > 0 && activeFilterCount > 0 && (
+            <div className="px-3 py-1.5 text-xs text-gray-400 border-b border-gray-100 bg-blue-50/50 flex items-center gap-2 flex-wrap">
+              <span>当前筛选:</span>
+              {language && (
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                  语言: {LANGUAGES.find((l) => l.value === language)?.label || language}
+                </span>
+              )}
+              {repo && (
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                  仓库: {repo}
+                </span>
+              )}
+              {user && (
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                  用户: {user}
+                </span>
               )}
             </div>
           )}

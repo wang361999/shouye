@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+
+/**
+ * 从环境变量或数据库获取 GitHub Token
+ * 优先使用环境变量，回退到数据库 SystemSetting
+ */
+async function getGithubToken(): Promise<string | null> {
+  // 优先使用环境变量
+  if (process.env.GITHUB_TOKEN) {
+    return process.env.GITHUB_TOKEN;
+  }
+
+  // 回退到数据库
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'github_token' },
+    });
+    return setting?.value || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * GET /api/github/file?owner=...&repo=...&path=...&ref=...
  *
  * 获取 GitHub 仓库中指定文件的原始内容
- * 使用 GITHUB_TOKEN 环境变量提高速率限制（5000/h vs 60/h）
+ * Token 来源优先级：环境变量 GITHUB_TOKEN > 数据库 SystemSetting.github_token
+ * 配置后速率限制为 5000/h
  *
  * 返回：
  *   { content, language, size, htmlUrl }
@@ -41,8 +64,8 @@ export async function GET(request: NextRequest) {
       'User-Agent': 'ET-Studio-Forum',
     };
 
-    // 如果配置了 GITHUB_TOKEN，添加认证头提高速率限制
-    const token = process.env.GITHUB_TOKEN;
+    // 获取 Token（环境变量优先，数据库回退）
+    const token = await getGithubToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
