@@ -66,6 +66,15 @@ function isSafePath(filePath) {
   if (normalized === '.env' || normalized === '.env.local') return false;
   if (normalized.includes('node_modules/') || normalized.includes('.next/')) return false;
   if (normalized.includes('prisma/migrations/')) return false;
+  // Vercel 安全：禁止修改构建配置和中间件
+  if (normalized === 'next.config.mjs' || normalized === 'next.config.js') return false;
+  if (normalized === 'vercel.json') return false;
+  if (normalized === 'middleware.ts' || normalized === 'middleware.js') return false;
+  // Vercel 安全：禁止修改 package.json（防止引入新依赖或升级版本）
+  if (normalized === 'package.json') return false;
+  if (normalized === 'package-lock.json' || normalized === 'yarn.lock') return false;
+  // Vercel 安全：禁止修改 prisma schema（防止数据库结构变更导致崩溃）
+  if (normalized === 'prisma/schema.prisma') return false;
   return isTextFile(normalized);
 }
 
@@ -197,15 +206,43 @@ async function callModel(issue, repoContext) {
 5. 可以发挥想象力：新增页面、优化交互、改进样式、增加实用功能都是鼓励的。
 6. 如果当前提供的代码不足以定位问题，在 summary 中说明需要查看哪些文件。
 
-## 安全底线（绝对不能违反）
+## Vercel 免费版安全红线（违反任何一条都会导致网站崩溃）
 
-1. 禁止泄露、生成或改写真实密钥、Token、数据库密码、OAuth Secret、Vercel Token。
-2. 禁止删除生产数据，禁止删除表、删除字段、批量清空或不可回滚的数据迁移。
-3. 真实支付、扣款、退款、外部计费或任何会产生费用的操作，只能写说明，不能自动实现。
-4. 不要修改 node_modules、.next、.env、.env.local、prisma/migrations。
-5. 不要修改 prisma/schema.prisma 的已有字段（可以新增字段，但不能删除或修改已有字段）。
-6. 不要引入重量级新依赖；轻量工具库可以引入但要在 details 里说明原因。
-7. 确保改动后 npm run lint 和 npm run build 能通过，不要搞瘫网站。
+本项目部署在 Vercel Hobby（免费版），有严格的资源限制。以下规则必须绝对遵守：
+
+### 依赖与构建
+1. 禁止引入任何新的 npm 依赖。项目现有依赖已足够，不要在 package.json 中添加任何新包。
+2. 禁止修改 package.json 中的依赖版本号（不要升级 React、Next.js、Prisma 等任何包）。
+3. 禁止修改 next.config.mjs / next.config.js（构建配置改动可能导致部署失败）。
+4. 禁止修改 vercel.json（如果存在）。
+5. 确保改动后 npm run lint 和 npm run build 能通过。
+
+### React / Next.js 兼容性
+6. 项目使用 React 18 和 Next.js 14，禁止使用 React 19+ 的 API（如 use() 钩子、useFormState、useFormStatus）。
+7. 禁止使用 Next.js 15+ 的 API（如 async params、async searchParams）。
+8. 'use client' 指令必须在文件第一行，客户端组件不能导出 metadata。
+9. 动态路由的 params 在 Next.js 14 中是同步对象，不要用 await 或 use() 解包。
+
+### 数据库与 API
+10. 禁止修改 prisma/schema.prisma 的已有字段（可以新增字段，不能删除或修改已有字段）。
+11. 禁止修改 prisma/migrations 目录。
+12. 禁止创建会消耗大量数据库连接的代码（避免 N+1 查询，使用 Promise.all 并行查询）。
+13. API 路由必须有 try-catch 错误处理，失败时返回有意义的错误信息而不是 500 崩溃。
+14. 禁止创建需要额外环境变量的功能（除非确认该环境变量已在 Vercel 中配置）。
+
+### 前端安全
+15. 所有 fetch 请求必须设置 8 秒超时（使用 AbortController），超时后显示错误提示而不是无限加载。
+16. 禁止删除现有的错误处理、加载状态、超时处理代码。
+17. 页面必须有 loading skeleton 和 error fallback，不能让用户看到无限加载或白屏。
+18. 禁止使用大量内联动画或重型客户端组件，避免超出 Vercel 函数大小限制（4MB）。
+
+### 文件安全
+19. 禁止修改 node_modules、.next、.env、.env.local。
+20. 禁止修改 middleware.ts（中间件影响所有请求，改动可能导致全站不可访问）。
+21. 禁止泄露、生成或改写真实密钥、Token、数据库密码。
+22. 禁止删除生产数据，禁止删除表、删除字段、批量清空数据。
+23. 真实支付、扣款、退款操作只能写说明，不能自动实现。
+24. 每次改动不超过 8 个文件，优先小范围精准修复。
 
 ## 可以自由发挥的领域
 
@@ -215,7 +252,7 @@ async function callModel(issue, repoContext) {
 4. 工具页面优化。
 5. SEO 优化、性能优化。
 6. 免费订单、免费授权流程优化。
-7. 新增实用页面和功能。
+7. 新增实用页面和功能（使用现有依赖，不引入新包）。
 8. 代码质量改进、重构。
 
 ## 输出格式
@@ -265,7 +302,7 @@ ${repoContext.context}
     messages: [
       {
         role: 'system',
-        content: '你是专业的全栈开发工程师。你必须仔细阅读代码、找到问题根因并修复。禁止敷衍回复"没问题"。按照指定的分隔符格式输出。',
+        content: '你是专业的全栈开发工程师。你必须仔细阅读代码、找到问题根因并修复。禁止敷衍回复"没问题"。本项目部署在 Vercel 免费版，使用 React 18 + Next.js 14，禁止引入新依赖、禁止使用 React 19+ API、禁止修改配置文件和中间件。所有 fetch 必须有 8 秒超时和错误处理。按照指定的分隔符格式输出。',
       },
       {
         role: 'user',
@@ -311,7 +348,14 @@ function applyChanges(result) {
   const changes = Array.isArray(result.changes) ? result.changes : [];
   const applied = [];
 
-  for (const change of changes) {
+  // Vercel 安全：限制每次最多修改 8 个文件
+  const MAX_CHANGES = 8;
+  if (changes.length > MAX_CHANGES) {
+    console.warn(`[free-ai-issue-executor] AI 尝试修改 ${changes.length} 个文件，超过上限 ${MAX_CHANGES}，只应用前 ${MAX_CHANGES} 个。`);
+  }
+  const limitedChanges = changes.slice(0, MAX_CHANGES);
+
+  for (const change of limitedChanges) {
     const filePath = String(change.path || '').trim();
     const content = typeof change.content === 'string' ? change.content : null;
     if (!filePath || content === null) continue;

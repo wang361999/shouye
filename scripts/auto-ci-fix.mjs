@@ -113,6 +113,15 @@ function isSafePath(filePath) {
   if (normalized === '.env' || normalized === '.env.local') return false;
   if (normalized.includes('node_modules/') || normalized.includes('.next/')) return false;
   if (normalized.includes('prisma/migrations/')) return false;
+  // Vercel 安全：禁止修改构建配置和中间件
+  if (normalized === 'next.config.mjs' || normalized === 'next.config.js') return false;
+  if (normalized === 'vercel.json') return false;
+  if (normalized === 'middleware.ts' || normalized === 'middleware.js') return false;
+  // Vercel 安全：禁止修改 package.json（防止引入新依赖或升级版本）
+  if (normalized === 'package.json') return false;
+  if (normalized === 'package-lock.json' || normalized === 'yarn.lock') return false;
+  // Vercel 安全：禁止修改 prisma schema（防止数据库结构变更导致崩溃）
+  if (normalized === 'prisma/schema.prisma') return false;
   return isTextFile(normalized);
 }
 
@@ -217,10 +226,21 @@ ${context.files.map((f) => f.block).join('\n') || '（未能自动定位相关�
 1. 仔细阅读错误日志，找到具体的报错位置和原因，不要敷衍回复"没问题"。
 2. 只修改必要的文件来修复错误，不要做无关改动。
 3. 确保修复后 npm run lint 和 npm run build 都能通过。
-4. 不要修改 node_modules、.next、.env、.env.local、prisma/migrations。
-5. 不要修改 prisma/schema.prisma 的已有字段（可新增字段，不可删除或修改已有字段）。
-6. 不要引入重量级新依赖。
-7. 禁止泄露或改写密钥、Token、密码。
+
+## Vercel 免费版安全红线（绝对不能违反）
+
+本项目部署在 Vercel Hobby（免费版），以下规则必须绝对遵守：
+
+1. 禁止引入任何新的 npm 依赖，不要修改 package.json 的依赖版本。
+2. 禁止修改 next.config.mjs / next.config.js / vercel.json / middleware.ts。
+3. 禁止修改 prisma/schema.prisma 已有字段和 prisma/migrations 目录。
+4. 禁止修改 node_modules、.next、.env、.env.local。
+5. 项目使用 React 18 + Next.js 14，禁止使用 React 19+ API（如 use() 钩子）或 Next.js 15+ API（如 async params）。
+6. 禁止删除现有的错误处理、超时处理、loading 状态代码。
+7. 所有 fetch 请求必须有 8 秒超时（AbortController）和错误处理。
+8. API 路由必须有 try-catch，失败时返回有意义的错误信息。
+9. 禁止泄露或改写密钥、Token、密码。
+10. 每次改动不超过 5 个文件，只修复报错，不做功能新增。
 
 ## 输出格式（必须严格遵守，不要用 JSON，不要用 Markdown 代码块包裹文件内容）
 ===SUMMARY===
@@ -245,7 +265,7 @@ ${context.files.map((f) => f.block).join('\n') || '（未能自动定位相关�
       {
         role: 'system',
         content:
-          '你是资深全栈工程师，擅长排查和修复 CI 构建错误。必须按指定分隔符格式输出修复后的完整文件内容，禁止敷衍回复。',
+          '你是资深全栈工程师，擅长排查和修复 CI 构建错误。本项目部署在 Vercel 免费版，使用 React 18 + Next.js 14，禁止引入新依赖、禁止使用 React 19+ API、禁止修改配置文件和中间件。必须按指定分隔符格式输出修复后的完整文件内容，禁止敷衍回复。',
       },
       { role: 'user', content: prompt },
     ],
@@ -286,7 +306,15 @@ ${context.files.map((f) => f.block).join('\n') || '（未能自动定位相关�
 // ===== 应用修改 =====
 function applyChanges(changes) {
   const applied = [];
-  for (const change of changes) {
+
+  // Vercel 安全：限制每次最多修改 5 个文件
+  const MAX_CHANGES = 5;
+  if (changes.length > MAX_CHANGES) {
+    warn(`AI 尝试修改 ${changes.length} 个文件，超过上限 ${MAX_CHANGES}，只应用前 ${MAX_CHANGES} 个。`);
+  }
+  const limitedChanges = changes.slice(0, MAX_CHANGES);
+
+  for (const change of limitedChanges) {
     const filePath = String(change.path || '').trim();
     // 去除文件内容起始的换行和末尾空白，保留中间内容
     const content =

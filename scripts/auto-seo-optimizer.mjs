@@ -229,11 +229,17 @@ async function callModel(scan, repoContext) {
 
 ## 安全底线（绝对不能违反）
 
-1. 禁止修改 node_modules、.next、.env、.env.local、prisma/migrations。
-2. 禁止修改 prisma/schema.prisma 的已有字段。
-3. 不要引入新依赖。
-4. 确保改动后 npm run lint 和 npm run build 能通过。
-5. 不要泄露密钥、Token、密码。
+本项目部署在 Vercel Hobby（免费版），以下规则必须绝对遵守：
+
+1. 禁止引入任何新的 npm 依赖，不要修改 package.json。
+2. 禁止修改 next.config.mjs / next.config.js / vercel.json / middleware.ts。
+3. 禁止修改 prisma/schema.prisma 和 prisma/migrations 目录。
+4. 禁止修改 node_modules、.next、.env、.env.local。
+5. 项目使用 React 18 + Next.js 14，禁止使用 React 19+ API 或 Next.js 15+ API。
+6. 只修改 app/ 下的 page.tsx / layout.tsx 的 metadata 部分，不要改动业务逻辑代码。
+7. 确保改动后 npm run lint 和 npm run build 能通过。
+8. 不要泄露密钥、Token、密码。
+9. 每次改动不超过 10 个文件。
 
 ## 输出格式
 
