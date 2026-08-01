@@ -367,7 +367,16 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
   const refreshTab = (tab: TabKey) => {
     if (tab === 'tasks') fetchTasks();
     if (tab === 'contributions') fetchContributions();
+    if (tab === 'github') fetchGithubActivity();
   };
+
+  // 保存文件/创建 PR 成功后：刷新 GitHub 动态（最近提交）和贡献列表
+  const handleCodeChange = useCallback(() => {
+    fetchGithubActivity();
+    fetchContributions();
+    // 同时刷新项目数据（contributionCount 等）
+    fetchProject();
+  }, [fetchGithubActivity, fetchContributions, fetchProject]);
 
   // ============ 权限计算 ============
   const isOwner = !!user && !!project && !!project.owner && project.owner.id === user.id;
@@ -615,6 +624,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
             project={project}
             token={token}
             isMember={isMember}
+            onCodeChange={handleCodeChange}
           />
         )}
       </div>
@@ -1605,12 +1615,14 @@ function GithubTab({
   project,
   token,
   isMember,
+  onCodeChange,
 }: {
   repoInfo: RepoInfo | null;
   loading: boolean;
   project: ProjectDetail;
   token: string | null;
   isMember: boolean;
+  onCodeChange?: () => void;
 }) {
   const hasRepo = !!(project.repoOwner && project.repoName);
 
@@ -1751,6 +1763,8 @@ function GithubTab({
             token={token}
             isMember={isMember}
             projectId={project.id}
+            onSaveSuccess={onCodeChange}
+            onPRSuccess={onCodeChange}
           />
         </SectionCard>
       )}

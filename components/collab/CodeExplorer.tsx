@@ -18,6 +18,10 @@ interface CodeExplorerProps {
   isMember: boolean;
   /** 协作项目 ID（用于自动提交贡献记录） */
   projectId: string;
+  /** 保存文件成功后的回调（用于刷新最近提交、贡献列表等） */
+  onSaveSuccess?: () => void;
+  /** 创建 PR 成功后的回调 */
+  onPRSuccess?: () => void;
 }
 
 // ============ 数据类型 ============
@@ -170,6 +174,8 @@ export default function CodeExplorer({
   token,
   isMember,
   projectId,
+  onSaveSuccess,
+  onPRSuccess,
 }: CodeExplorerProps) {
   // ---- 分支相关 ----
   const [branches, setBranches] = useState<string[]>([]);
@@ -327,11 +333,15 @@ export default function CodeExplorer({
       branch?: string;
     }) => {
       try {
-        await fetch(`/api/collab/projects/${projectId}/contributions`, {
+        const res = await fetch(`/api/collab/projects/${projectId}/contributions`, {
           method: 'POST',
           headers: authHeaders(token, { 'Content-Type': 'application/json' }),
           body: JSON.stringify(data),
         });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => null);
+          console.warn('[AUTO CONTRIBUTION] 提交失败:', errJson?.error || res.status);
+        }
       } catch {
         // 贡献记录提交失败不影响主流程，静默处理
       }
@@ -387,12 +397,14 @@ export default function CodeExplorer({
       toast.success('保存成功，贡献已自动记录');
       setCommitMessage('');
       setMode('view');
+      // 通知父组件刷新数据（最近提交、贡献列表等）
+      onSaveSuccess?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '保存失败');
     } finally {
       setSaving(false);
     }
-  }, [file, currentBranch, commitMessage, editContent, owner, repo, token, autoSubmitContribution]);
+  }, [file, currentBranch, commitMessage, editContent, owner, repo, token, autoSubmitContribution, onSaveSuccess]);
 
   // ============ 创建分支 ============
   const handleCreateBranch = useCallback(async () => {
@@ -486,13 +498,15 @@ export default function CodeExplorer({
         branch: prForm.head,
       });
       toast.success('PR 创建成功，贡献已自动记录');
+      // 通知父组件刷新数据
+      onPRSuccess?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : '创建 PR 失败';
       setPrError(msg);
     } finally {
       setCreatingPR(false);
     }
-  }, [prForm, owner, repo, token, branches, autoSubmitContribution]);
+  }, [prForm, owner, repo, token, branches, autoSubmitContribution, onPRSuccess]);
 
   // ============ 打开新建分支表单 ============
   const openNewBranch = useCallback(() => {
