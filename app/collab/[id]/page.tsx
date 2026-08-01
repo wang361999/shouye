@@ -7,6 +7,7 @@ import { Container } from '@/components/common/Container';
 import UserAvatar from '@/components/common/UserAvatar';
 import MarkdownRenderer from '@/components/forum/MarkdownRenderer';
 import CodeExplorer from '@/components/collab/CodeExplorer';
+import PRReviewPanel from '@/components/collab/PRReviewPanel';
 import { useAppStore } from '@/lib/store';
 import { cn, formatTimeAgo, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -626,6 +627,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
             project={project}
             token={token}
             isMember={isMember}
+            canManage={canManage}
             onCodeChange={handleCodeChange}
           />
         )}
@@ -1622,6 +1624,7 @@ function GithubTab({
   project,
   token,
   isMember,
+  canManage,
   onCodeChange,
 }: {
   repoInfo: RepoInfo | null;
@@ -1629,6 +1632,7 @@ function GithubTab({
   project: ProjectDetail;
   token: string | null;
   isMember: boolean;
+  canManage: boolean;
   onCodeChange?: () => void;
 }) {
   const hasRepo = !!(project.repoOwner && project.repoName);
@@ -1796,6 +1800,20 @@ function GithubTab({
               </a>
             </div>
           </div>
+        </SectionCard>
+      )}
+
+      {/* PR 审核管理（仅发起人/管理员可见） */}
+      {hasRepo && canManage && (
+        <SectionCard title="🔍 PR 审核管理">
+          <PRReviewPanel
+            owner={project.repoOwner}
+            repo={project.repoName}
+            projectId={project.id}
+            token={token}
+            isManager={canManage}
+            onPRMerged={onCodeChange}
+          />
         </SectionCard>
       )}
 

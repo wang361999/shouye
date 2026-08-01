@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
+import SubmitWizard from './SubmitWizard';
 
 // ============ Props ============
 interface CodeExplorerProps {
@@ -220,6 +221,11 @@ export default function CodeExplorer({
   const [creatingFile, setCreatingFile] = useState(false);
   // 新建文件时所在的目录（空字符串=根目录）
   const [newFileBaseDir, setNewFileBaseDir] = useState('');
+
+  // ---- 引导式提交向导 ----
+  const [showSubmitWizard, setShowSubmitWizard] = useState(false);
+  // 默认分支（从仓库信息获取，用于 PR base 分支）
+  const [defaultBranch, setDefaultBranch] = useState<string>('');
 
   // ============ API: 获取内容（目录或文件） ============
   const fetchContents = useCallback(
@@ -643,6 +649,19 @@ export default function CodeExplorer({
     if (!owner || !repo) return;
     let active = true;
     setBranchesLoading(true);
+    // 同时获取仓库信息（拿到默认分支名）
+    const fetchRepoInfo = fetch(
+      `/api/collab/github/repo-info?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
+      { headers: authHeaders(token) },
+    )
+      .then((r) => r.json().catch(() => null))
+      .then((data) => {
+        if (active && data?.data?.defaultBranch) {
+          setDefaultBranch(data.data.defaultBranch);
+        }
+      })
+      .catch(() => {});
+
     fetchBranches()
       .then((list) => {
         if (!active) return;
@@ -660,10 +679,11 @@ export default function CodeExplorer({
         toast.error(e instanceof Error ? e.message : '获取分支失败');
         setBranchesLoading(false);
       });
+
     return () => {
       active = false;
     };
-  }, [fetchBranches, owner, repo]);
+  }, [fetchBranches, owner, repo, token]);
 
   // ============ 分支切换时重置并重新加载根目录 ============
   useEffect(() => {
@@ -731,6 +751,18 @@ export default function CodeExplorer({
         )}
 
         <div className="flex-1" />
+
+        {/* 引导式提交代码贡献（向导模式） */}
+        {isMember && (
+          <button
+            type="button"
+            onClick={() => setShowSubmitWizard(true)}
+            disabled={branchesLoading || branches.length === 0}
+            className="h-8 px-3 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            📝 提交贡献
+          </button>
+        )}
 
         {/* 发起 PR */}
         <button
@@ -940,6 +972,22 @@ export default function CodeExplorer({
           )}
         </div>
       </div>
+
+      {/* ===== 引导式提交向导 ===== */}
+      {showSubmitWizard && (
+        <SubmitWizard
+          owner={owner}
+          repo={repo}
+          token={token}
+          isMember={isMember}
+          projectId={projectId}
+          defaultBranch={defaultBranch || branches[0] || 'main'}
+          branches={branches}
+          currentBranch={currentBranch}
+          onPRSuccess={onPRSuccess}
+          onClose={() => setShowSubmitWizard(false)}
+        />
+      )}
 
       {/* ===== 新建文件弹窗 ===== */}
       {showNewFile && (

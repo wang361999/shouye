@@ -883,3 +883,156 @@ export async function createGithubPullRequest(
     return { data: null, error: '创建 Pull Request 时发生异常' };
   }
 }
+
+// ============ PR 审核与合并 ============
+
+/** GitHub PR 信息 */
+export interface GithubPRInfo {
+  number: number;
+  title: string;
+  body: string | null;
+  state: string;
+  htmlUrl: string;
+  headBranch: string;
+  baseBranch: string;
+  user: string | null;
+  userAvatar: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  draft: boolean;
+  mergeable: boolean | null;
+}
+
+/** 合并 PR 的结果 */
+export interface MergePRResult {
+  success: boolean;
+  message: string;
+  merged: boolean;
+  sha?: string;
+}
+
+/**
+ * 获取仓库的 PR 列表
+ * 调用 GitHub REST API: GET /repos/{owner}/{repo}/pulls
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param state PR 状态：open / closed / all，默认 open
+ * @param perPage 每页数量，默认 20
+ * @returns PR 列表，失败返回空数组
+ */
+export async function fetchGithubPullRequests(
+  owner: string,
+  repo: string,
+  state: string = 'open',
+  perPage: number = 20,
+): Promise<GithubPRInfo[]> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+
+    const url = new URL(`https://api.github.com/repos/${owner}/${repo}/pulls`);
+    url.searchParams.set('state', state);
+    url.searchParams.set('per_page', String(Math.min(Math.max(perPage, 1), 100)));
+    url.searchParams.set('sort', 'created');
+    url.searchParams.set('direction', 'desc');
+
+    const response = await fetch(url.toString(), { headers });
+
+    if (!response.ok) {
+      console.error(
+        `[GITHUB PR LIST ERROR] status=${response.status} owner=${owner} repo=${repo}`,
+      );
+      return [];
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data)) return [];
+
+    return data.map((item: any) => ({
+      number: item.number ?? 0,
+      title: item.title ?? '',
+      body: item.body ?? null,
+      state: item.state ?? 'open',
+      htmlUrl: item.html_url ?? '',
+      headBranch: item.head?.ref ?? '',
+      baseBranch: item.base?.ref ?? '',
+      user: item.user?.login ?? null,
+      userAvatar: item.user?.avatar_url ?? null,
+      createdAt: item.created_at ?? null,
+      updatedAt: item.updated_at ?? null,
+      draft: item.draft ?? false,
+      mergeable: item.mergeable ?? null,
+    }));
+  } catch (error) {
+    console.error('[GITHUB PR LIST ERROR]', error);
+    return [];
+  }
+}
+
+/**
+ * 合并 Pull Request
+ * 调用 GitHub REST API: PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param prNumber PR 编号
+ * @param commitTitle 合并提交标题
+ * @param commitMessage 合并提交描述
+ * @param mergeMethod 合并方式：merge / squash / rebase，默认 merge
+ * @returns 合并结果
+ */
+export async function mergeGithubPullRequest(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  commitTitle?: string,
+  commitMessage?: string,
+  mergeMethod: 'merge' | 'squash' | 'rebase' = 'merge',
+): Promise<MergePRResult> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+    headers['Content-Type'] = 'application/json';
+
+    const body: Record<string, unknown> = {
+      merge_method: mergeMethod,
+    };
+    if (commitTitle) body.commit_title = commitTitle;
+    if (commitMessage) body.commit_message = commitMessage;
+
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/merge`,
+      {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(body),
+      },
+    );
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const errMsg = data?.message || `HTTP ${response.status}`;
+      let friendly = errMsg;
+      if (response.status === 405) {
+        friendly = 'PR 不可合并，可能存在冲突或已关闭';
+      } else if (response.status === 403) {
+        friendly = `权限不足：${errMsg}。请检查 GitHub Token 是否有仓库写入权限`;
+      } else if (response.status === 404) {
+        friendly = `PR #${prNumber} 不存在`;
+      }
+      return { success: false, message: friendly, merged: false };
+    }
+
+    return {
+      success: true,
+      message: data?.message || 'PR 合并成功',
+      merged: data?.merged ?? true,
+      sha: data?.sha,
+    };
+  } catch (error) {
+    console.error('[GITHUB MERGE PR ERROR]', error);
+    return { success: false, message: '合并 PR 时发生异常', merged: false };
+  }
+}
