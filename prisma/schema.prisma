@@ -463,3 +463,24 @@ model MonitoringRoute {
   @@index([date])
   @@map("MonitoringRoute")
 }
+
+// ============ 外部数据库管理 ============
+model ExternalDatabase {
+  id          String   @id @default(cuid())
+  name        String   @unique // 数据库别名（如 "用户数据库"、"日志数据库"）
+  description String?  // 描述
+  dbType      String   @default("postgresql") @map("db_type") // 数据库类型: postgresql | mysql (预留)
+  host        String   // 主机地址
+  port        Int      @default(5432) // 端口
+  database    String   // 数据库名
+  username    String   // 用户名
+  password    String   // 密码（加密存储）
+  sslMode     String   @default("prefer") @map("ssl_mode") // disable | prefer | require
+  status      String   @default("active") @map("status") // active | disabled | error
+  lastCheckedAt DateTime? @map("last_checked_at") // 最后检测时间
+  lastCheckOk  Boolean? @map("last_check_ok") // 最后检测结果
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("ExternalDatabase")
+}

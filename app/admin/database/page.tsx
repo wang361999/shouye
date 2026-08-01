@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
+import ExternalDatabaseManager from "@/components/admin/ExternalDatabaseManager";
 import { useAppStore } from "@/lib/store";
 import toast from "react-hot-toast";
 
@@ -72,7 +73,7 @@ export default function DatabasePage() {
   const { token } = useAppStore();
   const [data, setData] = useState<DatabaseData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "tables" | "cleanup" | "maintenance" | "backup">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "tables" | "cleanup" | "maintenance" | "backup" | "external">("overview");
   const [cleaning, setCleaning] = useState<string | null>(null);
   const [confirmTable, setConfirmTable] = useState<string | null>(null);
 
@@ -356,6 +357,7 @@ export default function DatabasePage() {
     { key: "cleanup" as const, label: "数据清理", icon: "🧹" },
     { key: "maintenance" as const, label: "维护操作", icon: "🔧" },
     { key: "backup" as const, label: "备份恢复", icon: "💾" },
+    { key: "external" as const, label: "外部数据库", icon: "🔗" },
   ];
 
   return (
@@ -1264,6 +1266,9 @@ export default function DatabasePage() {
                 </div>
               </div>
             )}
+
+            {/* ===== 外部数据库 Tab ===== */}
+            {activeTab === "external" && <ExternalDatabaseManager />}
           </>
         ) : (
           <div className="text-center py-20 text-gray-400">
