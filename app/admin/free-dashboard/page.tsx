@@ -149,6 +149,7 @@ export default function FreeDashboardPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [iterationRequirement, setIterationRequirement] = useState("");
 
   const fetchData = useCallback(async () => {
     if (!token) {
@@ -402,12 +403,23 @@ export default function FreeDashboardPage() {
                         ? "关闭实验开关"
                         : "开启实验开关"}
                   </button>
+                  <textarea
+                    value={iterationRequirement}
+                    onChange={(e) => setIterationRequirement(e.target.value)}
+                    placeholder="输入你的迭代需求，比如：后台订单列表增加按用户名搜索功能"
+                    rows={3}
+                    className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
                   <button
-                    onClick={() =>
-                      runAutoIterationAction("trigger_inspection", {
-                        requirement: "检查后台 AI 自动迭代是否真正生效，并给出可见的迭代结果",
-                      })
-                    }
+                    onClick={() => {
+                      const requirement = iterationRequirement.trim();
+                      if (!requirement) {
+                        setActionMessage("请先输入迭代需求");
+                        return;
+                      }
+                      runAutoIterationAction("trigger_inspection", { requirement });
+                      setIterationRequirement("");
+                    }}
                     disabled={Boolean(actionLoading) || !data.autoIteration.enabled}
                     className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 disabled:opacity-60"
                   >
