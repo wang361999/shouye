@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { getGithubToken } from '@/lib/collab';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,24 +137,26 @@ function toBool(value: string | undefined, fallback: boolean) {
   return value === 'true';
 }
 
-function getExecutorMode() {
+async function getExecutorMode() {
+  const hasGitHubToken = Boolean(await getGithubToken());
+
   if (process.env.AI_ITERATION_WEBHOOK_URL) {
     return {
       aiExecutorConfigured: true,
-      githubIssueConfigured: Boolean(process.env.GITHUB_TOKEN),
+      githubIssueConfigured: hasGitHubToken,
       requestQueueConfigured: true,
       executorMode: 'ai_webhook',
       executorName: '外部 AI 执行器',
     };
   }
 
-  if (process.env.GITHUB_TOKEN) {
+  if (hasGitHubToken) {
     return {
       aiExecutorConfigured: false,
       githubIssueConfigured: true,
       requestQueueConfigured: true,
       executorMode: 'github_issue_queue',
-      executorName: 'GitHub Issue 迭代队列',
+      executorName: 'GitHub Issue + 免费 AI 执行器',
     };
   }
 
@@ -431,7 +434,7 @@ export async function GET(request: NextRequest) {
         lastRequest: autoIterationMap.auto_iteration_last_request || '',
         lastDeployApproval: autoIterationMap.auto_iteration_last_deploy_approval || '',
         manualDeployConfigured: Boolean(process.env.VERCEL_DEPLOY_HOOK_URL),
-        ...getExecutorMode(),
+        ...(await getExecutorMode()),
       },
       freeStack: [
         { name: '代码托管', value: 'GitHub 免费仓库', status: '已使用' },

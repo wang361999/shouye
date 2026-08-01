@@ -21,12 +21,19 @@
 
 ## 需要配置
 
-在 Vercel 环境变量里配置：
+推荐在后台页面配置：
+
+1. 打开后台 `/admin/settings/security`。
+2. 找到“GitHub API Token”。
+3. 粘贴新生成的 Token 并保存。
+4. 回到 `/admin/free-dashboard`，看“AI 自动迭代实验”是否显示已接入 GitHub 免费 AI 执行器。
+
+也可以继续在 Vercel 环境变量里配置：
 
 1. `GITHUB_TOKEN`：用于后台创建 GitHub Issue。
 2. `DATABASE_URL`、`JWT_SECRET` 等项目原有必需变量。
 
-`GITHUB_TOKEN` 建议使用新生成的 Token，不要使用已经在聊天、日志或截图里暴露过的 Token。权限至少需要能给当前仓库创建 Issue；如果使用 fine-grained token，请给目标仓库开启 Issues 读写权限。
+`GITHUB_TOKEN` 建议使用新生成的 Token，不要使用已经在聊天、日志或截图里暴露过的 Token。权限至少需要能给当前仓库创建 Issue；如果使用 fine-grained token，请给目标仓库开启 Contents 只读、Issues 读写、Metadata 只读。
 
 ## 触发条件
 

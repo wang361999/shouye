@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { getGithubToken } from '@/lib/collab';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +54,7 @@ async function readConfig() {
   });
   const map = Object.fromEntries(rows.map((item) => [item.key, item.value]));
   const hasAiWebhook = Boolean(process.env.AI_ITERATION_WEBHOOK_URL);
-  const hasGitHubToken = Boolean(process.env.GITHUB_TOKEN);
+  const hasGitHubToken = Boolean(await getGithubToken());
 
   return {
     enabled: toBool(map[SETTING_KEYS.enabled], DEFAULT_CONFIG.enabled),
@@ -79,7 +80,7 @@ async function readConfig() {
 }
 
 async function createGitHubIssue(requirement: string) {
-  const token = process.env.GITHUB_TOKEN;
+  const token = await getGithubToken();
   if (!token) return null;
 
   const issueRes = await fetch(`https://api.github.com/repos/${REPO}/issues`, {
@@ -265,7 +266,7 @@ export async function POST(request: NextRequest) {
             ? '已进入 GitHub Issue 迭代队列'
             : '已进入站内日志迭代队列',
         changeLog: [
-          issue?.url ? `已创建 GitHub Issue：${issue.url}` : '未配置 GITHUB_TOKEN，未创建 GitHub Issue',
+          issue?.url ? `已创建 GitHub Issue：${issue.url}` : '未在后台安全设置或环境变量中配置 GitHub Token，未创建 GitHub Issue',
           hasExecutor ? '已尝试通知 AI 执行器' : '未配置 AI_ITERATION_WEBHOOK_URL，后台不会自动改代码',
           '未确认上线前，不应主动触发生产发布',
         ],

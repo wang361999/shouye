@@ -58,7 +58,7 @@
 如果要让后台按钮真的触发 AI 自动改代码，需要准备：
 
 1. `AI_ITERATION_WEBHOOK_URL`：你的 AI 代码执行服务地址。
-2. `GITHUB_TOKEN`：允许创建 Issue 的 Token；使用 GitHub 免费执行器时，后台提交 Issue 后会触发 `.github/workflows/free-ai-issue-executor.yml`。
+2. `GITHUB_TOKEN`：允许创建 Issue 的 Token；可在后台“安全设置 → GitHub API Token”里保存，也可放在 Vercel 环境变量里。使用 GitHub 免费执行器时，后台提交 Issue 后会触发 `.github/workflows/free-ai-issue-executor.yml`。
 3. 执行器能力：GitHub Actions 会调用 GitHub Models 读 Issue、改代码、运行 `npm run lint` 和 `npm run build`、提交分支并创建 PR。
 4. 安全限制：免费订单、免费授权和普通权限逻辑可以自动改；真实支付、密钥、生产数据删除和破坏性数据库变更默认不能自动改。
 

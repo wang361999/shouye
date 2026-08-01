@@ -339,7 +339,7 @@ export default function FreeDashboardPage() {
                   </p>
                   {!data.autoIteration.aiExecutorConfigured && !data.autoIteration.githubIssueConfigured && (
                     <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
-                      已接入站内日志队列，但还没接入 GitHub 免费 AI 执行器。配置 <span className="font-mono">GITHUB_TOKEN</span> 后，后台请求会进入 GitHub Issue 并触发自动 PR 流程。
+                      已接入站内日志队列，但还没接入 GitHub 免费 AI 执行器。前往“安全设置 → GitHub API Token”保存 Token 后，后台请求会进入 GitHub Issue 并触发自动 PR 流程。
                     </div>
                   )}
                   {!data.autoIteration.aiExecutorConfigured && data.autoIteration.githubIssueConfigured && (
@@ -415,8 +415,8 @@ export default function FreeDashboardPage() {
                   </button>
                   <p className="text-xs text-indigo-700">
                     {data.autoIteration.githubIssueConfigured
-                      ? "已配置 GitHub Token，提交时会尝试创建 Issue。"
-                      : "未配置 GitHub Token，只能写入后台日志。"}
+                      ? "已配置 GitHub Token，提交时会尝试创建 Issue 并触发免费 AI 执行器。"
+                      : "未配置 GitHub Token，只能写入后台日志；可到安全设置里填写。"}
                   </p>
                   <button
                     onClick={() => runAutoIterationAction("approve_deploy")}

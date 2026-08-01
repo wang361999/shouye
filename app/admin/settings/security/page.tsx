@@ -34,7 +34,7 @@ export default function SecuritySettingsPage() {
   const [githubSecretSet, setGithubSecretSet] = useState(false);
   const [savingGithub, setSavingGithub] = useState(false);
 
-  // GitHub API Token（用于代码搜索和嵌入功能）
+  // GitHub API Token（用于代码搜索、嵌入功能和 AI 自动迭代 Issue 队列）
   const [githubApiToken, setGithubApiToken] = useState("");
   const [githubApiTokenSet, setGithubApiTokenSet] = useState(false);
   const [savingGithubToken, setSavingGithubToken] = useState(false);
@@ -577,7 +577,7 @@ export default function SecuritySettingsPage() {
               🐙 GitHub API Token
             </h2>
             <span className="text-xs text-gray-400">
-              用于帖子中的 GitHub 代码搜索和嵌入功能
+              用于代码搜索、GitHub 嵌入和 AI 自动迭代 Issue 队列
             </span>
           </div>
 
@@ -590,8 +590,8 @@ export default function SecuritySettingsPage() {
             </div>
             <p className="mt-1 text-xs text-gray-500">
               {githubApiTokenSet
-                ? "GitHub 代码搜索功能可用，速率限制 5000 次/小时"
-                : "未配置 Token 时代码搜索功能不可用（GitHub Code Search API 强制要求认证）"}
+                ? "GitHub 代码搜索和 AI 自动迭代 Issue 队列可用"
+                : "未配置 Token 时只能写入后台日志，无法创建 GitHub Issue 触发免费 AI 执行器"}
             </p>
           </div>
 
@@ -614,12 +614,13 @@ export default function SecuritySettingsPage() {
             <p className="text-xs font-medium text-blue-700">📋 获取 Token 步骤：</p>
             <ol className="text-xs text-blue-600 space-y-1 list-decimal list-inside">
               <li>前往 GitHub → Settings → Developer settings → Personal access tokens</li>
-              <li>选择 Tokens (classic) → Generate new token (classic)</li>
-              <li>只需勾选 public_repo（只读公开仓库权限）即可</li>
+              <li>推荐选择 Fine-grained tokens → Generate new token</li>
+              <li>Repository access 选择当前仓库 wang361999/shouye</li>
+              <li>权限建议：Contents 只读、Issues 读写、Metadata 只读</li>
               <li>复制生成的 Token 粘贴到上方输入框，点击保存</li>
             </ol>
             <p className="text-xs text-blue-500 mt-2">
-              💡 Token 保存在数据库中，仅用于服务端调用 GitHub API，不会暴露给前端
+              💡 Token 保存在数据库中，仅用于服务端调用 GitHub API。已经在聊天、日志或截图中暴露过的 Token 必须先吊销，不要继续使用
             </p>
           </div>
 
