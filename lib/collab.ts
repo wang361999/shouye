@@ -670,6 +670,81 @@ export async function fetchGithubBranches(
   }
 }
 
+/** 分支比较结果 */
+export interface BranchComparison {
+  /** 两个分支是否有差异 */
+  hasDiffs: boolean;
+  /** 差异提交数 */
+  commitsAhead: number;
+ /** 源分支是否不存在 */
+  headNotFound: boolean;
+  /** 错误信息（比较本身失败时） */
+  error: string | null;
+}
+
+/**
+ * 比较两个分支是否有差异
+ * 调用 GitHub REST API: GET /repos/{owner}/{repo}/compare/{base}...{head}
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param base 目标分支
+ * @param head 源分支
+ * @returns 比较结果
+ */
+export async function compareGithubBranches(
+  owner: string,
+  repo: string,
+  base: string,
+  head: string,
+): Promise<BranchComparison> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/compare/${base}...${head}`,
+      { headers },
+    );
+
+    if (response.status === 404) {
+      // 404 可能是分支不存在
+      return {
+        hasDiffs: false,
+        commitsAhead: 0,
+        headNotFound: true,
+        error: `分支不存在：${base} 或 ${head} 在仓库 ${owner}/${repo} 中不存在`,
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        hasDiffs: false,
+        commitsAhead: 0,
+        headNotFound: false,
+        error: `比较分支失败 (HTTP ${response.status})`,
+      };
+    }
+
+    const data = await response.json();
+    const commitsAhead = data.ahead_by ?? 0;
+    return {
+      hasDiffs: commitsAhead > 0,
+      commitsAhead,
+      headNotFound: false,
+      error: null,
+    };
+  } catch (error) {
+    console.error('[GITHUB COMPARE BRANCHES ERROR]', error);
+    return {
+      hasDiffs: false,
+      commitsAhead: 0,
+      headNotFound: false,
+      error: '比较分支时发生异常',
+    };
+  }
+}
+
 /** 创建 PR 的结果 */
 export interface GithubPullRequest {
   number: number;
@@ -710,7 +785,7 @@ export async function createGithubPullRequest(
     headers['Content-Type'] = 'application/json';
 
     // 未指定 base 时获取默认分支
-    let baseBranch = base;
+    let baseBranch: string = base || '';
     if (!baseBranch) {
       const repoResponse = await fetch(
         `https://api.github.com/repos/${owner}/${repo}`,
@@ -729,6 +804,26 @@ export async function createGithubPullRequest(
       return {
         data: null,
         error: '源分支和目标分支不能相同，请选择不同的分支',
+      };
+    }
+
+    // ---- 预检查：比较两个分支是否有差异 ----
+    // 如果源分支相对于目标分支没有任何新提交，GitHub 会返回 422 错误。
+    // 提前用 compare API 检测，给用户更清晰的引导。
+    const comparison = await compareGithubBranches(owner, repo, baseBranch, head);
+    if (comparison.headNotFound) {
+      return {
+        data: null,
+        error: `源分支 "${head}" 不存在，请检查分支名是否正确`,
+      };
+    }
+    if (comparison.error) {
+      // 比较本身失败，不阻塞，继续尝试创建 PR（让 GitHub 给最终答案）
+      console.warn('[PR PRE-CHECK] comparison failed, proceeding anyway:', comparison.error);
+    } else if (!comparison.hasDiffs) {
+      return {
+        data: null,
+        error: `源分支 "${head}" 相对于目标分支 "${baseBranch}" 没有任何新的提交。请先在源分支上修改文件并保存（会自动生成 commit），然后再发起 PR。操作步骤：选择源分支 → 点击文件编辑 → 保存修改 → 再发起 PR`,
       };
     }
 
@@ -752,7 +847,14 @@ export async function createGithubPullRequest(
       // GitHub 常见错误的有优化文案
       let friendly = githubMsg;
       if (response.status === 422) {
-        friendly = `GitHub 拒绝创建 PR：${githubMsg}。常见原因：两个分支间没有差异提交、源分支不存在、或仓库未开启 Pull Request 功能`;
+        // 更具体的 422 错误提示
+        const errors = errData?.errors;
+        let detail = githubMsg;
+        if (Array.isArray(errors) && errors.length > 0) {
+          const errorMessages = errors.map((e: any) => e.message || '').filter(Boolean);
+          if (errorMessages.length > 0) detail = errorMessages.join('; ');
+        }
+        friendly = `GitHub 拒绝创建 PR：${detail}。最常见原因：源分支没有任何新的提交（请先在源分支上编辑文件并保存，再发起 PR）；其次是源分支不存在或仓库未开启 Pull Request 功能`;
       } else if (response.status === 403) {
         friendly = `权限不足：${githubMsg}。请检查 GitHub Token 是否有该仓库的写入权限`;
       } else if (response.status === 404) {

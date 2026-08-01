@@ -198,6 +198,7 @@ export default function CodeExplorer({
   const [prForm, setPrForm] = useState({ title: '', body: '', head: '', base: '' });
   const [creatingPR, setCreatingPR] = useState(false);
   const [createdPR, setCreatedPR] = useState<CreatedPR | null>(null);
+  const [prError, setPrError] = useState<string | null>(null);
 
   // ============ API: 获取内容（目录或文件） ============
   const fetchContents = useCallback(
@@ -410,6 +411,7 @@ export default function CodeExplorer({
       return;
     }
     setCreatingPR(true);
+    setPrError(null);
     try {
       const res = await fetch('/api/collab/github/pull-request', {
         method: 'POST',
@@ -425,7 +427,9 @@ export default function CodeExplorer({
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(json?.error || '创建 PR 失败');
+        const errMsg = json?.error || '创建 PR 失败';
+        setPrError(errMsg);
+        throw new Error(errMsg);
       }
       setCreatedPR({
         number: json.number,
@@ -435,7 +439,8 @@ export default function CodeExplorer({
       });
       toast.success('PR 创建成功');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : '创建 PR 失败');
+      const msg = e instanceof Error ? e.message : '创建 PR 失败';
+      setPrError(msg);
     } finally {
       setCreatingPR(false);
     }
@@ -451,6 +456,7 @@ export default function CodeExplorer({
   // ============ 打开 PR 表单 ============
   const openPR = useCallback(() => {
     setCreatedPR(null);
+    setPrError(null);
     // 智能选择默认 head 和 base，避免两者相同（相同会导致 GitHub 422 错误）
     // 策略：head 默认当前分支，base 默认第一个与 head 不同的分支
     const defaultHead = currentBranch || branches[0] || '';
@@ -947,6 +953,13 @@ export default function CodeExplorer({
                     <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400">
                       <span className="flex-shrink-0">✗</span>
                       <span>源分支和目标分支不能相同，请选择不同的分支</span>
+                    </div>
+                  )}
+                  {/* 服务端返回的错误信息（内联展示，方便阅读长文本） */}
+                  {prError && (
+                    <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-xs text-red-600 dark:text-red-400">
+                      <span className="flex-shrink-0">✗</span>
+                      <span className="leading-relaxed whitespace-pre-wrap">{prError}</span>
                     </div>
                   )}
                 </div>
