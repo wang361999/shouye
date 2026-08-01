@@ -11,8 +11,9 @@ const {
   AI_MODEL = 'openai/gpt-4.1',
 } = process.env;
 
-const MAX_CONTEXT_CHARS = 120_000;
-const MAX_FILE_CHARS = 16_000;
+const MAX_CONTEXT_CHARS = 5_000;
+const MAX_FILE_CHARS = 1_200;
+const MAX_SELECTED_FILES = 12;
 const SUMMARY_PATH = 'AI_ITERATION_SUMMARY.md';
 
 function fail(message) {
@@ -124,7 +125,7 @@ function collectContext(issue) {
     .map((file) => ({ file, score: mustInclude.has(file) ? 99 : scoreFile(file, keywords) }))
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 35)
+    .slice(0, MAX_SELECTED_FILES)
     .map((item) => item.file);
 
   let context = '';
@@ -137,8 +138,9 @@ function collectContext(issue) {
   }
 
   return {
-    tree: files.slice(0, 600).join('\n'),
+    tree: files.slice(0, 300).join('\n'),
     context,
+    selectedCount: selected.length,
   };
 }
 
@@ -195,6 +197,27 @@ ${repoContext.tree}
 ${repoContext.context}
 `;
 
+  const requestBody = {
+    model: AI_MODEL,
+    temperature: 0.2,
+    max_tokens: 3_500,
+    messages: [
+      {
+        role: 'system',
+        content: '你是谨慎的开源项目代码维护者，只输出严格 JSON。',
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+  };
+
+  console.log('[free-ai-issue-executor] 调用 GitHub Models API...');
+  console.log(`[free-ai-issue-executor] 模型：${AI_MODEL}`);
+  console.log(`[free-ai-issue-executor] prompt 长度：约 ${prompt.length} 字符`);
+  console.log(`[free-ai-issue-executor] 上下文文件数：${repoContext.selectedCount || '未知'}`);
+
   const res = await fetch('https://models.github.ai/inference/chat/completions', {
     method: 'POST',
     headers: {
@@ -202,27 +225,15 @@ ${repoContext.context}
       Authorization: `Bearer ${GITHUB_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      temperature: 0.2,
-      max_tokens: 12_000,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: '你是谨慎的开源项目代码维护者，只输出严格 JSON。',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!res.ok) {
     const text = await res.text();
-    fail(`GitHub Models 请求失败：${res.status} ${text}`);
+    console.error(`[free-ai-issue-executor] GitHub Models API 失败：${res.status}`);
+    console.error(`[free-ai-issue-executor] 响应内容：${text.slice(0, 1000)}`);
+    console.error(`[free-ai-issue-executor] 提示：GitHub Models 免费层限制为 8K 输入 / 4K 输出，每天 150 次请求。`);
+    fail(`GitHub Models 请求失败：${res.status} ${text.slice(0, 500)}`);
   }
 
   const data = await res.json();

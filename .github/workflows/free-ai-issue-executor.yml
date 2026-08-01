@@ -34,7 +34,7 @@ jobs:
 
     env:
       ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
-      AI_MODEL: openai/gpt-4.1
+      AI_MODEL: openai/gpt-4o-mini
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
