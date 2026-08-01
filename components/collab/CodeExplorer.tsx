@@ -16,6 +16,8 @@ interface CodeExplorerProps {
   token: string | null;
   /** 是否为项目成员（只有成员能编辑） */
   isMember: boolean;
+  /** 协作项目 ID（用于自动提交贡献记录） */
+  projectId: string;
 }
 
 // ============ 数据类型 ============
@@ -167,6 +169,7 @@ export default function CodeExplorer({
   repoUrl,
   token,
   isMember,
+  projectId,
 }: CodeExplorerProps) {
   // ---- 分支相关 ----
   const [branches, setBranches] = useState<string[]>([]);
@@ -313,6 +316,29 @@ export default function CodeExplorer({
     [currentBranch, fetchContents],
   );
 
+  // ============ 自动提交贡献记录 ============
+  const autoSubmitContribution = useCallback(
+    async (data: {
+      type: 'commit' | 'pull_request';
+      title: string;
+      description?: string;
+      url?: string;
+      commitSha?: string;
+      branch?: string;
+    }) => {
+      try {
+        await fetch(`/api/collab/projects/${projectId}/contributions`, {
+          method: 'POST',
+          headers: authHeaders(token, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(data),
+        });
+      } catch {
+        // 贡献记录提交失败不影响主流程，静默处理
+      }
+    },
+    [projectId, token],
+  );
+
   // ============ 保存文件 ============
   const handleSave = useCallback(async () => {
     if (!file || !currentBranch) return;
@@ -349,7 +375,16 @@ export default function CodeExplorer({
             }
           : prev,
       );
-      toast.success('保存成功');
+      // 自动提交贡献记录
+      await autoSubmitContribution({
+        type: 'commit',
+        title: commitMessage,
+        description: `编辑文件：${file.path}`,
+        commitSha: json?.commitSha,
+        branch: currentBranch,
+        url: `https://github.com/${owner}/${repo}/commit/${json?.commitSha || ''}`,
+      });
+      toast.success('保存成功，贡献已自动记录');
       setCommitMessage('');
       setMode('view');
     } catch (e) {
@@ -357,7 +392,7 @@ export default function CodeExplorer({
     } finally {
       setSaving(false);
     }
-  }, [file, currentBranch, commitMessage, editContent, owner, repo, token]);
+  }, [file, currentBranch, commitMessage, editContent, owner, repo, token, autoSubmitContribution]);
 
   // ============ 创建分支 ============
   const handleCreateBranch = useCallback(async () => {
@@ -442,14 +477,22 @@ export default function CodeExplorer({
         url: json.url,
         state: json.state,
       });
-      toast.success('PR 创建成功');
+      // 自动提交贡献记录
+      await autoSubmitContribution({
+        type: 'pull_request',
+        title: prForm.title,
+        description: prForm.body || `PR #${json.number}: ${prForm.head} → ${prForm.base || '默认分支'}`,
+        url: json.url,
+        branch: prForm.head,
+      });
+      toast.success('PR 创建成功，贡献已自动记录');
     } catch (e) {
       const msg = e instanceof Error ? e.message : '创建 PR 失败';
       setPrError(msg);
     } finally {
       setCreatingPR(false);
     }
-  }, [prForm, owner, repo, token, branches]);
+  }, [prForm, owner, repo, token, branches, autoSubmitContribution]);
 
   // ============ 打开新建分支表单 ============
   const openNewBranch = useCallback(() => {

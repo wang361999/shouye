@@ -1750,6 +1750,7 @@ function GithubTab({
             repoUrl={project.repoUrl || `https://github.com/${project.repoOwner}/${project.repoName}`}
             token={token}
             isMember={isMember}
+            projectId={project.id}
           />
         </SectionCard>
       )}
