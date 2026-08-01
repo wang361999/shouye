@@ -2,14 +2,18 @@ name: Daily auto patrol
 
 on:
   schedule:
-    # 每天北京时间 10:00 自动执行（UTC 02:00）
-    - cron: '0 2 * * *'
+    # 每小时检查一次，到设定时间才执行
+    - cron: '0 * * * *'
   workflow_dispatch:
     inputs:
       requirement:
-        description: "自定义巡检需求（留空则自动检查）"
+        description: "自定义巡检需求（留空则按配置检查）"
         required: false
         default: ''
+      force:
+        description: "强制执行（忽略时间检查）"
+        required: false
+        default: 'false'
 
 permissions:
   issues: write
@@ -20,8 +24,56 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check:
+    name: Check schedule
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+    steps:
+      - name: Check if it's time to run
+        id: check
+        run: |
+          FORCE="${{ github.event.inputs.force || 'false' }}"
+          if [ "$FORCE" = "true" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$SITE_URL" ]; then
+            echo "SITE_URL 未配置，使用默认时间 10:00"
+            PATROL_ENABLED="True"
+            PATROL_HOUR=10
+          else
+            CONFIG=$(curl -s "${SITE_URL}/api/schedule-config" 2>/dev/null || echo '{}')
+            PATROL_ENABLED=$(echo "$CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('patrolEnabled', True))" 2>/dev/null || echo "True")
+            PATROL_HOUR=$(echo "$CONFIG" | python3 -c "import sys,json; print(json.load(sys.stdin).get('patrolHour', 10))" 2>/dev/null || echo "10")
+          fi
+
+          if [ "$PATROL_ENABLED" = "False" ]; then
+            echo "自动巡检已关闭"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CURRENT_HOUR=$(TZ='Asia/Shanghai' date +%H)
+          echo "当前北京时间: ${CURRENT_HOUR}:00"
+          echo "设定巡检时间: ${PATROL_HOUR}:00"
+
+          if [ "$CURRENT_HOUR" = "$PATROL_HOUR" ]; then
+            echo "时间匹配，开始巡检"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "未到巡检时间，跳过"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   patrol:
     name: Check and create issue
+    needs: check
+    if: needs.check.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -47,14 +99,12 @@ jobs:
           if [ -n "$CUSTOM_REQ" ]; then
             REQUIREMENT="$CUSTOM_REQ"
           else
-            # 根据部署状态生成不同的巡检需求
             if [ "$DEPLOY_STATE" = "failure" ]; then
               REQUIREMENT="最近部署失败，请检查项目构建错误并修复，确保 npm run lint 和 npm run build 能通过。"
             elif [ "$DEPLOY_STATE" = "pending" ]; then
               echo "部署正在进行中，跳过本次巡检"
               exit 0
             elif [ "$DEPLOY_STATE" = "success" ]; then
-              # 随机选择一个改进方向，让 AI 持续优化网站
               IMPROVEMENTS=(
                 "优化论坛页面的 UI 样式和交互体验，让帖子列表更美观"
                 "优化后台管理看板，增加更多有用的数据展示"
@@ -106,7 +156,7 @@ jobs:
 
           ## 来源
 
-          定时自动巡检触发（每天 10:00 北京时间）" \
+          定时自动巡检触发（按后台设定时间）" \
             --label "ai-iteration"
 
           echo "巡检 Issue 已创建"
