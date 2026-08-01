@@ -1632,6 +1632,7 @@ function GithubTab({
   onCodeChange?: () => void;
 }) {
   const hasRepo = !!(project.repoOwner && project.repoName);
+  const [showCodeExplorer, setShowCodeExplorer] = useState(false);
 
   if (loading) {
     return (
@@ -1760,20 +1761,80 @@ function GithubTab({
         </div>
       )}
 
-      {/* 在线代码编辑器 */}
+      {/* 在线代码编辑器（弹窗模式） */}
       {hasRepo && (
         <SectionCard title="💻 在线代码编辑">
-          <CodeExplorer
-            owner={project.repoOwner}
-            repo={project.repoName}
-            repoUrl={project.repoUrl || `https://github.com/${project.repoOwner}/${project.repoName}`}
-            token={token}
-            isMember={isMember}
-            projectId={project.id}
-            onSaveSuccess={onCodeChange}
-            onPRSuccess={onCodeChange}
-          />
+          <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+            <div className="text-4xl mb-3">💻</div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md">
+              浏览仓库文件、在线编辑代码、创建分支和发起 PR
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowCodeExplorer(true)}
+              className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <span>📂</span>
+              打开在线编辑器
+            </button>
+            <div className="flex items-center gap-4 mt-4">
+              <a
+                href={`https://github.com/codespaces/new/${project.repoOwner}/${project.repoName}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                Codespaces ↗
+              </a>
+              <a
+                href={`https://gitpod.io/#https://github.com/${project.repoOwner}/${project.repoName}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                Gitpod ↗
+              </a>
+            </div>
+          </div>
         </SectionCard>
+      )}
+
+      {/* 在线代码编辑器弹窗 */}
+      {showCodeExplorer && hasRepo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+          <div className="w-full max-w-5xl h-[92vh] sm:h-[85vh] rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl flex flex-col overflow-hidden">
+            {/* 弹窗头部 */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 flex-shrink-0">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <span>💻</span>
+                在线代码编辑
+                <span className="text-xs font-normal text-gray-400 dark:text-gray-500">
+                  {project.repoOwner}/{project.repoName}
+                </span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCodeExplorer(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                ×
+              </button>
+            </div>
+            {/* 弹窗内容 */}
+            <div className="flex-1 overflow-hidden">
+              <CodeExplorer
+                owner={project.repoOwner}
+                repo={project.repoName}
+                repoUrl={project.repoUrl || `https://github.com/${project.repoOwner}/${project.repoName}`}
+                token={token}
+                isMember={isMember}
+                projectId={project.id}
+                onSaveSuccess={onCodeChange}
+                onPRSuccess={onCodeChange}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 未关联仓库时的提示 */}

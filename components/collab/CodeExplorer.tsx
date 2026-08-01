@@ -607,9 +607,9 @@ export default function CodeExplorer({
   const rootLoading = loadingDirs.has('') && !dirCache[''];
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 overflow-hidden">
       {/* ===== 顶部工具栏 ===== */}
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 flex-shrink-0">
         {/* 分支选择 */}
         <div className="flex items-center gap-1.5">
           <span className="text-sm text-gray-500 dark:text-gray-400">分支:</span>
@@ -674,7 +674,7 @@ export default function CodeExplorer({
       </div>
 
       {/* ===== 主体：文件树 + 编辑器 ===== */}
-      <div className="flex flex-col md:flex-row md:h-[548px]">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* 左侧文件树 */}
         {/* 移动端：可切换的抽屉；桌面端：固定宽度侧边栏 */}
         <div
