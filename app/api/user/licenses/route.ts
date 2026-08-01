@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       include: {
         domains: true,
         _count: { select: { logs: true } },
+        product: { select: { downloadUrl: true } },
       },
     });
 
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       status:
         lic.expiresAt < now && lic.status === 'active' ? 'expired' : lic.status,
       remark: lic.remark,
+      downloadUrl: lic.product?.downloadUrl || null,
       domains: lic.domains.map((d) => ({
         domain: d.domain,
         activatedAt: d.activatedAt,

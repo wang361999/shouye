@@ -46,7 +46,9 @@ interface StatusMeta {
 
 const STATUS_MAP: Record<string, StatusMeta> = {
   pending: { label: "待支付", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  paid: { label: "已支付", color: "bg-green-50 text-green-700 border-green-200", dot: "bg-green-500" },
+  paid: { label: "待审核", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  approved: { label: "已通过", color: "bg-green-50 text-green-700 border-green-200", dot: "bg-green-500" },
+  rejected: { label: "已拒绝", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
   refunded: { label: "已退款", color: "bg-orange-50 text-orange-700 border-orange-200", dot: "bg-orange-500" },
   cancelled: { label: "已取消", color: "bg-gray-100 text-gray-600 border-gray-200", dot: "bg-gray-400" },
 };
@@ -54,14 +56,18 @@ const STATUS_MAP: Record<string, StatusMeta> = {
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "全部" },
   { value: "pending", label: "待支付" },
-  { value: "paid", label: "已支付" },
+  { value: "paid", label: "待审核" },
+  { value: "approved", label: "已通过" },
+  { value: "rejected", label: "已拒绝" },
   { value: "refunded", label: "已退款" },
   { value: "cancelled", label: "已取消" },
 ];
 
 const EDIT_STATUS_OPTIONS = [
   { value: "pending", label: "待支付 (pending)" },
-  { value: "paid", label: "已支付 (paid)" },
+  { value: "paid", label: "待审核 (paid)" },
+  { value: "approved", label: "已通过 (approved)" },
+  { value: "rejected", label: "已拒绝 (rejected)" },
   { value: "refunded", label: "已退款 (refunded)" },
   { value: "cancelled", label: "已取消 (cancelled)" },
 ];
@@ -162,7 +168,11 @@ export default function OrdersPage() {
   const [payConfirmTarget, setPayConfirmTarget] = useState<Order | null>(null);
   const [paySubmitting, setPaySubmitting] = useState(false);
 
-  // 取消 / 退款 快捷操作
+  // 审核通过确认
+  const [approveConfirmTarget, setApproveConfirmTarget] = useState<Order | null>(null);
+  const [approveSubmitting, setApproveSubmitting] = useState(false);
+
+  // 取消 / 退款 / 拒绝 快捷操作
   const [quickLoadingId, setQuickLoadingId] = useState<string | null>(null);
 
   // 授权码生成成功展示
@@ -288,8 +298,8 @@ export default function OrdersPage() {
     if (!token || !editTarget) return;
     try {
       setEditSubmitting(true);
-      const wasPaid = editTarget.status === "paid";
-      const willPay = editForm.status === "paid" && !wasPaid;
+      const wasApproved = editTarget.status === "approved";
+      const willApprove = editForm.status === "approved" && !wasApproved;
 
       const result = await patchOrder(
         {
@@ -301,7 +311,7 @@ export default function OrdersPage() {
         },
         {
           successMsg: "订单已更新",
-          expectLicense: willPay,
+          expectLicense: willApprove,
           orderNo: editTarget.orderNo,
           productName: editTarget.productName,
         }
@@ -328,10 +338,7 @@ export default function OrdersPage() {
       const result = await patchOrder(
         { id: payConfirmTarget.id, status: "paid" },
         {
-          successMsg: "订单已标记为已支付",
-          expectLicense: !payConfirmTarget.licenseId,
-          orderNo: payConfirmTarget.orderNo,
-          productName: payConfirmTarget.productName,
+          successMsg: "已确认收款，等待审核",
         }
       );
       if (result.ok) {
@@ -340,6 +347,52 @@ export default function OrdersPage() {
       }
     } finally {
       setPaySubmitting(false);
+    }
+  }
+
+  // ============ 审核通过：确认 ============
+  function openApproveConfirm(order: Order) {
+    setApproveConfirmTarget(order);
+  }
+
+  async function handleConfirmApprove() {
+    if (!token || !approveConfirmTarget) return;
+    try {
+      setApproveSubmitting(true);
+      const result = await patchOrder(
+        { id: approveConfirmTarget.id, status: "approved" },
+        {
+          successMsg: "审核已通过",
+          expectLicense: !approveConfirmTarget.licenseId,
+          orderNo: approveConfirmTarget.orderNo,
+          productName: approveConfirmTarget.productName,
+        }
+      );
+      if (result.ok) {
+        setApproveConfirmTarget(null);
+        fetchOrders();
+      }
+    } finally {
+      setApproveSubmitting(false);
+    }
+  }
+
+  // ============ 拒绝订单（快捷） ============
+  async function handleQuickReject(order: Order) {
+    if (!token) return;
+    try {
+      setQuickLoadingId(order.id);
+      const result = await patchOrder(
+        { id: order.id, status: "rejected" },
+        { successMsg: "订单已拒绝" }
+      );
+      if (result.ok) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === order.id ? { ...o, status: "rejected" } : o))
+        );
+      }
+    } finally {
+      setQuickLoadingId(null);
     }
   }
 
@@ -656,9 +709,9 @@ export default function OrdersPage() {
                                 <button
                                   onClick={() => openPayConfirm(order)}
                                   disabled={busy}
-                                  className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  标记已支付
+                                  确认收款
                                 </button>
                               )}
                               {/* 待支付：取消 */}
@@ -671,8 +724,28 @@ export default function OrdersPage() {
                                   {busy ? "处理中" : "取消"}
                                 </button>
                               )}
-                              {/* 已支付：退款 */}
+                              {/* 待审核：审核通过 */}
                               {order.status === "paid" && (
+                                <button
+                                  onClick={() => openApproveConfirm(order)}
+                                  disabled={busy}
+                                  className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  审核通过
+                                </button>
+                              )}
+                              {/* 待审核：拒绝 */}
+                              {order.status === "paid" && (
+                                <button
+                                  onClick={() => handleQuickReject(order)}
+                                  disabled={busy}
+                                  className="inline-flex items-center px-2.5 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {busy ? "处理中" : "拒绝"}
+                                </button>
+                              )}
+                              {/* 已通过/待审核：退款 */}
+                              {(order.status === "paid" || order.status === "approved") && (
                                 <button
                                   onClick={() => handleQuickRefund(order)}
                                   disabled={busy}
@@ -796,12 +869,12 @@ export default function OrdersPage() {
                     </option>
                   ))}
                 </select>
-                {editForm.status === "paid" && editTarget.status !== "paid" && !editTarget.licenseId && (
+                {editForm.status === "approved" && editTarget.status !== "approved" && !editTarget.licenseId && (
                   <p className="mt-1.5 text-xs text-amber-600 flex items-center gap-1">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    标记为已支付后将自动生成授权码
+                    审核通过后将自动生成授权码
                   </p>
                 )}
               </div>
@@ -913,27 +986,15 @@ export default function OrdersPage() {
 
             {/* 内容 */}
             <div className="px-6 py-5 space-y-4">
-              {/* 授权码生成提示 */}
-              {!payConfirmTarget.licenseId && (
-                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <p className="text-xs text-amber-800">
-                    确认收款后，系统将<span className="font-medium">自动生成授权码</span>（{payConfirmTarget.maxDomains} 域名 · {payConfirmTarget.validDays} 天有效期），并关联到该订单与用户。生成后将在弹窗中展示授权码。
-                  </p>
-                </div>
-              )}
-              {payConfirmTarget.licenseId && (
-                <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-xs text-blue-800">
-                    该订单已关联授权码，确认收款后仅更新订单状态，不会重复生成授权码。
-                  </p>
-                </div>
-              )}
+              {/* 审核提示 */}
+              <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-xs text-blue-800">
+                  确认收款后，订单将进入<span className="font-medium">待审核</span>状态。需管理员审核通过后才会生成授权码并发送给用户。
+                </p>
+              </div>
 
               {/* 订单摘要 */}
               <div className="space-y-2 text-sm">
@@ -968,9 +1029,100 @@ export default function OrdersPage() {
               <button
                 onClick={handleConfirmPay}
                 disabled={paySubmitting}
-                className="px-5 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {paySubmitting ? "处理中..." : "确认已收款"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ 审核通过 - 确认模态框 ============ */}
+      {approveConfirmTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !approveSubmitting && setApproveConfirmTarget(null)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            {/* 头部 */}
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">审核通过</h3>
+                  <p className="text-xs text-gray-500">
+                    <span className="font-mono">{approveConfirmTarget.orderNo}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 内容 */}
+            <div className="px-6 py-5 space-y-4">
+              {/* 授权码生成提示 */}
+              {!approveConfirmTarget.licenseId && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-xs text-amber-800">
+                    审核通过后，系统将<span className="font-medium">自动生成授权码</span>（{approveConfirmTarget.maxDomains} 域名 · {approveConfirmTarget.validDays} 天有效期），并关联到该订单与用户。生成后将在弹窗中展示授权码。
+                  </p>
+                </div>
+              )}
+              {approveConfirmTarget.licenseId && (
+                <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-xs text-blue-800">
+                    该订单已关联授权码，审核通过后仅更新订单状态，不会重复生成授权码。
+                  </p>
+                </div>
+              )}
+
+              {/* 订单摘要 */}
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">产品</span>
+                  <span className="text-gray-900 font-medium">{approveConfirmTarget.productName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">用户</span>
+                  <span className="text-gray-900">{approveConfirmTarget.username || "未知用户"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">金额</span>
+                  <span className="text-gray-900 font-medium">¥{formatYuan(approveConfirmTarget.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">套餐</span>
+                  <span>{getProjectTypeMeta(approveConfirmTarget.projectType).label}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 底部 */}
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => !approveSubmitting && setApproveConfirmTarget(null)}
+                disabled={approveSubmitting}
+                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmApprove}
+                disabled={approveSubmitting}
+                className="px-5 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {approveSubmitting ? "处理中..." : "确认通过"}
               </button>
             </div>
           </div>

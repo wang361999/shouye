@@ -19,6 +19,7 @@ interface Product {
   screenshots: string | null;
   demoUrl: string | null;
   docsUrl: string | null;
+  downloadUrl: string | null;
   status: string; // active | draft | retired
   sortOrder: number;
   priceBasic: number; // 分
@@ -158,6 +159,7 @@ interface ProductForm {
   features: string;
   demoUrl: string;
   docsUrl: string;
+  downloadUrl: string;
   status: string;
   sortOrder: number;
   priceBasic: string;
@@ -177,6 +179,7 @@ const EMPTY_FORM: ProductForm = {
   features: "",
   demoUrl: "",
   docsUrl: "",
+  downloadUrl: "",
   status: "active",
   sortOrder: 0,
   priceBasic: "0",
@@ -322,6 +325,7 @@ export default function ProductsAdminPage() {
       features: featuresToText(product.features),
       demoUrl: product.demoUrl || "",
       docsUrl: product.docsUrl || "",
+      downloadUrl: product.downloadUrl || "",
       status: product.status,
       sortOrder: product.sortOrder,
       priceBasic: centsToYuan(product.priceBasic),
@@ -367,6 +371,7 @@ export default function ProductsAdminPage() {
       features: textToFeaturesString(form.features),
       demoUrl: form.demoUrl.trim(),
       docsUrl: form.docsUrl.trim(),
+      downloadUrl: form.downloadUrl.trim(),
       status: form.status,
       sortOrder: Number(form.sortOrder) || 0,
       priceBasic: yuanToCents(form.priceBasic),
@@ -1021,6 +1026,23 @@ export default function ProductsAdminPage() {
                       placeholder="https://docs.example.com（可选）"
                     />
                   </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    下载链接
+                    <span className="ml-1 text-xs font-normal text-gray-400">
+                      （用户购买审核通过后显示）
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.downloadUrl}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, downloadUrl: e.target.value }))
+                    }
+                    className={INPUT_CLS}
+                    placeholder="https://download.example.com/product.zip（可选）"
+                  />
                 </div>
               </section>
 

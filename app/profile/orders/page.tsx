@@ -22,7 +22,7 @@ interface Order {
   paidAt: string | null;
   licenseId: string | null;
   createdAt: string;
-  product: { name: string; icon: string | null } | null;
+  product: { name: string; icon: string | null; downloadUrl: string | null } | null;
 }
 
 // ============ 套餐类型映射 ============
@@ -36,7 +36,9 @@ const TYPE_MAP: Record<string, { label: string; color: string; domains: number }
 // ============ 订单状态映射 ============
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: '待支付', color: 'bg-yellow-100 text-yellow-700' },
-  paid: { label: '已支付', color: 'bg-green-100 text-green-700' },
+  paid: { label: '待审核', color: 'bg-blue-100 text-blue-700' },
+  approved: { label: '已通过', color: 'bg-green-100 text-green-700' },
+  rejected: { label: '已拒绝', color: 'bg-red-100 text-red-700' },
   refunded: { label: '已退款', color: 'bg-gray-100 text-gray-500' },
   cancelled: { label: '已取消', color: 'bg-gray-100 text-gray-500' },
 };
@@ -148,7 +150,7 @@ export default function UserOrdersPage() {
         toast.error(data.error || '支付失败');
         return;
       }
-      toast.success('支付成功，授权码已生成');
+      toast.success('支付成功，等待管理员审核');
       setPayTarget(null);
       fetchOrders(page);
     } catch {
@@ -329,7 +331,25 @@ export default function UserOrdersPage() {
                     </button>
                   )}
 
-                  {order.status === 'paid' && order.licenseId && (
+                  {order.status === 'paid' && (
+                    <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg">
+                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      管理员审核中，请耐心等待
+                    </span>
+                  )}
+
+                  {order.status === 'rejected' && (
+                    <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg">
+                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      订单审核未通过，请联系管理员
+                    </span>
+                  )}
+
+                  {order.status === 'approved' && order.licenseId && (
                     <Link
                       href="/profile/licenses"
                       className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
@@ -341,13 +361,27 @@ export default function UserOrdersPage() {
                     </Link>
                   )}
 
-                  {order.status === 'paid' && order.paidAt && (
+                  {order.status === 'approved' && order.product?.downloadUrl && (
+                    <a
+                      href={order.product.downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      下载产品
+                    </a>
+                  )}
+
+                  {order.status === 'approved' && order.paidAt && (
                     <span className="text-xs text-gray-400">
-                      支付时间：{formatDate(order.paidAt)}
+                      审核通过时间：{formatDate(order.paidAt)}
                     </span>
                   )}
 
-                  {order.payMethod && order.status === 'paid' && (
+                  {order.payMethod && (order.status === 'paid' || order.status === 'approved') && (
                     <span className="text-xs text-gray-400">
                       支付方式：{order.payMethod}
                     </span>
@@ -446,7 +480,7 @@ export default function UserOrdersPage() {
 
             {/* 演示提示 */}
             <p className="text-xs text-gray-400 text-center mb-4">
-              演示模式：点击确认后将模拟支付成功并生成授权码
+              演示模式：点击确认后将模拟支付成功，订单进入待审核状态
             </p>
 
             {/* 操作按钮 */}

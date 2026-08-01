@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         take: pageSize,
         include: {
           product: {
-            select: { name: true, icon: true },
+            select: { name: true, icon: true, downloadUrl: true },
           },
         },
       }),
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       licenseId: o.licenseId,
       createdAt: o.createdAt,
       product: o.product
-        ? { name: o.product.name, icon: o.product.icon }
+        ? { name: o.product.name, icon: o.product.icon, downloadUrl: o.product.downloadUrl }
         : null,
     }));
 

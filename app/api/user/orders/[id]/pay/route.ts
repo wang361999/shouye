@@ -1,21 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest } from '@/lib/auth';
 
 /**
- * 生成授权码格式: ET-XXXXXXXX-XXXXXXXX-XXXXXXXX
- */
-function generateLicenseKey(): string {
-  const part = () => crypto.randomBytes(4).toString('hex').toUpperCase();
-  return `ET-${part()}-${part()}-${part()}`;
-}
-
-/**
  * POST /api/user/orders/[id]/pay - 模拟支付（演示/手动，需登录）
  * Body: { payMethod }
- * 校验订单归属当前用户且状态为 pending，置为 paid 并生成授权码
- * 返回：{ message, licenseKey }
+ * 校验订单归属当前用户且状态为 pending，置为 paid（等待管理员审核）
+ * 注意：支付后不自动生成授权码，需管理员审核通过后才生成
+ * 返回：{ message }
  */
 export async function POST(
   request: NextRequest,
@@ -65,56 +57,18 @@ export async function POST(
       );
     }
 
-    // ---- 生成唯一授权码 ----
-    let licenseKey = generateLicenseKey();
-    let existing = await prisma.license.findUnique({
-      where: { licenseKey },
-    });
-    while (existing) {
-      licenseKey = generateLicenseKey();
-      existing = await prisma.license.findUnique({
-        where: { licenseKey },
-      });
-    }
-
-    // ---- 计算授权过期时间 ----
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + order.validDays);
-
-    // ---- 事务：更新订单 + 生成授权码 ----
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. 生成授权码
-      const license = await tx.license.create({
-        data: {
-          licenseKey,
-          projectName: order.productName,
-          projectType: order.projectType,
-          maxDomains: order.maxDomains,
-          expiresAt,
-          status: 'active',
-          ownerId: userPayload.userId,
-          productId: order.productId,
-          orderId: order.id,
-        },
-      });
-
-      // 2. 更新订单为已支付
-      const updatedOrder = await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: 'paid',
-          paidAt: new Date(),
-          payMethod,
-          licenseId: license.id,
-        },
-      });
-
-      return { license, updatedOrder };
+    // ---- 更新订单为已支付（等待管理员审核，不生成授权码） ----
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'paid',
+        paidAt: new Date(),
+        payMethod,
+      },
     });
 
     return NextResponse.json({
-      message: '支付成功，授权码已生成',
-      licenseKey: result.license.licenseKey,
+      message: '支付成功，等待管理员审核',
     });
   } catch (error) {
     console.error('[ORDER PAY ERROR]', error);

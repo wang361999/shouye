@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       screenshots: p.screenshots,
       demoUrl: p.demoUrl,
       docsUrl: p.docsUrl,
+      downloadUrl: p.downloadUrl,
       status: p.status,
       sortOrder: p.sortOrder,
       // 定价（单位：分）
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       name, slug, tagline, description, icon, coverImage,
-      features, demoUrl, docsUrl, status, sortOrder,
+      features, demoUrl, docsUrl, downloadUrl, status, sortOrder,
       priceBasic, priceStandard, pricePremium, priceEnterprise,
       validDays,
     } = body;
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
         features: featuresValue,
         demoUrl: demoUrl || null,
         docsUrl: docsUrl || null,
+        downloadUrl: downloadUrl || null,
         status: status || 'active',
         sortOrder: typeof sortOrder === 'number' ? sortOrder : 0,
         priceBasic: typeof priceBasic === 'number' ? priceBasic : 0,
@@ -156,7 +158,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const {
       id, name, slug, tagline, description, icon, coverImage,
-      features, demoUrl, docsUrl, status, sortOrder,
+      features, demoUrl, docsUrl, downloadUrl, status, sortOrder,
       priceBasic, priceStandard, pricePremium, priceEnterprise,
       validDays,
     } = body;
@@ -200,6 +202,7 @@ export async function PATCH(request: NextRequest) {
     }
     if (demoUrl !== undefined) updateData.demoUrl = demoUrl || null;
     if (docsUrl !== undefined) updateData.docsUrl = docsUrl || null;
+    if (downloadUrl !== undefined) updateData.downloadUrl = downloadUrl || null;
     if (status !== undefined) updateData.status = status;
     if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
     if (priceBasic !== undefined) updateData.priceBasic = priceBasic;

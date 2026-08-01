@@ -376,6 +376,7 @@ model Product {
   pricePremium   Int      @default(0) @map("price_premium") // 高级版价格（分）
   priceEnterprise Int    @default(0) @map("price_enterprise") // 企业版价格（分）
   validDays     Int      @default(365) @map("valid_days") // 默认授权有效期（天）
+  downloadUrl   String?  @map("download_url") // 购买后下载链接
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -419,7 +420,7 @@ model Order {
   maxDomains    Int      @map("max_domains") // 域名配额
   amount        Int      // 金额（分）
   validDays     Int      @map("valid_days") // 授权有效期（天）
-  status        String   @default("pending") @map("status") // pending | paid | refunded | cancelled
+  status        String   @default("pending") @map("status") // pending | paid | approved | rejected | refunded | cancelled
   payMethod     String?  @map("pay_method") // alipay | wechat | manual
   payTxId       String?  @map("pay_tx_id") // 第三方交易号
   paidAt        DateTime? @map("paid_at") // 支付时间

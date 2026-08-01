@@ -105,8 +105,10 @@ export async function PATCH(request: NextRequest) {
     if (payTxId !== undefined) updateData.payTxId = payTxId || null;
     if (remark !== undefined) updateData.remark = remark;
 
-    // 若标记为已支付：设置支付时间，并生成授权码（若尚未生成）
-    const isPaying = status === 'paid';
+    // 若标记为已支付：仅设置支付时间，不生成授权码（需管理员审核通过后才生成）
+    const isPaying = status === 'paid' && order.status !== 'paid';
+    // 若标记为已审核通过：生成授权码
+    const isApproving = status === 'approved' && order.status !== 'approved';
     let createdLicenseKey: string | null = null;
 
     if (isPaying) {
@@ -115,8 +117,9 @@ export async function PATCH(request: NextRequest) {
       if (!payMethod && !order.payMethod) {
         updateData.payMethod = 'manual';
       }
-
-      // 仅当订单尚未关联授权码时生成
+      await prisma.order.update({ where: { id }, data: updateData });
+    } else if (isApproving) {
+      // 审核通过：生成授权码（若尚未生成）
       if (!order.licenseId) {
         // 生成唯一授权码
         let licenseKey = generateLicenseKey();
