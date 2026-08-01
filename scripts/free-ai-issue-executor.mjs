@@ -140,9 +140,16 @@ function extractJson(text) {
   const start = candidate.indexOf('{');
   const end = candidate.lastIndexOf('}');
   if (start === -1 || end === -1 || end <= start) {
+    console.error('[free-ai-issue-executor] 模型返回内容（前 800 字符）：', trimmed.slice(0, 800));
     fail('模型没有返回 JSON 对象');
   }
-  return JSON.parse(candidate.slice(start, end + 1));
+  try {
+    return JSON.parse(candidate.slice(start, end + 1));
+  } catch (err) {
+    console.error('[free-ai-issue-executor] JSON 解析失败：', err.message);
+    console.error('[free-ai-issue-executor] 提取内容（前 800 字符）：', candidate.slice(start, start + 800));
+    fail('模型返回的 JSON 无法解析');
+  }
 }
 
 async function callModel(issue, repoContext) {
@@ -189,11 +196,12 @@ ${repoContext.context}
   const requestBody = {
     model: AI_MODEL,
     temperature: 0.2,
-    max_tokens: 3_500,
+    max_tokens: 8_000,
+    response_format: { type: 'json_object' },
     messages: [
       {
         role: 'system',
-        content: '你是谨慎的开源项目代码维护者，只输出严格 JSON。',
+        content: '你是谨慎的开源项目代码维护者，只输出严格 JSON，不要输出任何 Markdown 或解释文字。',
       },
       {
         role: 'user',
@@ -230,6 +238,8 @@ ${repoContext.context}
     console.error('[free-ai-issue-executor] API 返回数据：', JSON.stringify(data).slice(0, 1000));
     fail('AI API 没有返回内容');
   }
+  console.log(`[free-ai-issue-executor] 模型返回内容长度：${content.length} 字符`);
+  console.log(`[free-ai-issue-executor] 返回内容预览：${content.slice(0, 200)}`);
   return extractJson(content);
 }
 
