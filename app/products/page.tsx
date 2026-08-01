@@ -14,25 +14,8 @@ interface Product {
   coverImage: string | null;
   features: string[];
   demoUrl: string | null;
-  priceBasic: number;
-  priceStandard: number;
-  pricePremium: number;
-  priceEnterprise: number;
   validDays: number;
   sortOrder: number;
-}
-
-/** 将分转换为元，返回「¥XX起」格式的最低价展示 */
-function formatMinPrice(p: Product): string {
-  const prices = [
-    p.priceBasic,
-    p.priceStandard,
-    p.pricePremium,
-    p.priceEnterprise,
-  ].filter((n) => n > 0);
-  if (prices.length === 0) return '面议';
-  const min = Math.min(...prices);
-  return `¥${(min / 100).toFixed(2)}起`;
 }
 
 export default function ProductsPage() {
@@ -59,11 +42,17 @@ export default function ProductsPage() {
     <Container className="py-12">
       {/* ============ 页头标题 ============ */}
       <div className="text-center mb-12">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-50 text-green-700 text-sm font-medium rounded-full mb-4">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          全部免费开源
+        </div>
         <h1 className="text-4xl font-bold text-gray-900 mb-4">
           🛍️ 产品中心
         </h1>
         <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-          精选优质软件产品，提供灵活的授权套餐，满足个人到企业的多样化需求
+          精选优质开源项目，免费授权、免费下载，欢迎赞助支持持续开发
         </p>
       </div>
 
@@ -99,9 +88,9 @@ export default function ProductsPage() {
                 {product.icon || '📦'}
               </div>
 
-              {/* 价格标签 */}
-              <span className="inline-block px-2.5 py-0.5 text-xs font-medium text-orange-700 bg-orange-50 rounded-full mb-3">
-                {formatMinPrice(product)}
+              {/* 免费标签 */}
+              <span className="inline-block px-2.5 py-0.5 text-xs font-medium text-green-700 bg-green-50 rounded-full mb-3">
+                免费开源
               </span>
 
               {/* 产品名称 */}

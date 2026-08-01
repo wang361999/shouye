@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { Container } from '@/components/common/Container';
 import { useAppStore } from '@/lib/store';
 import { formatDate, cn } from '@/lib/utils';
@@ -33,29 +33,30 @@ interface Product {
   demoUrl: string | null;
   docsUrl: string | null;
   status: string;
-  priceBasic: number;
-  priceStandard: number;
-  pricePremium: number;
-  priceEnterprise: number;
+  downloadUrl: string | null;
   validDays: number;
   createdAt: string;
   latestVersion: Omit<ProductVersion, 'isLatest' | 'isPublished'> | null;
   versions: ProductVersion[];
 }
 
-/** 价格格式化：分 → 元 */
-function formatPrice(cents: number): string {
-  return (cents / 100).toFixed(2);
+interface SponsorSettings {
+  sponsor_wechat_qr: string;
+  sponsor_alipay_qr: string;
+  sponsor_text: string;
 }
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { user, token, hydrate, _hydrated } = useAppStore();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [sponsor, setSponsor] = useState<SponsorSettings>({
+    sponsor_wechat_qr: '',
+    sponsor_alipay_qr: '',
+    sponsor_text: '如果我们的项目对您有帮助，欢迎赞助支持 ❤️',
+  });
 
   // ============ 客户端水合 ============
   useEffect(() => {
@@ -90,42 +91,21 @@ export default function ProductDetailPage() {
     fetchProduct();
   }, [fetchProduct]);
 
-  // ============ 立即购买 ============
-  async function handlePurchase() {
-    if (!product) return;
-
-    // 未登录：跳转登录页并带 redirect 参数
-    if (!_hydrated || !user || !token) {
-      router.push(`/login?redirect=/products/${product.slug}`);
-      return;
-    }
-
-    setPurchasing('buy');
-    try {
-      const res = await fetch('/api/user/orders/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          productId: product.id,
-          projectType: 'standard',
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || '创建订单失败');
-        return;
+  // ============ 获取赞助设置 ============
+  useEffect(() => {
+    async function fetchSponsor() {
+      try {
+        const res = await fetch('/api/settings/sponsor');
+        if (res.ok) {
+          const data = await res.json();
+          setSponsor(data);
+        }
+      } catch {
+        // 静默失败
       }
-      toast.success('订单已创建，请前往支付');
-      router.push('/profile/orders');
-    } catch {
-      toast.error('创建订单失败，请稍后重试');
-    } finally {
-      setPurchasing(null);
     }
-  }
+    fetchSponsor();
+  }, []);
 
   // ============ 渲染：加载中 ============
   if (loading) {
@@ -161,6 +141,9 @@ export default function ProductDetailPage() {
   }
 
   const isLoggedIn = _hydrated && !!user && !!token;
+  const hasWechat = !!sponsor.sponsor_wechat_qr;
+  const hasAlipay = !!sponsor.sponsor_alipay_qr;
+  const hasSponsor = hasWechat || hasAlipay;
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -184,9 +167,17 @@ export default function ProductDetailPage() {
 
             {/* 标题信息 */}
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-3">
-                {product.name}
-              </h1>
+              <div className="flex items-center gap-3 mb-3 flex-wrap">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {product.name}
+                </h1>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium text-green-700 bg-green-50 rounded-full">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  免费开源
+                </span>
+              </div>
               <p className="text-lg text-gray-500 mb-6 leading-relaxed">
                 {product.tagline}
               </p>
@@ -267,43 +258,136 @@ export default function ProductDetailPage() {
           </section>
         )}
 
-        {/* ============ 获取授权 ============ */}
+        {/* ============ 免费授权 & 下载 ============ */}
         <section className="bg-white rounded-2xl border border-gray-200 p-8 mb-8">
-          <div className="text-center">
+          <div className="text-center mb-8">
             <h2 className="text-xl font-bold text-gray-900 mb-2 flex items-center justify-center">
-              <span className="mr-2">💎</span>
-              获取授权
+              <span className="mr-2">🎁</span>
+              免费获取
             </h2>
-            <p className="text-sm text-gray-500 mb-6">
-              授权有效期 {product.validDays} 天，支付后需管理员审核通过生成授权码
+            <p className="text-sm text-gray-500">
+              本项目完全免费开源，支持免费授权和免费下载
             </p>
-
-            <div className="inline-block">
-              <div className="text-4xl font-bold text-gray-900 mb-1">
-                ¥{formatPrice(product.priceStandard)}
-              </div>
-              <p className="text-xs text-gray-400 mb-6">一次性付费 · 永久使用</p>
-
-              <button
-                onClick={() => handlePurchase()}
-                disabled={purchasing === 'buy'}
-                className="w-full px-8 py-3 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {purchasing === 'buy' ? '处理中...' : isLoggedIn ? '立即购买' : '登录后购买'}
-              </button>
-            </div>
-
-            {/* 赞助入口 */}
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <p className="text-sm text-gray-500">
-                如果这个项目对你有帮助，欢迎
-                <Link href="/sponsor" className="text-blue-600 hover:text-blue-800 font-medium ml-1">
-                  赞助支持
-                </Link>
-                <span className="ml-1">❤️</span>
-              </p>
-            </div>
           </div>
+
+          {/* 免费按钮 */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            {/* 免费授权 */}
+            <Link
+              href={isLoggedIn ? '/profile/licenses' : `/login?redirect=/products/${product.slug}`}
+              className="inline-flex items-center px-8 py-3 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors w-full sm:w-auto justify-center"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5l-7 7 7 7M5 5l-7 7 7 7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              免费授权
+            </Link>
+
+            {/* 免费下载 */}
+            {product.downloadUrl ? (
+              <a
+                href={product.downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-8 py-3 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors w-full sm:w-auto justify-center"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                免费下载
+              </a>
+            ) : product.latestVersion?.downloadUrl ? (
+              <a
+                href={product.latestVersion.downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-8 py-3 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors w-full sm:w-auto justify-center"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                免费下载 v{product.latestVersion.version}
+              </a>
+            ) : (
+              <span className="inline-flex items-center px-8 py-3 bg-gray-100 text-gray-400 text-sm font-medium rounded-xl w-full sm:w-auto justify-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                下载链接即将开放
+              </span>
+            )}
+          </div>
+
+          {/* 赞助二维码区域 */}
+          {hasSponsor && (
+            <div className="border-t border-gray-100 pt-8">
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+                  <span className="text-red-500">❤️</span>
+                  赞助支持
+                </div>
+                <p className="text-xs text-gray-400">
+                  {sponsor.sponsor_text}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-start justify-center gap-8">
+                {/* 微信赞助 */}
+                {hasWechat && (
+                  <div className="text-center">
+                    <div className="inline-block p-3 bg-gray-50 rounded-xl mb-2">
+                      <img
+                        src={sponsor.sponsor_wechat_qr}
+                        alt="微信赞助二维码"
+                        className="w-36 h-36 rounded-lg object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-sm text-gray-600">
+                      <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.616-6.546 1.23-1.31 2.965-2.128 4.882-2.128.211 0 .42.014.627.028C16.389 5.028 12.81 2.188 8.691 2.188zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18z" />
+                      </svg>
+                      微信赞助
+                    </div>
+                  </div>
+                )}
+
+                {/* 支付宝赞助 */}
+                {hasAlipay && (
+                  <div className="text-center">
+                    <div className="inline-block p-3 bg-gray-50 rounded-xl mb-2">
+                      <img
+                        src={sponsor.sponsor_alipay_qr}
+                        alt="支付宝赞助二维码"
+                        className="w-36 h-36 rounded-lg object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-sm text-gray-600">
+                      <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M22.95 16.96c-.59.27-3.07 1.42-5.03 2.38-2.79 1.36-5.62 2.22-8.15 2.22-3.86 0-6.97-1.79-6.97-5.52 0-1.69.54-3.39 1.46-5.07C2.14 13.81.82 17.39.82 20.06c0 5.05 4.08 7.49 8.14 7.49 3.86 0 6.97-1.79 6.97-5.52 0-1.69-.54-3.39-1.46-5.07l8.48-4.37v5.37z" />
+                      </svg>
+                      支付宝赞助
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center mt-4">
+                <Link
+                  href="/sponsor"
+                  className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                >
+                  查看更多赞助方式 →
+                </Link>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ============ 版本历史 ============ */}
