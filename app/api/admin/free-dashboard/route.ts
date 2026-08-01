@@ -360,6 +360,8 @@ export async function GET(request: NextRequest) {
         lastRequest: autoIterationMap.auto_iteration_last_request || '',
         lastDeployApproval: autoIterationMap.auto_iteration_last_deploy_approval || '',
         manualDeployConfigured: Boolean(process.env.VERCEL_DEPLOY_HOOK_URL),
+        aiExecutorConfigured: Boolean(process.env.AI_ITERATION_WEBHOOK_URL),
+        githubIssueConfigured: Boolean(process.env.GITHUB_TOKEN),
       },
       freeStack: [
         { name: '代码托管', value: 'GitHub 免费仓库', status: '已使用' },

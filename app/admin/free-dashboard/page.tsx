@@ -83,6 +83,8 @@ interface FreeDashboardData {
     lastRequest: string;
     lastDeployApproval: string;
     manualDeployConfigured: boolean;
+    aiExecutorConfigured: boolean;
+    githubIssueConfigured: boolean;
   };
   freeStack: Array<{
     name: string;
@@ -126,6 +128,9 @@ function readAutoIterationLog(value: string) {
       requirement?: string;
       createdAt?: string;
       status?: string;
+      issueUrl?: string;
+      executorConfigured?: boolean;
+      executorStatus?: number | null;
       guardrails?: string[];
     };
   } catch {
@@ -306,23 +311,49 @@ export default function FreeDashboardPage() {
                     <span className="rounded-full bg-white px-2 py-0.5 text-xs text-indigo-700">
                       {data.autoIteration.safeMode ? "安全模式" : "扩展模式"}
                     </span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${
+                      data.autoIteration.aiExecutorConfigured
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}>
+                      {data.autoIteration.aiExecutorConfigured ? "已接入 AI 执行器" : "未接入 AI 执行器"}
+                    </span>
                   </div>
                   <p className="mt-2 text-sm text-indigo-800">
-                    开启后，后台可以记录自动巡检请求。AI 改完后要在日志里说明改了哪里、优化了什么、验证是否通过，再由你决定是否触发上线。
+                    只有配置了 AI 执行器 Webhook，后台点击后才会真的把需求交给外部 AI 去改代码；没配置时，只会记录迭代请求和可选创建 GitHub Issue。
                   </p>
+                  {!data.autoIteration.aiExecutorConfigured && (
+                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                      当前没有配置 <span className="font-mono">AI_ITERATION_WEBHOOK_URL</span>，所以它不会自动写代码。现在真正改代码的还是这边对话里的 AI。
+                    </div>
+                  )}
                   {lastAutoRequest ? (
                     <div className="mt-3 rounded-xl border border-indigo-100 bg-white/70 p-3 text-sm text-indigo-900">
-                      <p className="font-medium">最近巡检：{lastAutoRequest.requirement || "未填写需求"}</p>
+                      <p className="font-medium">最近迭代请求：{lastAutoRequest.requirement || "未填写需求"}</p>
                       <p className="mt-1 text-xs text-indigo-600">
                         {lastAutoRequest.createdAt
                           ? new Date(lastAutoRequest.createdAt).toLocaleString()
                           : "暂无时间"}
                         {" · "}
-                        {lastAutoRequest.status === "waiting_for_ai_changes" ? "等待 AI 修改并输出日志" : "已记录"}
+                        {lastAutoRequest.status === "sent_to_ai_executor"
+                          ? "已发送给 AI 执行器"
+                          : lastAutoRequest.status === "executor_failed"
+                            ? "AI 执行器调用失败"
+                            : "未接入执行器，只记录请求"}
                       </p>
+                      {lastAutoRequest.issueUrl && (
+                        <a
+                          href={lastAutoRequest.issueUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-flex text-xs text-blue-600 hover:underline"
+                        >
+                          查看 GitHub Issue
+                        </a>
+                      )}
                     </div>
                   ) : (
-                    <p className="mt-3 text-sm text-indigo-600">还没有自动巡检记录。</p>
+                    <p className="mt-3 text-sm text-indigo-600">还没有迭代请求记录。</p>
                   )}
                   {actionMessage && (
                     <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-sm text-indigo-800">
@@ -352,14 +383,19 @@ export default function FreeDashboardPage() {
                   <button
                     onClick={() =>
                       runAutoIterationAction("trigger_inspection", {
-                        requirement: "检查后台可用性、免费额度、部署状态，并给出可安全优化项",
+                        requirement: "检查后台 AI 自动迭代是否真正生效，并给出可见的迭代结果",
                       })
                     }
                     disabled={Boolean(actionLoading) || !data.autoIteration.enabled}
                     className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100 disabled:opacity-60"
                   >
-                    {actionLoading === "trigger_inspection" ? "记录中..." : "触发一次巡检"}
+                    {actionLoading === "trigger_inspection" ? "提交中..." : "提交迭代请求"}
                   </button>
+                  <p className="text-xs text-indigo-700">
+                    {data.autoIteration.githubIssueConfigured
+                      ? "已配置 GitHub Token，提交时会尝试创建 Issue。"
+                      : "未配置 GitHub Token，只能写入后台日志。"}
+                  </p>
                   <button
                     onClick={() => runAutoIterationAction("approve_deploy")}
                     disabled={Boolean(actionLoading)}
