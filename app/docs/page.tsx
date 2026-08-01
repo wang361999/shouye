@@ -287,6 +287,20 @@ export default function DocsPage() {
                   在发帖编辑器中，点击「GitHub 代码」按钮，输入关键词搜索开源代码，
                   点击搜索结果即可自动插入代码引用到帖子内容中。
                 </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  支持筛选条件，点击搜索框右侧的「筛选」按钮可展开筛选面板：
+                </p>
+                <ul className="text-sm text-gray-600 space-y-1.5 ml-4 list-disc">
+                  <li>
+                    <strong>编程语言</strong>：一键切换 TypeScript、Python、Go 等 20+ 常用语言
+                  </li>
+                  <li>
+                    <strong>限定仓库</strong>：输入 <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">owner/repo</code> 格式限定搜索范围
+                  </li>
+                  <li>
+                    <strong>限定用户/组织</strong>：只搜索指定 GitHub 用户或组织下的代码
+                  </li>
+                </ul>
               </div>
 
               <div>
