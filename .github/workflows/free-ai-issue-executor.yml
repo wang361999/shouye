@@ -149,11 +149,22 @@ jobs:
           env.AUTO_MERGE == 'true'
         run: |
           echo "lint/build 通过，开始自动合并 PR #${{ steps.pr.outputs.pr_number }}..."
+          # 从 AI_ITERATION_SUMMARY.md 提取摘要（## 摘要 下面的第一行）
+          AI_SUMMARY=$(sed -n '/^## 摘要/,/^## /{ /^## 摘要/d; /^## /d; p; }' AI_ITERATION_SUMMARY.md | head -1 | sed 's/^ *//' || echo "")
+          if [ -z "$AI_SUMMARY" ]; then
+            AI_SUMMARY="Issue #${ISSUE_NUMBER}"
+          fi
+          # 提取改动文件列表
+          AI_FILES=$(grep '`[^`]*`' AI_ITERATION_SUMMARY.md | sed 's/.*`\([^`]*\)`.*/\1/' | head -10 | tr '\n' ',' | sed 's/,$//')
+          
+          COMMIT_SUBJECT="AI 迭代：${AI_SUMMARY}"
+          COMMIT_BODY="lint/build 全部通过，自动合并上线。| 改动文件：${AI_FILES}"
+          
           gh pr merge "${{ steps.pr.outputs.pr_number }}" \
             --squash \
             --delete-branch \
-            --subject "AI 自动合并：Issue #${ISSUE_NUMBER}" \
-            --body "lint/build 全部通过，自动合并上线。"
+            --subject "${COMMIT_SUBJECT}" \
+            --body "${COMMIT_BODY}"
           echo "PR 已合并，Vercel 将自动部署。"
 
       - name: Comment with result

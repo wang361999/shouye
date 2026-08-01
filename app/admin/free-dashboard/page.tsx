@@ -70,12 +70,19 @@ interface FreeDashboardData {
     url: string;
     committedAt: string | null;
   }>;
-  visibleChanges: Array<{
-    title: string;
-    desc: string;
-    href: string;
-    tag: string;
-  }>;
+  visibleChanges: {
+    summary: string;
+    details: string[];
+    files: Array<{
+      path: string;
+      route: string;
+      status: string;
+      additions: number;
+      deletions: number;
+    }>;
+    sha: string;
+    committedAt: string | null;
+  };
   autoIteration: {
     enabled: boolean;
     requireApproval: boolean;
@@ -478,30 +485,74 @@ export default function FreeDashboardPage() {
                   <div>
                     <h2 className="font-semibold text-emerald-950">这次 AI 改了什么</h2>
                     <p className="mt-1 text-sm text-emerald-700">
-                      以后这里直接展示可见功能入口，不用只看提交号。
+                      {data.visibleChanges.committedAt
+                        ? `最近一次迭代：${new Date(data.visibleChanges.committedAt).toLocaleString()}`
+                        : '暂无迭代记录'}
                     </p>
                   </div>
-                  {data.deploy.shortSha && (
-                    <span className="w-fit rounded-full bg-white px-3 py-1 text-xs text-emerald-700">
-                      当前线上提交：{data.deploy.shortSha}
+                  {data.visibleChanges.sha && (
+                    <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-mono text-emerald-700">
+                      {data.visibleChanges.sha}
                     </span>
                   )}
                 </div>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {data.visibleChanges.map((item) => (
-                    <Link
-                      key={item.title}
-                      href={item.href}
-                      className="rounded-xl border border-emerald-100 bg-white/80 p-3 transition-colors hover:bg-white"
-                    >
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                        {item.tag}
-                      </span>
-                      <p className="mt-2 text-sm font-semibold text-gray-900">{item.title}</p>
-                      <p className="mt-1 text-xs text-gray-600">{item.desc}</p>
-                    </Link>
-                  ))}
+
+                {/* AI 摘要 */}
+                <div className="mt-4 rounded-xl border border-emerald-100 bg-white/80 p-4">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {data.visibleChanges.summary || '暂无摘要'}
+                  </p>
+                  {data.visibleChanges.details.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {data.visibleChanges.details.map((d, i) => (
+                        <li key={i} className="text-xs text-gray-600 flex items-start gap-1">
+                          <span className="text-emerald-500 mt-0.5">•</span>
+                          <span>{d}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
+
+                {/* 改动文件列表 */}
+                {data.visibleChanges.files.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-medium text-emerald-700">改动文件（{data.visibleChanges.files.length} 个）</p>
+                    {data.visibleChanges.files.map((file, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between rounded-lg border border-emerald-50 bg-white/60 px-3 py-2"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-medium ${
+                            file.status === 'added' ? 'bg-green-100 text-green-700'
+                            : file.status === 'modified' ? 'bg-blue-100 text-blue-700'
+                            : file.status === 'removed' ? 'bg-red-100 text-red-700'
+                            : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {file.status === 'added' ? '新增' : file.status === 'modified' ? '修改' : file.status === 'removed' ? '删除' : file.status}
+                          </span>
+                          <span className="truncate text-xs text-gray-700">{file.path}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 text-xs">
+                          <span className="text-green-600">+{file.additions}</span>
+                          <span className="text-red-500">-{file.deletions}</span>
+                          {file.route && (
+                            <Link
+                              href={file.route}
+                              target="_blank"
+                              className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 hover:bg-emerald-200"
+                            >
+                              查看
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-gray-400">暂无文件改动信息</p>
+                )}
               </div>
 
               <div className="rounded-2xl border border-gray-200 bg-white p-5 xl:col-span-2">

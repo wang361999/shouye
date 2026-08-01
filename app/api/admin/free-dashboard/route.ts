@@ -121,6 +121,116 @@ async function fetchRecentCodeIterations() {
   }
 }
 
+type GitHubFileChange = {
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+};
+
+async function fetchCommitFiles(sha: string): Promise<GitHubFileChange[]> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${REPO}/commits/${sha}`,
+      {
+        next: { revalidate: 120 },
+        headers: {
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'shouye-admin-dashboard',
+        },
+      },
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.files || []).map((f: GitHubFileChange) => ({
+      filename: f.filename,
+      status: f.status,
+      additions: f.additions,
+      deletions: f.deletions,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchRealVisibleChanges(codeIterations: Array<{
+  sha: string;
+  title: string;
+  detail: string;
+  committedAt: string | null;
+}>) {
+  // 找最近一次 AI 迭代提交
+  const aiCommit = codeIterations.find(
+    (c) => c.title.includes('AI') || c.title.includes('ai'),
+  );
+
+  if (!aiCommit) {
+    return {
+      summary: '暂无 AI 迭代记录',
+      details: [],
+      files: [],
+      sha: '',
+      committedAt: null,
+    };
+  }
+
+  const files = await fetchCommitFiles(aiCommit.sha);
+
+  // 从提交信息中提取 AI 摘要
+  // 格式: "AI 迭代：摘要内容" 或 "AI 自动合并：Issue #XX"
+  let summary = aiCommit.title;
+  if (aiCommit.title.startsWith('AI 迭代：')) {
+    summary = aiCommit.title.replace(/^AI 迭代：/, '');
+  }
+
+  // 从 detail 中提取改动文件列表（格式: "改动文件：file1,file2"）
+  let detailFiles: string[] = [];
+  const fileMatch = aiCommit.detail.match(/改动文件[：:]\s*(.+)/);
+  if (fileMatch) {
+    detailFiles = fileMatch[1].split(',').map((f) => f.trim()).filter(Boolean);
+  }
+
+  // 将文件路径转换为可点击的前台入口
+  const fileEntries = files
+    .filter((f) => f.filename.startsWith('app/') && f.filename.endsWith('page.tsx'))
+    .map((f) => {
+      // app/tools/page.tsx -> /tools
+      const route = '/' + f.filename
+        .replace(/^app\//, '')
+        .replace(/\/page\.tsx$/, '')
+        .replace(/\[id\]/g, '')
+        .replace(/\[slug\]/g, '')
+        .replace(/\/$/, '');
+      return {
+        path: f.filename,
+        route: route || '/',
+        status: f.status,
+        additions: f.additions,
+        deletions: f.deletions,
+      };
+    });
+
+  // 如果没有 page.tsx，也展示其他改动文件
+  const otherFiles = files
+    .filter((f) => !f.filename.startsWith('app/') || !f.filename.endsWith('page.tsx'))
+    .slice(0, 6)
+    .map((f) => ({
+      path: f.filename,
+      route: '',
+      status: f.status,
+      additions: f.additions,
+      deletions: f.deletions,
+    }));
+
+  return {
+    summary,
+    details: detailFiles,
+    files: [...fileEntries, ...otherFiles],
+    sha: aiCommit.sha.slice(0, 7),
+    committedAt: aiCommit.committedAt,
+  };
+}
+
 function percent(used: number, total: number) {
   if (!total) return 0;
   return Number(Math.min(100, (used / total) * 100).toFixed(2));
@@ -407,26 +517,7 @@ export async function GET(request: NextRequest) {
       hotTools,
       recentLogs,
       codeIterations,
-      visibleChanges: [
-        {
-          title: '免费看板增加 AI 自动迭代实验区',
-          desc: '可以开启实验、触发巡检、记录“我确认，可以上线”。',
-          href: '/admin/free-dashboard',
-          tag: '后台入口',
-        },
-        {
-          title: '用量监控改成站内真实埋点趋势',
-          desc: '显示最近入库时间、路由样本数，并明确不是 Vercel 官方账单。',
-          href: '/admin/monitoring',
-          tag: '监控修复',
-        },
-        {
-          title: '自动迭代和部署说明已写进文档',
-          desc: '补充先出日志、再由管理员确认上线的免费流程。',
-          href: '/docs',
-          tag: '文档',
-        },
-      ],
+      visibleChanges: await fetchRealVisibleChanges(codeIterations),
       autoIteration: {
         enabled: toBool(autoIterationMap.auto_iteration_enabled, false),
         requireApproval: toBool(autoIterationMap.auto_iteration_require_approval, true),
