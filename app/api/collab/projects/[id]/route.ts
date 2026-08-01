@@ -16,6 +16,7 @@ export const dynamic = 'force-dynamic';
 // 包含: 项目信息、作者信息、成员列表（含用户信息）、任务统计、贡献统计
 // 同时通过 GitHub API 获取仓库最近5条提交和贡献者统计
 // 增加浏览量 viewCount
+// 返回 isMember / myRole 供前端判断编辑权限
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } },
@@ -29,6 +30,10 @@ export async function GET(
         { status: 400 },
       );
     }
+
+    // ---- 获取当前登录用户（可选，未登录时 isMember=false） ----
+    const currentUser = getUserFromRequest(request);
+    const currentUserId = currentUser?.userId || null;
 
     const project = await prisma.collabProject.findUnique({
       where: { id },
@@ -114,6 +119,23 @@ export async function GET(
       where: { id },
       data: { viewCount: { increment: 1 } },
     });
+
+    // ---- 查询当前用户在项目中的成员身份 ----
+    // 前端依赖 isMember / myRole 判断是否显示编辑按钮、加入/离开按钮等
+    let myRole: string | null = null;
+    let isMember = false;
+    if (currentUserId) {
+      const myMember = await prisma.collabMember.findUnique({
+        where: {
+          projectId_userId: { projectId: id, userId: currentUserId },
+        },
+        select: { role: true, status: true },
+      });
+      if (myMember && myMember.status === 'active') {
+        myRole = myMember.role;
+        isMember = true;
+      }
+    }
 
     // ---- 通过 GitHub API 获取仓库最近提交和贡献者 ----
     // 使用 Promise.allSettled + 超时保护，避免新建项目仓库无数据或 GitHub API 限流
@@ -202,6 +224,9 @@ export async function GET(
       taskTotal,
       taskCompleted,
       contributionCount,
+      // 当前用户的成员身份（前端依赖此字段控制编辑按钮、加入/离开按钮等）
+      isMember,
+      myRole,
       // 统计明细（保留供其他场景使用）
       taskStats: taskSummary,
       contributionStats: contributionSummary,

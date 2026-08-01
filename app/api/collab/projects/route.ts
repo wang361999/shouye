@@ -57,11 +57,14 @@ export async function GET(request: NextRequest) {
       prisma.collabProject.count({ where }),
     ]);
 
-    // ---- 序列化 JSON 数组字段 ----
+    // ---- 序列化 JSON 数组字段，并添加前端期望的扁平字段 ----
     const data = projects.map((project) => ({
       ...project,
       techStack: project.techStack ? JSON.parse(project.techStack) : [],
       tags: project.tags ? JSON.parse(project.tags) : [],
+      // 前端 Project 类型期望 taskTotal / taskCompleted 字段名
+      taskTotal: project.taskCount,
+      taskCompleted: project.completedTaskCount,
     }));
 
     return NextResponse.json({

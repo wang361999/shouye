@@ -1612,6 +1612,8 @@ function GithubTab({
   token: string | null;
   isMember: boolean;
 }) {
+  const hasRepo = !!(project.repoOwner && project.repoName);
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -1624,21 +1626,14 @@ function GithubTab({
     );
   }
 
-  if (!repoInfo) {
-    return (
-      <EmptyBox
-        icon="🐙"
-        text="暂无 GitHub 动态"
-        subText={project.repoUrl ? '无法获取仓库信息，请检查仓库是否公开' : '该项目暂未关联 GitHub 仓库'}
-      />
-    );
-  }
-
-  const commits = repoInfo.commits || [];
-  const contributors = repoInfo.contributors || [];
+  const commits = repoInfo?.commits || [];
+  const contributors = repoInfo?.contributors || [];
 
   return (
     <div className="space-y-6">
+      {/* GitHub 动态信息（仅在成功获取 repoInfo 时展示） */}
+      {repoInfo && (
+        <>
       {/* 最近提交记录 */}
       <SectionCard title="📜 最近提交">
         {commits.length === 0 ? (
@@ -1734,9 +1729,20 @@ function GithubTab({
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">{repoInfo.description}</p>
         )}
       </SectionCard>
+        </>
+      )}
+
+      {/* GitHub 动态获取失败时的提示 */}
+      {!repoInfo && hasRepo && (
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-4 text-center">
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            ⚠️ 无法获取 GitHub 仓库动态信息（可能是仓库私有或 API 限流），但您仍可使用下方在线代码编辑器
+          </p>
+        </div>
+      )}
 
       {/* 在线代码编辑器 */}
-      {project.repoOwner && project.repoName && (
+      {hasRepo && (
         <SectionCard title="💻 在线代码编辑">
           <CodeExplorer
             owner={project.repoOwner}
@@ -1746,6 +1752,15 @@ function GithubTab({
             isMember={isMember}
           />
         </SectionCard>
+      )}
+
+      {/* 未关联仓库时的提示 */}
+      {!hasRepo && (
+        <EmptyBox
+          icon="🐙"
+          text="暂未关联 GitHub 仓库"
+          subText="该项目尚未关联 GitHub 仓库，无法使用在线代码编辑功能"
+        />
       )}
     </div>
   );
