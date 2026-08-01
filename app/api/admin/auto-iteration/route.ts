@@ -34,6 +34,8 @@ async function readConfig() {
     where: { key: { in: Object.values(SETTING_KEYS) } },
   });
   const map = Object.fromEntries(rows.map((item) => [item.key, item.value]));
+  const hasAiWebhook = Boolean(process.env.AI_ITERATION_WEBHOOK_URL);
+  const hasGitHubToken = Boolean(process.env.GITHUB_TOKEN);
 
   return {
     enabled: toBool(map[SETTING_KEYS.enabled], DEFAULT_CONFIG.enabled),
@@ -42,8 +44,19 @@ async function readConfig() {
     lastRequest: map[SETTING_KEYS.lastRequest] || '',
     lastDeployApproval: map[SETTING_KEYS.lastDeployApproval] || '',
     manualDeployConfigured: Boolean(process.env.VERCEL_DEPLOY_HOOK_URL),
-    aiExecutorConfigured: Boolean(process.env.AI_ITERATION_WEBHOOK_URL),
-    githubIssueConfigured: Boolean(process.env.GITHUB_TOKEN),
+    aiExecutorConfigured: hasAiWebhook,
+    githubIssueConfigured: hasGitHubToken,
+    requestQueueConfigured: true,
+    executorMode: hasAiWebhook
+      ? 'ai_webhook'
+      : hasGitHubToken
+        ? 'github_issue_queue'
+        : 'operation_log_queue',
+    executorName: hasAiWebhook
+      ? '外部 AI 执行器'
+      : hasGitHubToken
+        ? 'GitHub Issue 迭代队列'
+        : '站内日志迭代队列',
   };
 }
 
@@ -70,7 +83,6 @@ async function createGitHubIssue(requirement: string) {
         '3. 修改后必须说明改了哪里、优化了什么、验证结果。',
         '4. 需要管理员确认后再上线。',
       ].join('\n'),
-      labels: ['ai-auto-iteration'],
     }),
   });
 
@@ -202,6 +214,11 @@ export async function POST(request: NextRequest) {
       const issue = await createGitHubIssue(requirement);
       const executor = await triggerAiExecutor(requirement, issue?.url);
       const hasExecutor = Boolean(process.env.AI_ITERATION_WEBHOOK_URL);
+      const queueMode = hasExecutor
+        ? 'ai_webhook'
+        : issue?.url
+          ? 'github_issue_queue'
+          : 'operation_log_queue';
       const requestLog = JSON.stringify({
         requirement,
         createdAt,
@@ -209,7 +226,10 @@ export async function POST(request: NextRequest) {
           ? executor?.ok
             ? 'sent_to_ai_executor'
             : 'executor_failed'
-          : 'queued_without_executor',
+          : issue?.url
+            ? 'queued_to_github_issue'
+            : 'queued_to_operation_log',
+        queueMode,
         issueUrl: issue?.url || '',
         issueNumber: issue?.number || null,
         executorConfigured: hasExecutor,
@@ -226,7 +246,7 @@ export async function POST(request: NextRequest) {
         admin.userId,
         admin.username,
         'auto_iteration_trigger',
-        `提交 AI 迭代请求：${requirement}。${hasExecutor ? '已尝试发送给 AI 执行器。' : '未配置 AI 执行器，当前只记录请求。'}${issue?.url ? ` GitHub Issue：${issue.url}` : ''}`,
+        `提交 AI 迭代请求：${requirement}。执行模式：${queueMode}。${hasExecutor ? '已尝试发送给 AI 执行器。' : '未配置 AI Webhook，已进入免费迭代队列。'}${issue?.url ? ` GitHub Issue：${issue.url}` : ''}`,
       );
 
       return NextResponse.json({
@@ -234,7 +254,9 @@ export async function POST(request: NextRequest) {
           ? executor?.ok
             ? '已提交给 AI 执行器'
             : '已记录请求，但 AI 执行器调用失败'
-          : '已记录迭代请求，但还没接入真正的 AI 执行器',
+          : issue?.url
+            ? '已进入 GitHub Issue 迭代队列'
+            : '已进入站内日志迭代队列',
         changeLog: [
           issue?.url ? `已创建 GitHub Issue：${issue.url}` : '未配置 GITHUB_TOKEN，未创建 GitHub Issue',
           hasExecutor ? '已尝试通知 AI 执行器' : '未配置 AI_ITERATION_WEBHOOK_URL，后台不会自动改代码',

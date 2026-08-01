@@ -136,6 +136,45 @@ function toBool(value: string | undefined, fallback: boolean) {
   return value === 'true';
 }
 
+function getExecutorMode() {
+  if (process.env.AI_ITERATION_WEBHOOK_URL) {
+    return {
+      aiExecutorConfigured: true,
+      githubIssueConfigured: Boolean(process.env.GITHUB_TOKEN),
+      requestQueueConfigured: true,
+      executorMode: 'ai_webhook',
+      executorName: '外部 AI 执行器',
+    };
+  }
+
+  if (process.env.GITHUB_TOKEN) {
+    return {
+      aiExecutorConfigured: false,
+      githubIssueConfigured: true,
+      requestQueueConfigured: true,
+      executorMode: 'github_issue_queue',
+      executorName: 'GitHub Issue 迭代队列',
+    };
+  }
+
+  return {
+    aiExecutorConfigured: false,
+    githubIssueConfigured: false,
+    requestQueueConfigured: true,
+    executorMode: 'operation_log_queue',
+    executorName: '站内日志迭代队列',
+  };
+}
+
+async function safeRead<T>(label: string, task: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await task;
+  } catch (error) {
+    console.error(`[FREE DASHBOARD PARTIAL ERROR] ${label}`, error);
+    return fallback;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const admin = adminAuth(request);
@@ -148,8 +187,12 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+    const [deploy, codeIterations] = await Promise.all([
+      fetchDeployStatus(),
+      fetchRecentCodeIterations(),
+    ]);
+
     const [
-      deploy,
       toolCount,
       activeToolCount,
       userCount,
@@ -163,46 +206,74 @@ export async function GET(request: NextRequest) {
       hotTools,
       recentLogs,
       autoIterationSettings,
-      codeIterations,
     ] = await Promise.all([
-      fetchDeployStatus(),
-      prisma.tool.count(),
-      prisma.tool.count({ where: { isActive: true } }),
-      prisma.user.count(),
-      prisma.post.count({ where: { status: { not: 'DELETED' } } }),
-      prisma.post.count({
-        where: { status: { not: 'DELETED' }, createdAt: { gte: todayStart } },
-      }),
-      prisma.post.count({
-        where: { status: { not: 'DELETED' }, createdAt: { gte: weekStart } },
-      }),
-      prisma.comment.count({ where: { isApproved: false, deletedAt: null } }),
-      prisma.report.count({ where: { status: 'pending' } }),
-      prisma.order.count({ where: { status: { in: ['pending', 'paid'] } } }),
-      prisma.monitoringDaily.aggregate({
-        where: { date: { gte: monthStart, lt: monthEnd } },
-        _sum: {
-          functionInvocations: true,
-          edgeRequests: true,
-          cpuTimeMs: true,
-          dataTransferBytes: true,
+      safeRead('toolCount', prisma.tool.count(), 0),
+      safeRead('activeToolCount', prisma.tool.count({ where: { isActive: true } }), 0),
+      safeRead('userCount', prisma.user.count(), 0),
+      safeRead('postCount', prisma.post.count({ where: { status: { not: 'DELETED' } } }), 0),
+      safeRead(
+        'todayPostCount',
+        prisma.post.count({
+          where: { status: { not: 'DELETED' }, createdAt: { gte: todayStart } },
+        }),
+        0,
+      ),
+      safeRead(
+        'weekPostCount',
+        prisma.post.count({
+          where: { status: { not: 'DELETED' }, createdAt: { gte: weekStart } },
+        }),
+        0,
+      ),
+      safeRead('pendingComments', prisma.comment.count({ where: { isApproved: false, deletedAt: null } }), 0),
+      safeRead('pendingReports', prisma.report.count({ where: { status: 'pending' } }), 0),
+      safeRead('pendingOrders', prisma.order.count({ where: { status: { in: ['pending', 'paid'] } } }), 0),
+      safeRead(
+        'monthUsage',
+        prisma.monitoringDaily.aggregate({
+          where: { date: { gte: monthStart, lt: monthEnd } },
+          _sum: {
+            functionInvocations: true,
+            edgeRequests: true,
+            cpuTimeMs: true,
+            dataTransferBytes: true,
+          },
+        }),
+        {
+          _sum: {
+            functionInvocations: 0,
+            edgeRequests: 0,
+            cpuTimeMs: 0,
+            dataTransferBytes: BigInt(0),
+          },
         },
-      }),
-      prisma.tool.findMany({
-        where: { isActive: true },
-        orderBy: { clickCount: 'desc' },
-        take: 5,
-        select: { id: true, name: true, icon: true, clickCount: true, category: true },
-      }),
-      prisma.operationLog.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 6,
-        select: { id: true, username: true, action: true, detail: true, createdAt: true },
-      }),
-      prisma.systemSetting.findMany({
-        where: { key: { in: AUTO_ITERATION_KEYS } },
-      }),
-      fetchRecentCodeIterations(),
+      ),
+      safeRead(
+        'hotTools',
+        prisma.tool.findMany({
+          where: { isActive: true },
+          orderBy: { clickCount: 'desc' },
+          take: 5,
+          select: { id: true, name: true, icon: true, clickCount: true, category: true },
+        }),
+        [],
+      ),
+      safeRead(
+        'recentLogs',
+        prisma.operationLog.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 6,
+          select: { id: true, username: true, action: true, detail: true, createdAt: true },
+        }),
+        [],
+      ),
+      safeRead(
+        'autoIterationSettings',
+        prisma.systemSetting.findMany({
+          where: { key: { in: AUTO_ITERATION_KEYS } },
+        }),
+        [],
+      ),
     ]);
 
     const autoIterationMap = Object.fromEntries(
@@ -360,8 +431,7 @@ export async function GET(request: NextRequest) {
         lastRequest: autoIterationMap.auto_iteration_last_request || '',
         lastDeployApproval: autoIterationMap.auto_iteration_last_deploy_approval || '',
         manualDeployConfigured: Boolean(process.env.VERCEL_DEPLOY_HOOK_URL),
-        aiExecutorConfigured: Boolean(process.env.AI_ITERATION_WEBHOOK_URL),
-        githubIssueConfigured: Boolean(process.env.GITHUB_TOKEN),
+        ...getExecutorMode(),
       },
       freeStack: [
         { name: '代码托管', value: 'GitHub 免费仓库', status: '已使用' },

@@ -85,6 +85,9 @@ interface FreeDashboardData {
     manualDeployConfigured: boolean;
     aiExecutorConfigured: boolean;
     githubIssueConfigured: boolean;
+    requestQueueConfigured: boolean;
+    executorMode: string;
+    executorName: string;
   };
   freeStack: Array<{
     name: string;
@@ -129,6 +132,7 @@ function readAutoIterationLog(value: string) {
       createdAt?: string;
       status?: string;
       issueUrl?: string;
+      queueMode?: string;
       executorConfigured?: boolean;
       executorStatus?: number | null;
       guardrails?: string[];
@@ -142,19 +146,30 @@ export default function FreeDashboardPage() {
   const { token } = useAppStore();
   const [data, setData] = useState<FreeDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      setLoadError("未读取到管理员登录状态，请重新登录后台。");
+      return;
+    }
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch("/api/admin/free-dashboard", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         setData(await res.json());
+      } else {
+        const result = await res.json().catch(() => null);
+        setLoadError(result?.error || `看板接口返回 ${res.status}`);
       }
+    } catch {
+      setLoadError("看板接口请求失败，请稍后刷新或检查部署日志。");
     } finally {
       setLoading(false);
     }
@@ -312,19 +327,19 @@ export default function FreeDashboardPage() {
                       {data.autoIteration.safeMode ? "安全模式" : "扩展模式"}
                     </span>
                     <span className={`rounded-full px-2 py-0.5 text-xs ${
-                      data.autoIteration.aiExecutorConfigured
+                      data.autoIteration.requestQueueConfigured
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-700"
                     }`}>
-                      {data.autoIteration.aiExecutorConfigured ? "已接入 AI 执行器" : "未接入 AI 执行器"}
+                      已接入：{data.autoIteration.executorName}
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-indigo-800">
-                    只有配置了 AI 执行器 Webhook，后台点击后才会真的把需求交给外部 AI 去改代码；没配置时，只会记录迭代请求和可选创建 GitHub Issue。
+                    后台现在会把迭代请求放进执行队列。当前模式是“{data.autoIteration.executorName}”；只有配置外部 AI Webhook 时，才会自动把需求交给会写代码的 AI 执行器。
                   </p>
                   {!data.autoIteration.aiExecutorConfigured && (
-                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                      当前没有配置 <span className="font-mono">AI_ITERATION_WEBHOOK_URL</span>，所以它不会自动写代码。现在真正改代码的还是这边对话里的 AI。
+                    <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700">
+                      已接入免费请求队列，但还没接入能自动写代码的外部 AI。配置 <span className="font-mono">AI_ITERATION_WEBHOOK_URL</span> 后，才会自动交给代码执行器。
                     </div>
                   )}
                   {lastAutoRequest ? (
@@ -339,7 +354,9 @@ export default function FreeDashboardPage() {
                           ? "已发送给 AI 执行器"
                           : lastAutoRequest.status === "executor_failed"
                             ? "AI 执行器调用失败"
-                            : "未接入执行器，只记录请求"}
+                            : lastAutoRequest.status === "queued_to_github_issue"
+                              ? "已进入 GitHub Issue 迭代队列"
+                              : "已进入站内日志迭代队列"}
                       </p>
                       {lastAutoRequest.issueUrl && (
                         <a
@@ -589,8 +606,15 @@ export default function FreeDashboardPage() {
             </section>
           </>
         ) : (
-          <div className="text-center py-20 text-gray-400">
-            获取看板数据失败，请稍后刷新。
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
+            <p className="text-base font-semibold">看板数据暂时没出来</p>
+            <p className="mt-2 text-sm">{loadError || "获取看板数据失败，请稍后刷新。"}</p>
+            <button
+              onClick={fetchData}
+              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            >
+              重新加载
+            </button>
           </div>
         )}
       </div>
