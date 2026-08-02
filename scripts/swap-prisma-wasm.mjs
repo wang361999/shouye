@@ -28,9 +28,12 @@ const SMALL_JS_SRC_PATH = path.join(
 const SMALL_JS_DEST_PATH = path.join(PRISMA_CLIENT_DIR, 'query_compiler_small_bg.js');
 
 function main() {
+  // 【修复】fast WASM 不存在时优雅跳过，不中断部署
   if (!fs.existsSync(FAST_WASM_PATH)) {
-    console.error('[swap-prisma-wasm] Fast WASM not found:', FAST_WASM_PATH);
-    process.exit(1);
+    console.warn('[swap-prisma-wasm] Fast WASM not found:', FAST_WASM_PATH);
+    console.warn('[swap-prisma-wasm] 跳过 WASM 交换，使用默认配置继续部署。');
+    console.warn('[swap-prisma-wasm] 如果 Worker 体积超限，请检查 Prisma 客户端是否正确生成。');
+    return;  // 不再 process.exit(1)
   }
 
   if (!fs.existsSync(SMALL_WASM_B64_PATH)) {
@@ -73,3 +76,4 @@ function main() {
 }
 
 main();
+
