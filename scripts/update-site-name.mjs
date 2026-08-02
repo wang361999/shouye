@@ -40,14 +40,16 @@ async function main() {
   // 2. 更新设置
   log('更新 site_name 和 seo_title...');
   const updateRes = await fetch(`${SITE_URL}/api/admin/settings`, {
-    method: 'PUT',
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${loginData.token}`,
     },
     body: JSON.stringify({
-      site_name: 'Gitd',
-      seo_title: 'Gitd - 开发者工具集',
+      settings: {
+        site_name: 'Gitd',
+        seo_title: 'Gitd - 开发者工具集',
+      },
     }),
   });
 
