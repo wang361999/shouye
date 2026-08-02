@@ -19,8 +19,8 @@ const {
 
 // 每次最多回复 5 个帖子，避免 API 额度耗尽
 const MAX_REPLIES = 5;
-// 只回复最近 24 小时内发布的帖子
-const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
+// 回复最近 72 小时内发布的帖子（扩大窗口，确保能覆盖到自动发帖的帖子）
+const RECENT_WINDOW_MS = 72 * 60 * 60 * 1000;
 // 每次回复之间的礼貌延迟，避免对 AI API 和站点造成压力
 const REPLY_DELAY_MS = 2000;
 // 登录最大重试次数
@@ -110,7 +110,10 @@ async function fetchNewestPosts(token) {
 }
 
 // ===== 筛选需要回复的帖子 =====
-// 条件：最近 24 小时内发布、没有评论、未锁定、不是自己发的帖子
+// 条件：最近 72 小时内发布、没有评论、未锁定
+// 注意：不再跳过管理员发的帖子，因为自动发帖脚本也是用管理员账号发的，
+//       如果跳过管理员帖子，则所有帖子都不会被回复。
+//       防止重复回复靠 commentCount > 0 判断（回复成功后 commentCount 会 +1）。
 function filterPostsToReply(posts, adminUserId) {
   const now = Date.now();
   const cutoff = now - RECENT_WINDOW_MS;
@@ -122,15 +125,12 @@ function filterPostsToReply(posts, adminUserId) {
     // 没有评论（commentCount 由后端维护，反映已通过审核的评论数）
     if ((post.commentCount || 0) > 0) return false;
 
-    // 最近 24 小时内发布
+    // 最近 72 小时内发布
     const createdAt = new Date(post.createdAt).getTime();
     if (Number.isNaN(createdAt) || createdAt < cutoff) return false;
 
     // 跳过被锁定的帖子
     if (post.isLocked) return false;
-
-    // 跳过自己发的帖子，避免回复自动发帖脚本产生的帖子
-    if (adminUserId && post.author?.id === adminUserId) return false;
 
     return true;
   });
@@ -232,7 +232,7 @@ async function main() {
   const posts = await fetchNewestPosts(token);
   const targets = filterPostsToReply(posts, adminUserId);
 
-  log(`筛选出 ${targets.length} 个待回复帖子（最近 24 小时内、无评论）`);
+  log(`筛选出 ${targets.length} 个待回复帖子（最近 72 小时内、无评论）`);
 
   if (targets.length === 0) {
     log('没有需要回复的帖子，任务结束');

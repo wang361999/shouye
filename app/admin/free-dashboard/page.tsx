@@ -170,6 +170,13 @@ export default function FreeDashboardPage() {
     replyEnabled: true,
   });
   const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [triggerLoading, setTriggerLoading] = useState(false);
+  const [triggerResult, setTriggerResult] = useState<{
+    message: string;
+    results: Array<{ workflow: string; name: string; status: string; message?: string }>;
+    successCount: number;
+    failedCount: number;
+  } | null>(null);
 
   const fetchSchedule = useCallback(async () => {
     if (!token) return;
@@ -272,7 +279,7 @@ export default function FreeDashboardPage() {
           </div>
         ) : data ? (
           <>
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className={`rounded-2xl border p-5 ${levelStyle[data.health.level].card}`}>
                 <div className="flex items-center justify-between">
                   <div>
@@ -320,16 +327,6 @@ export default function FreeDashboardPage() {
                     </a>
                   )}
                 </div>
-              </div>
-
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-                <p className="text-sm font-medium text-blue-700">免费策略</p>
-                <p className="mt-2 text-2xl font-bold text-blue-900">
-                  先用免费额度跑
-                </p>
-                <p className="mt-3 text-sm text-blue-700">
-                  目前看板不依赖付费监控服务。只有当流量、数据库或 AI 自动化超过免费额度时，才需要考虑付费。
-                </p>
               </div>
             </section>
 
@@ -635,78 +632,71 @@ export default function FreeDashboardPage() {
               </div>
             </section>
 
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 lg:col-span-2">
-                <h2 className="font-semibold text-gray-900 mb-4">下一步建议</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {data.suggestions.map((item, index) => (
-                    <div key={index} className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-sm text-gray-700">
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <h2 className="font-semibold text-gray-900 mb-4">免费组件</h2>
-                <div className="space-y-3">
-                  {data.freeStack.map((item) => (
-                    <div key={item.name} className="text-sm">
-                      <div className="flex justify-between gap-3">
-                        <span className="font-medium text-gray-700">{item.name}</span>
-                        <span className="text-xs text-green-600">{item.status}</span>
-                      </div>
-                      <p className="mt-0.5 text-xs text-gray-500">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <h2 className="font-semibold text-gray-900 mb-4">热门工具</h2>
-                {data.hotTools.length === 0 ? (
-                  <p className="text-sm text-gray-400">暂无工具数据</p>
-                ) : (
-                  <div className="space-y-3">
-                    {data.hotTools.map((tool, index) => (
-                      <div key={tool.id} className="flex items-center gap-3">
-                        <span className="w-6 text-sm text-gray-400">#{index + 1}</span>
-                        <span className="text-lg">{tool.icon || "🧩"}</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-gray-800">{tool.name}</p>
-                          <p className="text-xs text-gray-400">{tool.category || "未分类"}</p>
-                        </div>
-                        <span className="text-sm text-gray-600">{tool.clickCount} 次</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <h2 className="font-semibold text-gray-900 mb-4">最近操作</h2>
-                {data.recentLogs.length === 0 ? (
-                  <p className="text-sm text-gray-400">暂无操作记录</p>
-                ) : (
-                  <div className="space-y-3">
-                    {data.recentLogs.map((log) => (
-                      <div key={log.id} className="border-l-2 border-gray-200 pl-3">
-                        <p className="text-sm font-medium text-gray-800">{log.action}</p>
-                        <p className="mt-0.5 text-xs text-gray-500 line-clamp-1">
-                          {log.detail || "无详情"} · {log.username || "系统"}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
             <section className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
-              <h2 className="font-semibold text-purple-950 mb-1">定时任务设置</h2>
-              <p className="text-sm text-purple-700 mb-4">设定自动巡检和自动发帖的执行时间（北京时间）。</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-1">
+                <h2 className="font-semibold text-purple-950">定时任务设置</h2>
+                <button
+                  onClick={async () => {
+                    if (!token) return;
+                    setTriggerLoading(true);
+                    setTriggerResult(null);
+                    try {
+                      const res = await fetch("/api/admin/trigger-all-workflows", {
+                        method: "POST",
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                      const result = await res.json();
+                      if (res.ok) {
+                        setTriggerResult(result);
+                      } else {
+                        setTriggerResult({
+                          message: result.error || "触发失败",
+                          results: [],
+                          successCount: 0,
+                          failedCount: 0,
+                        });
+                      }
+                    } catch {
+                      setTriggerResult({
+                        message: "网络请求失败",
+                        results: [],
+                        successCount: 0,
+                        failedCount: 0,
+                      });
+                    } finally {
+                      setTriggerLoading(false);
+                    }
+                  }}
+                  disabled={triggerLoading}
+                  className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-60 transition-colors"
+                >
+                  {triggerLoading ? "触发中..." : "一键触发所有工作流"}
+                </button>
+              </div>
+              <p className="text-sm text-purple-700 mb-4">设定自动巡检和自动发帖的执行时间（北京时间），或点击上方按钮立即触发所有自动化任务。</p>
+
+              {triggerResult && (
+                <div className="mb-4 rounded-xl border border-purple-100 bg-white p-4">
+                  <p className="text-sm font-medium text-gray-900 mb-2">{triggerResult.message}</p>
+                  {triggerResult.results.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {triggerResult.results.map((r) => (
+                        <div
+                          key={r.workflow}
+                          className={`rounded-lg px-3 py-2 text-xs ${
+                            r.status === "success"
+                              ? "bg-green-50 text-green-700 border border-green-100"
+                              : "bg-red-50 text-red-700 border border-red-100"
+                          }`}
+                        >
+                          <p className="font-medium">{r.name}</p>
+                          <p className="mt-0.5">{r.status === "success" ? "已触发" : r.message || "失败"}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="rounded-xl border border-purple-100 bg-white p-4">
                   <div className="flex items-center justify-between mb-2">

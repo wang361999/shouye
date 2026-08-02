@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { sendNotification } from '@/lib/notify';
+import { revalidateCommunityHome } from '@/lib/revalidate';
 
 // ============ 简单敏感词列表 ============
 const SENSITIVE_WORDS = [
@@ -296,6 +297,9 @@ export async function POST(request: NextRequest) {
         data: { commentCount: { increment: 1 } },
       });
     }
+
+    // 刷新社区首页缓存，使最新评论数立即反映在首页
+    revalidateCommunityHome();
 
     // ---- 通知帖子作者有新回复（评论者不是作者时） ----
     if (user.userId !== post.authorId) {
