@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { stripMarkdown, truncateText, formatTimeAgo } from '@/lib/utils';
 
-// 始终动态渲染，避免删除帖子/召集令后因 ISR 缓存导致前端仍展示旧数据
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// ISR 缓存 5 分钟，大幅减少数据库查询和 CPU 消耗
+// 删帖等操作后可通过 revalidateCommunityHome() 主动刷新
+export const revalidate = 300;
 
 /**
  * GET /api/community/home - 社区首页聚合数据

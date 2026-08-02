@@ -2,8 +2,8 @@ name: Auto categorizer
 
 on:
   schedule:
-    # 每 6 小时执行一次
-    - cron: '0 */6 * * *'
+    # 每天 1 次（UTC 4:00 = 北京 12:00），减少 Vercel API 调用
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       force:

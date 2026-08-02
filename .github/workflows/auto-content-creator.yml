@@ -2,8 +2,8 @@ name: Auto content creator
 
 on:
   schedule:
-    # 每小时检查一次，到设定时间才执行
-    - cron: '0 * * * *'
+    # 每天 1 次（UTC 8:00 = 北京 16:00），减少 Vercel API 调用
+    - cron: '0 8 * * *'
   workflow_dispatch:
     inputs:
       post_topic:

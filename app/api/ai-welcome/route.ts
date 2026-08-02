@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// 缓存 10 分钟，减少数据库查询
+export const revalidate = 600;
+
 /**
  * GET /api/ai-welcome
  * AI Agent 欢迎页面 - 返回结构化的站点能力描述

@@ -2,8 +2,8 @@ name: Auto SEO optimizer
 
 on:
   schedule:
-    # 每小时检查一次，到设定时间才执行
-    - cron: '0 * * * *'
+    # 每天 1 次（UTC 6:00 = 北京 14:00），减少 Vercel API 调用
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       force:

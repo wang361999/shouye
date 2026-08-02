@@ -2,6 +2,10 @@ import type { Metadata } from 'next';
 import prisma from '@/lib/prisma';
 import CommunityHomeClient from '@/components/home/CommunityHomeClient';
 
+// 首页 ISR 缓存 10 分钟，大幅减少 SSR CPU 消耗
+// 站点设置变更后可通过 revalidatePath 主动刷新
+export const revalidate = 600;
+
 const DEFAULT_SITE_NAME = 'Gitd';
 const DEFAULT_SITE_DESC = '开发者交流社区';
 

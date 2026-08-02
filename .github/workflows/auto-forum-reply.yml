@@ -2,8 +2,8 @@ name: Auto forum reply
 
 on:
   schedule:
-    # 每 2 小时检查一次
-    - cron: '0 */2 * * *'
+    # 每 12 小时检查一次（减少 Vercel API 调用）
+    - cron: '0 2,14 * * *'
   workflow_dispatch:
     inputs:
       force:

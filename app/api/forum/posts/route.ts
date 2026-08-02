@@ -150,6 +150,11 @@ export async function GET(request: NextRequest) {
       total,
       page,
       totalPages: Math.ceil(total / limit),
+    }, {
+      headers: {
+        // 公开帖子列表缓存 60 秒，减少数据库查询
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+      },
     });
   } catch (error) {
     console.error('[POSTS LIST ERROR]', error);

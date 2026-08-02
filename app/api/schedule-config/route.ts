@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export const dynamic = 'force-dynamic';
+// 缓存 5 分钟，减少数据库查询（工作流检查频率已降低到每 6 小时）
+export const revalidate = 300;
 
 const SETTING_KEY = 'schedule_config';
 
@@ -25,12 +26,18 @@ export async function GET() {
     });
 
     if (!setting) {
-      return NextResponse.json(DEFAULT_SCHEDULE);
+      return NextResponse.json(DEFAULT_SCHEDULE, {
+        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+      });
     }
 
     const config = { ...DEFAULT_SCHEDULE, ...JSON.parse(setting.value) };
-    return NextResponse.json(config);
+    return NextResponse.json(config, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+    });
   } catch {
-    return NextResponse.json(DEFAULT_SCHEDULE);
+    return NextResponse.json(DEFAULT_SCHEDULE, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+    });
   }
 }

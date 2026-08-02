@@ -2,8 +2,8 @@ name: Daily auto patrol
 
 on:
   schedule:
-    # 每小时检查一次，到设定时间才执行
-    - cron: '0 * * * *'
+    # 每 6 小时检查一次（减少 Vercel API 调用），到设定时间才执行
+    - cron: '0 1,7,13,19 * * *'
   workflow_dispatch:
     inputs:
       requirement:
