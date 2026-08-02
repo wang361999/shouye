@@ -18,11 +18,9 @@
 
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
 
 const {
-  AI_API_KEY = '',
-  AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  AI_MODEL = 'gemini-3.6-flash',
   GH_TOKEN = '',
   GITHUB_TOKEN = '',
   GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY || '',
@@ -39,14 +37,11 @@ function warn(...args) {
   console.warn(TAG, ...args);
 }
 function fail(message) {
-  console.error(`${TAG} ${message}`);
+  console.error(`::error::${TAG} ${message}`);
   process.exit(1);
 }
 
 // ===== 环境校验 =====
-if (!AI_API_KEY) {
-  fail('缺少 AI_API_KEY。请在仓库 Settings → Secrets → Actions 中配置 AI_API_KEY（免费获取：https://aistudio.google.com/apikey）');
-}
 const token = GH_TOKEN || GITHUB_TOKEN;
 if (!token) fail('缺少 GH_TOKEN / GITHUB_TOKEN。');
 if (!PR_NUMBER) fail('缺少 PR_NUMBER。');
@@ -121,49 +116,21 @@ async function reviewDiff(diff) {
 ${truncate(diff, MAX_DIFF_CHARS)}
 `;
 
-  const requestBody = {
-    model: AI_MODEL,
-    temperature: 0.3,
-    max_tokens: 16384,
-    messages: [
-      {
-        role: 'system',
-        content:
-          '你是资深代码审查员，擅长发现代码质量、安全和最佳实践方面的问题。用中文输出结构化的 Markdown 审查意见，只输出审查意见，不要修改代码。',
-      },
-      { role: 'user', content: prompt },
-    ],
-  };
+  const systemPrompt =
+    '你是资深代码审查员，擅长发现代码质量、安全和最佳实践方面的问题。用中文输出结构化的 Markdown 审查意见，只输出审查意见，不要修改代码。';
 
   log('调用 AI API 进行代码审查...');
-  log(`API 地址：${AI_API_BASE}`);
-  log(`模型：${AI_MODEL}`);
   log(`prompt 长度：约 ${prompt.length} 字符`);
 
-  const res = await fetch(AI_API_BASE, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
+  const content = await callAI({
+    prompt,
+    systemPrompt,
+    maxTokens: 16384,
+    tag: TAG,
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`${TAG} AI API 失败：${res.status}`);
-    console.error(`${TAG} 响应内容：${text.slice(0, 1000)}`);
-    fail(`AI API 请求失败：${res.status} ${text.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    console.error(`${TAG} API 返回数据：`, JSON.stringify(data).slice(0, 1000));
-    fail('AI API 没有返回内容');
-  }
   log(`审查结果长度：${content.length} 字符`);
-  return content.trim();
+  return content;
 }
 
 // ===== 发布 PR 评论 =====
@@ -195,6 +162,11 @@ if (!diff || !diff.trim()) {
 }
 
 log(`diff 长度：${diff.length} 字符`);
+
+const health = await checkAIHealth(TAG);
+if (!health) {
+  fail('AI API 预检失败，请检查 AI_API_KEY 和 AI_MODEL 配置');
+}
 
 let review;
 try {

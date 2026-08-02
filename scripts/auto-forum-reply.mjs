@@ -9,13 +9,12 @@
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL
  */
 
+import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
+
 const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
-  AI_API_KEY = '',
-  AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  AI_MODEL = 'gemini-3.6-flash',
 } = process.env;
 
 // 每次最多回复 5 个帖子，避免 API 额度耗尽
@@ -24,17 +23,22 @@ const MAX_REPLIES = 5;
 const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
 // 每次回复之间的礼貌延迟，避免对 AI API 和站点造成压力
 const REPLY_DELAY_MS = 2000;
+// 登录最大重试次数
+const LOGIN_MAX_RETRIES = 2;
+const LOGIN_RETRY_DELAY_MS = 3000;
+
+const TAG = '[auto-forum-reply]';
 
 function log(message) {
-  console.log(`[auto-forum-reply] ${message}`);
+  console.log(`${TAG} ${message}`);
 }
 
 function warn(message) {
-  console.warn(`[auto-forum-reply] ${message}`);
+  console.warn(`${TAG} ${message}`);
 }
 
 function fail(message) {
-  console.error(`[auto-forum-reply] ${message}`);
+  console.error(`::error::${TAG} ${message}`);
   process.exit(1);
 }
 
@@ -46,34 +50,51 @@ function sleep(ms) {
 if (!SITE_URL) fail('缺少 SITE_URL');
 if (!ADMIN_USERNAME) fail('缺少 ADMIN_USERNAME');
 if (!ADMIN_PASSWORD) fail('缺少 ADMIN_PASSWORD');
-if (!AI_API_KEY) fail('缺少 AI_API_KEY');
-if (!AI_API_BASE) fail('缺少 AI_API_BASE');
-if (!AI_MODEL) fail('缺少 AI_MODEL');
 
-// ===== 登录管理员账号 =====
+// ===== 登录管理员账号（带重试）=====
 async function login() {
-  log(`登录 ${SITE_URL} ...`);
-  const res = await fetch(`${SITE_URL}/api/auth`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }),
-  });
+  for (let attempt = 0; attempt <= LOGIN_MAX_RETRIES; attempt++) {
+    try {
+      log(`登录 ${SITE_URL} ...（第 ${attempt + 1} 次尝试）`);
+      const res = await siteFetch(`${SITE_URL}/api/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }),
+      });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    fail(`登录失败：${res.status} ${text.slice(0, 300)}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        if (attempt < LOGIN_MAX_RETRIES) {
+          warn(`登录失败：${res.status}，${LOGIN_RETRY_DELAY_MS}ms 后重试...`);
+          await sleep(LOGIN_RETRY_DELAY_MS);
+          continue;
+        }
+        fail(`登录失败：${res.status} ${text.slice(0, 300)}`);
+      }
+
+      const data = await res.json();
+      if (!data.token) fail('登录返回中没有 token');
+      log(`登录成功，用户：${data.user?.username}（角色：${data.user?.role || '未知'}）`);
+      return data;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        warn(`登录超时，${LOGIN_RETRY_DELAY_MS}ms 后重试...`);
+      } else {
+        warn(`登录异常：${error?.message || error}，${LOGIN_RETRY_DELAY_MS}ms 后重试...`);
+      }
+      if (attempt < LOGIN_MAX_RETRIES) {
+        await sleep(LOGIN_RETRY_DELAY_MS);
+        continue;
+      }
+      fail(`登录失败（已重试 ${LOGIN_MAX_RETRIES + 1} 次）：${error?.message || error}`);
+    }
   }
-
-  const data = await res.json();
-  if (!data.token) fail('登录返回中没有 token');
-  log(`登录成功，用户：${data.user?.username}（角色：${data.user?.role || '未知'}）`);
-  return data;
 }
 
 // ===== 获取最新论坛帖子列表 =====
 async function fetchNewestPosts(token) {
   log('获取最新论坛帖子列表 ...');
-  const res = await fetch(`${SITE_URL}/api/forum/posts?sort=newest&limit=20`, {
+  const res = await siteFetch(`${SITE_URL}/api/forum/posts?sort=newest&limit=20`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -145,44 +166,20 @@ ${content}
 
   log(`调用 AI 生成回复，帖子：${title}`);
 
-  const res = await fetch(AI_API_BASE, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      temperature: 0.7,
-      max_tokens: 2048,
-      messages: [
-        {
-          role: 'system',
-          content: '你是一个友善的技术社区助手，擅长回答编程问题、参与技术讨论。你的回复专业、真诚、有实际帮助。',
-        },
-        { role: 'user', content: prompt },
-      ],
-    }),
+  const replyContent = await callAI({
+    prompt,
+    systemPrompt: '你是一个友善的技术社区助手，擅长回答编程问题、参与技术讨论。你的回复专业、真诚、有实际帮助。',
+    maxTokens: 2048,
+    tag: TAG,
   });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`AI API 失败：${res.status} ${text.slice(0, 500)}`);
-  }
-
-  const data = await res.json();
-  const replyContent = data?.choices?.[0]?.message?.content;
-  if (!replyContent || !replyContent.trim()) {
-    throw new Error('AI 没有返回有效内容');
-  }
-
   log(`回复生成完成，长度：${replyContent.length}`);
-  return replyContent.trim();
+  return replyContent;
 }
 
 // ===== 发布评论 =====
 async function postComment(token, postId, content) {
-  const res = await fetch(`${SITE_URL}/api/forum/comments`, {
+  const res = await siteFetch(`${SITE_URL}/api/forum/comments`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -220,9 +217,18 @@ async function replyToPost(token, post) {
 async function main() {
   log('=== 自动论坛回复任务开始 ===');
 
+  // 预检 AI API 连通性
+  const healthyModel = await checkAIHealth(TAG);
+  if (!healthyModel) {
+    fail('AI API 预检失败，所有模型均不可用，终止任务');
+  }
+  log(`使用 AI 模型：${healthyModel}`);
+
+  // 登录
   const { token, user } = await login();
   const adminUserId = user?.id;
 
+  // 获取帖子
   const posts = await fetchNewestPosts(token);
   const targets = filterPostsToReply(posts, adminUserId);
 
@@ -260,7 +266,7 @@ async function main() {
 
   // 全部失败时以非零状态退出，便于在 CI 中发现问题
   if (successCount === 0 && failCount > 0) {
-    fail('所有回复均失败，请检查配置或日志');
+    fail('所有回复均失败，请检查 AI API 配置或站点接口');
   }
 }
 

@@ -3,14 +3,12 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
 
 const {
   GITHUB_TOKEN,
   GITHUB_REPOSITORY,
   ISSUE_NUMBER,
-  AI_API_KEY = '',
-  AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  AI_MODEL = 'gemini-3.6-flash',
 } = process.env;
 
 const MAX_CONTEXT_CHARS = 120_000;
@@ -19,21 +17,20 @@ const MAX_SELECTED_FILES = 30;
 const SUMMARY_PATH = 'AI_ITERATION_SUMMARY.md';
 
 function fail(message) {
-  console.error(`[free-ai-issue-executor] ${message}`);
+  console.error(`::error::[free-ai-issue-executor] ${message}`);
   process.exit(1);
 }
 
 if (!GITHUB_TOKEN) fail('缺少 GITHUB_TOKEN');
 if (!GITHUB_REPOSITORY) fail('缺少 GITHUB_REPOSITORY');
 if (!ISSUE_NUMBER) fail('缺少 ISSUE_NUMBER');
-if (!AI_API_KEY) fail('缺少 AI_API_KEY。请在 GitHub 仓库 Settings → Secrets → Actions 中添加 AI_API_KEY（免费获取：https://aistudio.google.com/apikey）');
 
 function run(command, args) {
   return execFileSync(command, args, { encoding: 'utf8' }).trim();
 }
 
 async function githubFetch(url, options = {}) {
-  const res = await fetch(url, {
+  const res = await siteFetch(url, {
     ...options,
     headers: {
       Accept: 'application/vnd.github+json',
@@ -190,7 +187,7 @@ function parseResponse(text) {
     return delimResult;
   }
 
-  console.error('[free-ai-issue-executor] 模型返回内容（前 800 字符）：', text.slice(0, 800));
+  console.error(`::error::[free-ai-issue-executor] 模型返回内容（前 800 字符）：${text.slice(0, 800)}`);
   fail('无法解析模型返回内容（JSON 和分隔符格式均失败）');
 }
 
@@ -295,50 +292,19 @@ ${repoContext.tree}
 ${repoContext.context}
 `;
 
-  const requestBody = {
-    model: AI_MODEL,
-    temperature: 0.3,
-    max_tokens: 65_536,
-    messages: [
-      {
-        role: 'system',
-        content: '你是专业的全栈开发工程师。你必须仔细阅读代码、找到问题根因并修复。禁止敷衍回复"没问题"。本项目部署在 Vercel 免费版，使用 React 18 + Next.js 14，禁止引入新依赖、禁止使用 React 19+ API、禁止修改配置文件和中间件。所有 fetch 必须有 8 秒超时和错误处理。按照指定的分隔符格式输出。',
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-  };
+  const systemPrompt = '你是专业的全栈开发工程师。你必须仔细阅读代码、找到问题根因并修复。禁止敷衍回复"没问题"。本项目部署在 Vercel 免费版，使用 React 18 + Next.js 14，禁止引入新依赖、禁止使用 React 19+ API、禁止修改配置文件和中间件。所有 fetch 必须有 8 秒超时和错误处理。按照指定的分隔符格式输出。';
 
   console.log('[free-ai-issue-executor] 调用 AI API...');
-  console.log(`[free-ai-issue-executor] API 地址：${AI_API_BASE}`);
-  console.log(`[free-ai-issue-executor] 模型：${AI_MODEL}`);
   console.log(`[free-ai-issue-executor] prompt 长度：约 ${prompt.length} 字符`);
   console.log(`[free-ai-issue-executor] 上下文文件数：${repoContext.selectedCount || '未知'}`);
 
-  const res = await fetch(AI_API_BASE, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
+  const content = await callAI({
+    prompt,
+    systemPrompt,
+    maxTokens: 65_536,
+    tag: '[free-ai-issue-executor]',
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`[free-ai-issue-executor] AI API 失败：${res.status}`);
-    console.error(`[free-ai-issue-executor] 响应内容：${text.slice(0, 1000)}`);
-    fail(`AI API 请求失败：${res.status} ${text.slice(0, 500)}`);
-  }
-
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    console.error('[free-ai-issue-executor] API 返回数据：', JSON.stringify(data).slice(0, 1000));
-    fail('AI API 没有返回内容');
-  }
   console.log(`[free-ai-issue-executor] 模型返回内容长度：${content.length} 字符`);
   console.log(`[free-ai-issue-executor] 返回内容预览：${content.slice(0, 200)}`);
   return parseResponse(content);
@@ -374,7 +340,7 @@ function applyChanges(result) {
     writeFileSync(SUMMARY_PATH, [
       `# AI 自动迭代结果`,
       ``,
-      `模型：${AI_MODEL}`,
+      `模型：由共享 AI 客户端模块管理`,
       ``,
       `## 摘要`,
       ``,
@@ -397,7 +363,7 @@ function applyChanges(result) {
   const summary = [
     `# AI 自动迭代结果`,
     ``,
-    `模型：${AI_MODEL}`,
+    `模型：由共享 AI 客户端模块管理`,
     ``,
     `## 摘要`,
     ``,
@@ -422,6 +388,12 @@ function applyChanges(result) {
 const [owner, repo] = GITHUB_REPOSITORY.split('/');
 const issue = await githubFetch(`https://api.github.com/repos/${owner}/${repo}/issues/${ISSUE_NUMBER}`);
 const repoContext = collectContext(issue);
+
+const health = await checkAIHealth('[free-ai-issue-executor]');
+if (!health) {
+  fail('AI API 预检失败，请检查 AI_API_KEY 和 AI_MODEL 配置');
+}
+
 const result = await callModel(issue, repoContext);
 const applied = applyChanges(result);
 

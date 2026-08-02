@@ -14,13 +14,11 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
 
 const {
   GITHUB_TOKEN = '',
   GITHUB_REPOSITORY = '',
-  AI_API_KEY = '',
-  AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  AI_MODEL = 'gemini-3.6-flash',
 } = process.env;
 
 const MAX_FILE_CHARS = 15_000;
@@ -29,12 +27,8 @@ const MAX_SELECTED_FILES = 20;
 const SUMMARY_PATH = 'AI_ITERATION_SUMMARY.md';
 
 function fail(message) {
-  console.error(`[auto-seo-optimizer] ${message}`);
+  console.error(`::error::[auto-seo-optimizer] ${message}`);
   process.exit(1);
-}
-
-if (!AI_API_KEY) {
-  fail('缺少 AI_API_KEY。请在 GitHub 仓库 Settings → Secrets → Actions 中添加 AI_API_KEY（免费获取：https://aistudio.google.com/apikey）');
 }
 
 function run(command, args) {
@@ -207,7 +201,7 @@ function parseResponse(text) {
     return delimResult;
   }
 
-  console.error('[auto-seo-optimizer] 模型返回内容（前 800 字符）：', text.slice(0, 800));
+  console.error(`::error::[auto-seo-optimizer] 模型返回内容（前 800 字符）：${text.slice(0, 800)}`);
   fail('无法解析模型返回内容（分隔符格式解析失败）');
 }
 
@@ -276,49 +270,21 @@ ${repoContext.table}
 ${repoContext.context}
 `;
 
-  const requestBody = {
-    model: AI_MODEL,
-    temperature: 0.7,
-    max_tokens: 16_384,
-    messages: [
-      {
-        role: 'system',
-        content:
-          '你是专业的 Next.js SEO 工程师。你只负责为页面补充 SEO metadata，不做无关改动。按照指定的分隔符格式输出，文件内容直接输出原始代码，不要用代码块包裹。',
-      },
-      { role: 'user', content: prompt },
-    ],
-  };
+  const systemPrompt =
+    '你是专业的 Next.js SEO 工程师。你只负责为页面补充 SEO metadata，不做无关改动。按照指定的分隔符格式输出，文件内容直接输出原始代码，不要用代码块包裹。';
 
   console.log('[auto-seo-optimizer] 调用 AI API...');
-  console.log(`[auto-seo-optimizer] API 地址：${AI_API_BASE}`);
-  console.log(`[auto-seo-optimizer] 模型：${AI_MODEL}`);
   console.log(`[auto-seo-optimizer] prompt 长度：约 ${prompt.length} 字符`);
   console.log(`[auto-seo-optimizer] 上下文文件数：${repoContext.included.length}`);
   console.log(`[auto-seo-optimizer] 需要优化的文件数：${repoContext.needingCount}`);
 
-  const res = await fetch(AI_API_BASE, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
+  const content = await callAI({
+    prompt,
+    systemPrompt,
+    maxTokens: 16_384,
+    tag: '[auto-seo-optimizer]',
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`[auto-seo-optimizer] AI API 失败：${res.status}`);
-    console.error(`[auto-seo-optimizer] 响应内容：${text.slice(0, 1000)}`);
-    fail(`AI API 请求失败：${res.status} ${text.slice(0, 500)}`);
-  }
-
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    console.error('[auto-seo-optimizer] API 返回数据：', JSON.stringify(data).slice(0, 1000));
-    fail('AI API 没有返回内容');
-  }
   console.log(`[auto-seo-optimizer] 模型返回内容长度：${content.length} 字符`);
   console.log(`[auto-seo-optimizer] 返回内容预览：${content.slice(0, 200)}`);
   return parseResponse(content);
@@ -354,7 +320,7 @@ function applyChanges(result) {
   const summary = [
     `# AI 自动 SEO 优化结果`,
     ``,
-    `模型：${AI_MODEL}`,
+    `模型：由共享 AI 客户端模块管理`,
     `仓库：${GITHUB_REPOSITORY || '未知'}`,
     `执行时间：${new Date().toISOString()}`,
     ``,
@@ -393,7 +359,7 @@ if (scan.needingOptimization.length === 0) {
   const summary = [
     `# AI 自动 SEO 优化结果`,
     ``,
-    `模型：${AI_MODEL}`,
+    `模型：由共享 AI 客户端模块管理`,
     `仓库：${GITHUB_REPOSITORY || '未知'}`,
     `执行时间：${new Date().toISOString()}`,
     ``,
@@ -416,6 +382,12 @@ if (scan.needingOptimization.length === 0) {
 }
 
 const repoContext = buildContext(scan);
+
+const health = await checkAIHealth('[auto-seo-optimizer]');
+if (!health) {
+  fail('AI API 预检失败，请检查 AI_API_KEY 和 AI_MODEL 配置');
+}
+
 const result = await callModel(scan, repoContext);
 const applied = applyChanges(result);
 

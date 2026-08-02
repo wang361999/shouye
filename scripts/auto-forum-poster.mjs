@@ -8,23 +8,22 @@
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL
  */
 
+import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
+
 const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
-  AI_API_KEY = '',
-  AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  AI_MODEL = 'gemini-3.6-flash',
   POST_TOPIC = '', // tutorial | opensource | random
 } = process.env;
 
-function fail(message) {
-  console.error(`[auto-forum-poster] ${message}`);
-  process.exit(1);
-}
+const TAG = '[auto-forum-poster]';
 
-if (!AI_API_KEY) fail('缺少 AI_API_KEY');
+function log(message) { console.log(`${TAG} ${message}`); }
+function fail(message) { console.error(`::error::${TAG} ${message}`); process.exit(1); }
+
 if (!ADMIN_PASSWORD) fail('缺少 ADMIN_PASSWORD');
+if (!SITE_URL) fail('缺少 SITE_URL');
 
 // ===== 论坛帖子主题池 =====
 const TOPICS = {
@@ -74,32 +73,34 @@ function pickTopic() {
   return { topicType, title };
 }
 
+// ===== 登录 =====
 async function login() {
-  console.log(`[auto-forum-poster] 登录 ${SITE_URL}...`);
-  const res = await fetch(`${SITE_URL}/api/auth`, {
+  log(`登录 ${SITE_URL}...`);
+  const res = await siteFetch(`${SITE_URL}/api/auth`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }),
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    fail(`登录失败：${res.status} ${text}`);
+    const text = await res.text().catch(() => '');
+    fail(`登录失败：${res.status} ${text.slice(0, 300)}`);
   }
 
   const data = await res.json();
   if (!data.token) fail('登录返回中没有 token');
-  console.log(`[auto-forum-poster] 登录成功，用户：${data.user?.username}`);
+  log(`登录成功，用户：${data.user?.username}`);
   return data.token;
 }
 
+// ===== 获取分类 =====
 async function fetchCategories(token) {
-  const res = await fetch(`${SITE_URL}/api/forum/categories`, {
+  const res = await siteFetch(`${SITE_URL}/api/forum/categories`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
   if (!res.ok) {
-    console.warn(`[auto-forum-poster] 获取分类失败：${res.status}`);
+    log(`获取分类失败：${res.status}`);
     return [];
   }
 
@@ -107,6 +108,7 @@ async function fetchCategories(token) {
   return Array.isArray(data.categories) ? data.categories : [];
 }
 
+// ===== 调用 AI 生成帖子内容 =====
 async function generatePostContent(title, topicType, categories) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
   const typeHint = topicType === 'tutorial'
@@ -140,50 +142,27 @@ async function generatePostContent(title, topicType, categories) {
 论坛现有分类：${categoryNames}
 如果分类里有合适的就推荐一个分类名（放在 categoryId 字段，用分类的 id），没有合适的就不填。`;
 
-  console.log(`[auto-forum-poster] 调用 AI 生成帖子：${title}`);
+  log(`调用 AI 生成帖子：${title}`);
 
-  const res = await fetch(AI_API_BASE, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      temperature: 0.8,
-      max_tokens: 8_000,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: '你是技术社区内容创作者，擅长写高质量的编程教程和开源项目推荐文章。只输出严格 JSON。',
-        },
-        { role: 'user', content: prompt },
-      ],
-    }),
+  const content = await callAI({
+    prompt,
+    systemPrompt: '你是技术社区内容创作者，擅长写高质量的编程教程和开源项目推荐文章。只输出严格 JSON。',
+    maxTokens: 8000,
+    responseFormat: { type: 'json_object' },
+    tag: TAG,
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    fail(`AI API 失败：${res.status} ${text.slice(0, 500)}`);
-  }
-
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) fail('AI 没有返回内容');
-
   const parsed = JSON.parse(content);
-  console.log(`[auto-forum-poster] 帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
+  log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
   return parsed;
 }
 
+// ===== 发布帖子 =====
 async function publishPost(token, postData, categories) {
-  // 尝试匹配分类
   let categoryId = null;
   if (postData.categoryId) {
     categoryId = postData.categoryId;
   } else if (categories.length > 0) {
-    // 默认选第一个分类
     categoryId = categories[0].id;
   }
 
@@ -198,9 +177,9 @@ async function publishPost(token, postData, categories) {
     body.tags = postData.tags.slice(0, 5);
   }
 
-  console.log(`[auto-forum-poster] 发布帖子到 ${SITE_URL}/api/forum/posts...`);
+  log(`发布帖子到 ${SITE_URL}/api/forum/posts...`);
 
-  const res = await fetch(`${SITE_URL}/api/forum/posts`, {
+  const res = await siteFetch(`${SITE_URL}/api/forum/posts`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -210,23 +189,30 @@ async function publishPost(token, postData, categories) {
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    fail(`发帖失败：${res.status} ${text}`);
+    const text = await res.text().catch(() => '');
+    fail(`发帖失败：${res.status} ${text.slice(0, 300)}`);
   }
 
   const result = await res.json();
-  console.log(`[auto-forum-poster] 发帖成功！帖子 ID：${result.post?.id || '未知'}`);
+  log(`发帖成功！帖子 ID：${result.post?.id || '未知'}`);
   return result;
 }
 
 // ===== 主流程 =====
+log('=== 自动论坛发帖任务开始 ===');
+
+// 预检 AI API
+const healthyModel = await checkAIHealth(TAG);
+if (!healthyModel) fail('AI API 预检失败，所有模型均不可用');
+log(`使用 AI 模型：${healthyModel}`);
+
 const { topicType, title } = pickTopic();
-console.log(`[auto-forum-poster] 本次主题类型：${topicType}，标题：${title}`);
+log(`本次主题类型：${topicType}，标题：${title}`);
 
 const token = await login();
 const categories = await fetchCategories(token);
 const postData = await generatePostContent(title, topicType, categories);
 const result = await publishPost(token, postData, categories);
 
-console.log(`[auto-forum-poster] 完成！帖子：${postData.title}`);
-console.log(`[auto-forum-poster] 摘要：${postData.summary || '无'}`);
+log(`完成！帖子：${postData.title}`);
+log(`摘要：${postData.summary || '无'}`);

@@ -25,11 +25,9 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
 
 const {
-  AI_API_KEY = '',
-  AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  AI_MODEL = 'gemini-3.6-flash',
   GH_TOKEN = '',
   GITHUB_TOKEN = '',
   GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY || '',
@@ -54,14 +52,11 @@ function warn(...args) {
   console.warn(TAG, ...args);
 }
 function fail(message) {
-  console.error(`${TAG} ${message}`);
+  console.error(`::error::${TAG} ${message}`);
   process.exit(1);
 }
 
 // ===== 环境校验 =====
-if (!AI_API_KEY) {
-  fail('缺少 AI_API_KEY。请在仓库 Settings → Secrets → Actions 中配置 AI_API_KEY（免费获取：https://aistudio.google.com/apikey）');
-}
 const token = GH_TOKEN || GITHUB_TOKEN;
 if (!token) fail('缺少 GH_TOKEN / GITHUB_TOKEN。');
 if (!PR_NUMBER) fail('缺少 PR_NUMBER。');
@@ -257,47 +252,19 @@ ${context.files.map((f) => f.block).join('\n') || '（未能自动定位相关�
 - 已通过的检查项不需要为它生成修复。
 - 如果确实无法修复，在 SUMMARY 中说明原因，不输出 FILE 部分。`;
 
-  const requestBody = {
-    model: AI_MODEL,
-    temperature: 0.3,
-    max_tokens: 16384,
-    messages: [
-      {
-        role: 'system',
-        content:
-          '你是资深全栈工程师，擅长排查和修复 CI 构建错误。本项目部署在 Vercel 免费版，使用 React 18 + Next.js 14，禁止引入新依赖、禁止使用 React 19+ API、禁止修改配置文件和中间件。必须按指定分隔符格式输出修复后的完整文件内容，禁止敷衍回复。',
-      },
-      { role: 'user', content: prompt },
-    ],
-  };
+  const systemPrompt =
+    '你是资深全栈工程师，擅长排查和修复 CI 构建错误。本项目部署在 Vercel 免费版，使用 React 18 + Next.js 14，禁止引入新依赖、禁止使用 React 19+ API、禁止修改配置文件和中间件。必须按指定分隔符格式输出修复后的完整文件内容，禁止敷衍回复。';
 
   log(`第 ${attempt}/${maxAttempts} 次调用 AI API...`);
-  log(`API 地址：${AI_API_BASE}`);
-  log(`模型：${AI_MODEL}`);
   log(`prompt 长度：约 ${prompt.length} 字符，上下文文件数：${context.fileCount}`);
 
-  const res = await fetch(AI_API_BASE, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
+  const content = await callAI({
+    prompt,
+    systemPrompt,
+    maxTokens: 16384,
+    tag: TAG,
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`${TAG} AI API 失败：${res.status}`);
-    console.error(`${TAG} 响应内容：${text.slice(0, 1000)}`);
-    throw new Error(`AI API 请求失败：${res.status} ${text.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    console.error(`${TAG} API 返回数据：`, JSON.stringify(data).slice(0, 1000));
-    throw new Error('AI API 没有返回内容');
-  }
   log(`模型返回内容长度：${content.length} 字符`);
   log(`返回内容预览：${content.slice(0, 200)}`);
   return parseDelimiterFormat(content);
@@ -415,6 +382,11 @@ function commentOnPr(body) {
 log(`开始处理 PR #${PR_NUMBER}，最大重试次数：${maxAttempts}`);
 log(`仓库：${GITHUB_REPOSITORY || '(未设置)'}`);
 log(`初始状态：lint=${LINT_FAILED}, build=${BUILD_FAILED}`);
+
+const health = await checkAIHealth(TAG);
+if (!health) {
+  fail('AI API 预检失败，请检查 AI_API_KEY 和 AI_MODEL 配置');
+}
 
 let lintFailed = LINT_FAILED === 'true';
 let buildFailed = BUILD_FAILED === 'true';

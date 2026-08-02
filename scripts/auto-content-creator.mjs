@@ -15,22 +15,20 @@
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL, POST_TOPIC
  */
 
+import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
+
 const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
-  AI_API_KEY = '',
-  AI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  AI_MODEL = 'gemini-3.6-flash',
   POST_TOPIC = '', // tutorial | blog | trend | random
 } = process.env;
 
-function fail(message) {
-  console.error(`[auto-content-creator] ${message}`);
-  process.exit(1);
-}
+const TAG = '[auto-content-creator]';
 
-if (!AI_API_KEY) fail('缺少 AI_API_KEY');
+function log(message) { console.log(`${TAG} ${message}`); }
+function fail(message) { console.error(`::error::${TAG} ${message}`); process.exit(1); }
+
 if (!ADMIN_PASSWORD) fail('缺少 ADMIN_PASSWORD');
 if (!SITE_URL) fail('缺少 SITE_URL');
 
@@ -83,9 +81,7 @@ const TYPE_KEYS = ['tutorial', 'blog', 'trend'];
 function pickPostType() {
   let type = POST_TOPIC;
 
-  // random 或未指定时，按当前日期交替轮换
   if (!type || type === 'random' || !POST_TYPES[type]) {
-    // 用一年中的第几天对 3 取模，实现每日交替
     const now = new Date();
     const start = new Date(now.getFullYear(), 0, 0);
     const diff = now - start;
@@ -100,39 +96,38 @@ function pickPostType() {
 
 // ===== 登录 =====
 async function login() {
-  console.log(`[auto-content-creator] 登录 ${SITE_URL}...`);
-  const res = await fetch(`${SITE_URL}/api/auth`, {
+  log(`登录 ${SITE_URL}...`);
+  const res = await siteFetch(`${SITE_URL}/api/auth`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }),
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    fail(`登录失败：${res.status} ${text}`);
+    const text = await res.text().catch(() => '');
+    fail(`登录失败：${res.status} ${text.slice(0, 300)}`);
   }
 
   const data = await res.json();
   if (!data.token) fail('登录返回中没有 token');
-  console.log(`[auto-content-creator] 登录成功，用户：${data.user?.username}`);
+  log(`登录成功，用户：${data.user?.username}`);
   return data.token;
 }
 
 // ===== 获取论坛分类列表 =====
 async function fetchCategories(token) {
-  const res = await fetch(`${SITE_URL}/api/forum/categories`, {
+  const res = await siteFetch(`${SITE_URL}/api/forum/categories`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
   if (!res.ok) {
-    console.warn(`[auto-content-creator] 获取分类失败：${res.status}`);
+    log(`获取分类失败：${res.status}`);
     return [];
   }
 
   const data = await res.json();
-  // API 可能返回数组或 { categories: [...] }，兼容两种格式
   const categories = Array.isArray(data) ? data : (Array.isArray(data.categories) ? data.categories : []);
-  console.log(`[auto-content-creator] 获取到 ${categories.length} 个分类`);
+  log(`获取到 ${categories.length} 个分类`);
   return categories;
 }
 
@@ -175,45 +170,19 @@ async function generateArticle(postType, title, categories) {
   "summary": "一句话总结这篇文章"
 }`;
 
-  console.log(`[auto-content-creator] 调用 AI 生成文章...`);
-  console.log(`[auto-content-creator] 类型：${postType.label}，标题：${title}`);
+  log(`调用 AI 生成文章...`);
+  log(`类型：${postType.label}，标题：${title}`);
 
-  const res = await fetch(AI_API_BASE, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      temperature: 0.7,
-      max_tokens: 16384,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: '你是资深技术博主和全栈开发工程师，擅长写深度技术文章。你的文章结构清晰、代码规范、见解独到。只输出严格 JSON。',
-        },
-        { role: 'user', content: prompt },
-      ],
-    }),
+  const content = await callAI({
+    prompt,
+    systemPrompt: '你是资深技术博主和全栈开发工程师，擅长写深度技术文章。你的文章结构清晰、代码规范、见解独到。只输出严格 JSON。',
+    maxTokens: 16384,
+    responseFormat: { type: 'json_object' },
+    tag: TAG,
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    fail(`AI API 失败：${res.status} ${text.slice(0, 500)}`);
-  }
-
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    console.error('[auto-content-creator] API 返回数据：', JSON.stringify(data).slice(0, 1000));
-    fail('AI 没有返回内容');
-  }
 
   let parsed;
   try {
-    // 兼容模型可能用代码块包裹 JSON 的情况
     const trimmed = content.trim();
     const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
     const candidate = fenced ? fenced[1].trim() : trimmed;
@@ -225,8 +194,8 @@ async function generateArticle(postType, title, categories) {
       parsed = JSON.parse(candidate);
     }
   } catch (err) {
-    console.error('[auto-content-creator] JSON 解析失败：', err.message);
-    console.error('[auto-content-creator] 模型返回内容（前 1000 字符）：', content.slice(0, 1000));
+    log(`JSON 解析失败：${err.message}`);
+    log(`模型返回内容（前 500 字符）：${content.slice(0, 500)}`);
     fail('AI 返回内容无法解析为 JSON');
   }
 
@@ -234,26 +203,22 @@ async function generateArticle(postType, title, categories) {
     fail('AI 返回内容缺少 title 或 content 字段');
   }
 
-  // 校验标题长度（API 限制 100 字符）
   if (parsed.title.length > 100) {
     parsed.title = parsed.title.slice(0, 97) + '...';
   }
 
-  console.log(`[auto-content-creator] 文章生成完成，标题：${parsed.title}，内容长度：${parsed.content.length}`);
+  log(`文章生成完成，标题：${parsed.title}，内容长度：${parsed.content.length}`);
   return parsed;
 }
 
 // ===== 发布文章到论坛 =====
 async function publishPost(token, article, categories) {
-  // 匹配分类
   let categoryId = null;
   if (article.categoryId) {
-    // 校验 AI 给的分类 ID 是否真实存在
     const matched = categories.find((c) => String(c.id) === String(article.categoryId));
     if (matched) categoryId = matched.id;
   }
   if (!categoryId && categories.length > 0) {
-    // 默认选第一个分类
     categoryId = categories[0].id;
   }
 
@@ -268,9 +233,9 @@ async function publishPost(token, article, categories) {
     body.tags = article.tags.slice(0, 5);
   }
 
-  console.log(`[auto-content-creator] 发布文章到 ${SITE_URL}/api/forum/posts...`);
+  log(`发布文章到 ${SITE_URL}/api/forum/posts...`);
 
-  const res = await fetch(`${SITE_URL}/api/forum/posts`, {
+  const res = await siteFetch(`${SITE_URL}/api/forum/posts`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -280,26 +245,32 @@ async function publishPost(token, article, categories) {
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    fail(`发布失败：${res.status} ${text}`);
+    const text = await res.text().catch(() => '');
+    fail(`发布失败：${res.status} ${text.slice(0, 300)}`);
   }
 
   const result = await res.json();
-  // API 返回帖子对象本身（status 201），兼容 { post: {...} } 格式
   const postId = result.id || result.post?.id || '未知';
-  console.log(`[auto-content-creator] 发布成功！帖子 ID：${postId}`);
+  log(`发布成功！帖子 ID：${postId}`);
   return result;
 }
 
 // ===== 主流程 =====
+log('=== 自动内容创作任务开始 ===');
+
+// 预检 AI API
+const healthyModel = await checkAIHealth(TAG);
+if (!healthyModel) fail('AI API 预检失败，所有模型均不可用');
+log(`使用 AI 模型：${healthyModel}`);
+
 const postType = pickPostType();
-console.log(`[auto-content-creator] 本次文章类型：${postType.label}（${postType.type}）`);
-console.log(`[auto-content-creator] 备选标题：${postType.title}`);
+log(`本次文章类型：${postType.label}（${postType.type}）`);
+log(`备选标题：${postType.title}`);
 
 const token = await login();
 const categories = await fetchCategories(token);
 const article = await generateArticle(postType, postType.title, categories);
 const result = await publishPost(token, article, categories);
 
-console.log(`[auto-content-creator] 完成！文章：${article.title}`);
-console.log(`[auto-content-creator] 摘要：${article.summary || '无'}`);
+log(`完成！文章：${article.title}`);
+log(`摘要：${article.summary || '无'}`);

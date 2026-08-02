@@ -1,0 +1,37 @@
+name: Auto link checker
+
+on:
+  schedule:
+    # 每天凌晨 3:00 UTC（北京时间 11:00）执行
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: auto-link-checker
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check broken links
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run link checker
+        run: node scripts/auto-link-checker.mjs

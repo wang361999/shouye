@@ -1,0 +1,40 @@
+name: Auto weekly report
+
+on:
+  schedule:
+    # 每周一凌晨 1:00 UTC（北京时间 9:00）执行
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: auto-weekly-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Generate weekly community report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: ${{ secrets.AI_API_BASE }}
+      AI_MODEL: ${{ secrets.AI_MODEL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate and publish weekly report
+        run: node scripts/auto-weekly-report.mjs

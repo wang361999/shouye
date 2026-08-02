@@ -17,6 +17,9 @@ const DEFAULT_SCHEDULE = {
   creatorEnabled: true,
   creatorHour: 16,      // 博客文章时间
   replyEnabled: true,   // 论坛自动回复（每2小时检查）
+  linkCheckEnabled: true,  // 死链检测（每天11:00）
+  staleEnabled: true,      // 过期Issue清理（每天12:00）
+  weeklyEnabled: true,     // 社区周报（每周一9:00）
 };
 
 function parseConfig(value: string | undefined) {
@@ -61,6 +64,9 @@ export async function POST(request: NextRequest) {
       creatorEnabled: body.creatorEnabled !== false,
       creatorHour: Math.max(0, Math.min(23, Number(body.creatorHour) || 16)),
       replyEnabled: body.replyEnabled !== false,
+      linkCheckEnabled: body.linkCheckEnabled !== false,
+      staleEnabled: body.staleEnabled !== false,
+      weeklyEnabled: body.weeklyEnabled !== false,
     };
 
     await prisma.systemSetting.upsert({
