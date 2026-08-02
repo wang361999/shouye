@@ -181,14 +181,19 @@ export async function GET() {
   }
 
   // ============ 格式化数据 ============
-  const parseJsonArray = (value: unknown): string[] => {
+  const parseListValue = (value: unknown): string[] => {
     if (!value || typeof value !== 'string') return [];
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    // 尝试 JSON 数组格式 ["a","b"]
     try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed.map(String) : [];
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.map(String);
     } catch {
-      return [];
+      // 不是 JSON，继续尝试逗号分隔
     }
+    // 逗号分隔格式 a,b,c（兼容中英文逗号）
+    return trimmed.split(/[,，]/).map(s => s.trim()).filter(Boolean);
   };
 
   const formatPost = (row: Record<string, unknown>) => ({
@@ -230,8 +235,8 @@ export async function GET() {
     repoOwner: p.repo_owner || '',
     repoName: p.repo_name || '',
     status: p.status,
-    techStack: parseJsonArray(p.tech_stack),
-    tags: parseJsonArray(p.tags),
+    techStack: parseListValue(p.tech_stack),
+    tags: parseListValue(p.tags),
     memberCount: Number(p.member_count) || 0,
     maxMembers: Number(p.max_members) || 0,
     taskCount: Number(p.task_count) || 0,
