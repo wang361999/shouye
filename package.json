@@ -13,7 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:setup": "node scripts/db-setup.mjs",
     "gen:env": "node scripts/generate-env.mjs",
-    "vercel-build": "node scripts/check-env.mjs && next build",
+    "vercel-build": "next build",
     "cf:build": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs",
     "cf:preview": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && opennextjs-cloudflare preview",
     "cf:deploy": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && opennextjs-cloudflare deploy",
