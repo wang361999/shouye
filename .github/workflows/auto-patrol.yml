@@ -139,6 +139,9 @@ jobs:
             exit 0
           fi
 
+          # 确保 ai-iteration 标签存在（不存在则创建）
+          gh label create "ai-iteration" --color "0075ca" --description "AI 自动迭代请求" 2>/dev/null || true
+
           # 创建巡检 Issue
           gh issue create \
             --title "AI 自动迭代请求：自动巡检 $(date -u +%Y-%m-%d)" \

@@ -24,8 +24,8 @@ jobs:
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
-      AI_API_BASE: ${{ secrets.AI_API_BASE }}
-      AI_MODEL: ${{ secrets.AI_MODEL }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
 
     steps:
       - name: Checkout
