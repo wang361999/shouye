@@ -442,8 +442,21 @@ export async function PATCH(
       });
     }
 
+    if (action === 'setCategory') {
+      // 更新帖子分类（用于自动分类功能）
+      const { categoryId } = body;
+      const post = await prisma.post.update({
+        where: { id },
+        data: { categoryId: categoryId || null },
+      });
+      return NextResponse.json({
+        message: '帖子分类已更新',
+        categoryId: post.categoryId,
+      });
+    }
+
     return NextResponse.json(
-      { error: '不支持的操作，请使用 pin、essence、lock 或 unlock' },
+      { error: '不支持的操作，请使用 pin、essence、lock、unlock 或 setCategory' },
       { status: 400 }
     );
   } catch (error) {

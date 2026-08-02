@@ -115,10 +115,26 @@ ${categoryList}
     const candidate = fenced ? fenced[1].trim() : trimmed;
     const start = candidate.indexOf('{');
     const end = candidate.lastIndexOf('}');
-    parsed = JSON.parse(candidate.slice(start, end + 1));
+    if (start !== -1 && end !== -1 && end > start) {
+      parsed = JSON.parse(candidate.slice(start, end + 1));
+    }
   } catch (err) {
-    log(`JSON 解析失败：${err.message}，原始内容：${content.slice(0, 200)}`);
-    return null;
+    log(`JSON 解析失败：${err.message}，尝试文本匹配...`);
+  }
+
+  // 回退：如果 JSON 解析失败，尝试从文本中匹配分类 slug 或名称
+  if (!parsed || !parsed.slug) {
+    const lowerContent = content.toLowerCase();
+    for (const c of categories) {
+      if (lowerContent.includes(c.slug) || lowerContent.includes(c.name.toLowerCase())) {
+        log(`文本匹配到分类：${c.name}（slug: ${c.slug}）`);
+        return c;
+      }
+    }
+    if (!parsed) {
+      log(`无法解析 AI 返回内容：${content.slice(0, 200)}`);
+      return null;
+    }
   }
 
   if (!parsed.slug) {
@@ -139,12 +155,12 @@ ${categoryList}
 // ===== 更新帖子分类 =====
 async function updatePostCategory(token, postId, categoryId) {
   const res = await siteFetch(`${SITE_URL}/api/forum/posts/${postId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ categoryId }),
+    body: JSON.stringify({ action: 'setCategory', categoryId }),
   });
 
   if (!res.ok) {
