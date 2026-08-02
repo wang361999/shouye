@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
-import type { InValue } from '@libsql/client';
+import type { InValue } from '@libsql/client/http';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseGithubRepoUrl, stringifyJsonArray } from '@/lib/collab';
 import { revalidateCommunityHome } from '@/lib/revalidate';

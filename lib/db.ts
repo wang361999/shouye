@@ -10,7 +10,7 @@
  * 打包时 @libsql/client 解析失败。需要 NextResponse 的函数在 lib/db-check.ts 中。
  */
 
-import { createClient, type Client, type InArgs } from '@libsql/client';
+import { createClient, type Client, type InArgs } from '@libsql/client/http';
 
 let client: Client | null = null;
 
