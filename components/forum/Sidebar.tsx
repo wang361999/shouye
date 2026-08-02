@@ -33,23 +33,68 @@ interface SidebarProps {
   hotPosts: Post[];
 }
 
+// 标签加载状态：加载中 / 成功 / 失败
+type TagsState =
+  | { status: "loading" }
+  | { status: "success"; tags: Tag[] }
+  | { status: "error"; message: string; detail?: string };
+
 export default function Sidebar({ stats, hotPosts }: SidebarProps) {
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [loadingTags, setLoadingTags] = useState(true);
+  const [tagsState, setTagsState] = useState<TagsState>({ status: "loading" });
 
   // 获取热门标签
   useEffect(() => {
     const fetchTags = async () => {
       try {
         const res = await fetch("/api/forum/tags");
-        if (res.ok) {
-          const data = await res.json();
-          setTags(data.slice(0, 20));
+
+        // 处理 HTTP 错误
+        if (!res.ok) {
+          let errorDetail = `服务器返回 ${res.status}`;
+          try {
+            const errorData = await res.json();
+            if (errorData.detail) {
+              errorDetail = errorData.detail;
+            }
+          } catch {
+            // JSON 解析失败，使用默认描述
+          }
+
+          const statusText = res.status === 503
+            ? "数据库未配置或服务不可用"
+            : `请求失败 (${res.status})`;
+
+          setTagsState({
+            status: "error",
+            message: statusText,
+            detail: errorDetail,
+          });
+          return;
         }
-      } catch {
-        // 静默失败
-      } finally {
-        setLoadingTags(false);
+
+        const data = await res.json();
+
+        // 验证返回数据格式
+        if (!Array.isArray(data)) {
+          console.error("[Sidebar] 标签 API 返回格式异常:", data);
+          setTagsState({
+            status: "error",
+            message: "数据格式异常",
+            detail: "API 返回了非预期的数据格式",
+          });
+          return;
+        }
+
+        setTagsState({ status: "success", tags: data.slice(0, 20) });
+      } catch (err) {
+        // 网络错误
+        console.error("[Sidebar] 获取标签失败:", err);
+        const errorMessage = err instanceof Error ? err.message : "网络请求失败";
+        setTagsState({
+          status: "error",
+          message: "网络请求失败",
+          detail: errorMessage,
+        });
       }
     };
     fetchTags();
@@ -65,6 +110,7 @@ export default function Sidebar({ stats, hotPosts }: SidebarProps) {
     return "text-xs";
   };
 
+  const tags = tagsState.status === "success" ? tagsState.tags : [];
   const maxCount = tags.length > 0 ? Math.max(...tags.map((t) => t.postCount)) : 0;
 
   return (
@@ -102,11 +148,32 @@ export default function Sidebar({ stats, hotPosts }: SidebarProps) {
             全部
           </Link>
         </div>
-        {loadingTags ? (
+
+        {tagsState.status === "loading" ? (
           <div className="flex flex-wrap gap-2 animate-pulse">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="h-6 bg-gray-100 rounded-full" style={{ width: `${40 + Math.random() * 40}px` }} />
             ))}
+          </div>
+        ) : tagsState.status === "error" ? (
+          <div className="text-center py-4">
+            <p className="text-2xl mb-1 opacity-40">⚠️</p>
+            <p className="text-xs text-red-500 font-medium">{tagsState.message}</p>
+            {tagsState.detail && (
+              <p className="text-xs text-gray-400 mt-1 max-w-full overflow-hidden text-ellipsis" title={tagsState.detail}>
+                {tagsState.detail}
+              </p>
+            )}
+            <button
+              onClick={() => {
+                setTagsState({ status: "loading" });
+                // 触发重新获取 - useEffect 依赖数组为空，需要手动触发
+                window.location.reload();
+              }}
+              className="mt-2 text-xs text-blue-500 hover:text-blue-600 underline"
+            >
+              点击重试
+            </button>
           </div>
         ) : tags.length === 0 ? (
           <div className="text-center py-4">
