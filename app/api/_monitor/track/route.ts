@@ -53,13 +53,13 @@ export async function POST(request: NextRequest) {
         functionInvocations: isApi ? 1 : 0,
         edgeRequests: 1,
         cpuTimeMs: cpuMs,
-        dataTransferBytes: BigInt(estimatedBytes),
+        dataTransferBytes: estimatedBytes,
       },
       update: {
         functionInvocations: { increment: isApi ? 1 : 0 },
         edgeRequests: { increment: 1 },
         cpuTimeMs: { increment: cpuMs },
-        dataTransferBytes: { increment: BigInt(estimatedBytes) },
+        dataTransferBytes: { increment: estimatedBytes },
       },
     });
 
@@ -78,12 +78,12 @@ export async function POST(request: NextRequest) {
         method: method,
         requestCount: 1,
         totalCpuMs: cpuMs,
-        totalDataBytes: BigInt(estimatedBytes),
+        totalDataBytes: estimatedBytes,
       },
       update: {
         requestCount: { increment: 1 },
         totalCpuMs: { increment: cpuMs },
-        totalDataBytes: { increment: BigInt(estimatedBytes) },
+        totalDataBytes: { increment: estimatedBytes },
       },
     });
 

@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
     }
     if (keyword) {
       where.OR = [
-        { licenseKey: { contains: keyword, mode: 'insensitive' } },
-        { projectName: { contains: keyword, mode: 'insensitive' } },
-        { remark: { contains: keyword, mode: 'insensitive' } },
+        { licenseKey: { contains: keyword } },
+        { projectName: { contains: keyword } },
+        { remark: { contains: keyword } },
       ];
     }
 

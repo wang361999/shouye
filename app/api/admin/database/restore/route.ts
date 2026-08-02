@@ -51,18 +51,12 @@ const INSERT_ORDER = [
   'licenseLog',
 ] as const;
 
-// BigInt 字段映射
-const BIGINT_FIELDS: Record<string, string[]> = {
-  monitoringDaily: ['dataTransferBytes'],
-  monitoringRoute: ['totalDataBytes'],
-};
-
-// ============ JSON 反序列化（还原 BigInt 和 Date） ============
+// ============ JSON 反序列化（还原 Date；兼容旧备份中的 BigInt → Int） ============
 function jsonReviver(_key: string, value: unknown): unknown {
   if (value !== null && typeof value === 'object') {
     const obj = value as Record<string, unknown>;
     if ('$bigint' in obj) {
-      return BigInt(obj.$bigint as string);
+      return Number(obj.$bigint as string);
     }
     if ('$date' in obj) {
       return new Date(obj.$date as string);
@@ -156,7 +150,7 @@ export async function POST(request: NextRequest) {
                 const created = await tx[tableName].createMany({
                   data: withoutParent as any,
                   skipDuplicates: true,
-                });
+                } as any);
                 totalInserted += created.count;
                 results.push({
                   table: tableName,
@@ -201,7 +195,7 @@ export async function POST(request: NextRequest) {
             const created = await tx[tableName].createMany({
               data: records as any,
               skipDuplicates: true,
-            });
+            } as any);
             totalInserted += created.count;
             results.push({
               table: tableName,

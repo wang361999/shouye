@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (licenseId) where.licenseId = licenseId;
     if (result) where.result = result;
-    if (domain) where.domain = { contains: domain, mode: 'insensitive' };
+    if (domain) where.domain = { contains: domain };
 
     const [logs, total] = await Promise.all([
       prisma.licenseLog.findMany({

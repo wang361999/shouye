@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       where.status = 'PUBLISHED';
     } else if (statusParam) {
       // 管理员可按状态筛选
-      where.status = statusParam as Prisma.EnumPostStatusFilter;
+      where.status = statusParam as string;
     }
 
     if (categorySlug) {

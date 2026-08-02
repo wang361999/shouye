@@ -357,7 +357,7 @@ export async function GET(request: NextRequest) {
             functionInvocations: 0,
             edgeRequests: 0,
             cpuTimeMs: 0,
-            dataTransferBytes: BigInt(0),
+            dataTransferBytes: 0,
           },
         },
       ),

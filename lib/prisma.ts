@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaLibSQL } from '@prisma/adapter-libsql';
-import { createClient } from '@libsql/client';
+import { PrismaLibSql } from '@prisma/adapter-libsql';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
@@ -10,8 +9,7 @@ function createPrismaClient() {
 
   // 如果是 Turso/libsql 连接
   if (url.startsWith('libsql://') || url.startsWith('http://') || url.startsWith('https://')) {
-    const libsql = createClient({ url, authToken });
-    const adapter = new PrismaLibSQL(libsql);
+    const adapter = new PrismaLibSql({ url, authToken });
     return new PrismaClient({ adapter } as never);
   }
 
