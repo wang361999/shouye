@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -16,7 +16,7 @@ model User {
   username      String    @unique
   email         String    @unique
   password      String    // GitHub OAuth 用户存随机值
-  role          Role      @default(USER)
+  role          String    @default("USER") // ADMIN | USER
   avatar        String?
   bio           String?   // 个人简介
   status        String    @default("active") @map("status") // active | muted | banned
@@ -63,12 +63,6 @@ model User {
   followers     Follow[]   @relation("UserFollowed")  // 被他人关注
 
   @@map("User")
-}
-
-// 角色枚举
-enum Role {
-  ADMIN
-  USER
 }
 
 // ============ 论坛分类模型 ============
@@ -121,7 +115,7 @@ model Post {
   isPinned     Boolean    @default(false) @map("is_pinned")
   isEssence    Boolean    @default(false) @map("is_essence")
   isLocked     Boolean    @default(false) @map("is_locked") // 锁定后禁止评论
-  status       PostStatus @default(DRAFT)
+  status       String     @default("DRAFT") // PUBLISHED | DRAFT | DELETED
   postType     String     @default("discussion") @map("post_type") // discussion | question
   acceptedCommentId String? @map("accepted_comment_id") // 问答帖采纳的评论ID
   authorName   String?    @map("author_name") // AI 发帖时自定义显示名（为空则显示 author.username）
@@ -140,13 +134,6 @@ model Post {
   @@index([status])
   @@index([postType])
   @@map("Post")
-}
-
-// 帖子状态枚举
-enum PostStatus {
-  PUBLISHED
-  DRAFT
-  DELETED
 }
 
 // ============ 评论模型 ============
@@ -176,19 +163,13 @@ model Comment {
   @@map("Comment")
 }
 
-// ============ 点赞类型枚举 ============
-enum LikeType {
-  LIKE
-  FAVORITE
-}
-
 // ============ 点赞模型 ============
 model Like {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
   postId    String?  @map("post_id")
   commentId String?  @map("comment_id")
-  type      LikeType @default(LIKE)
+  type      String   @default("LIKE") // LIKE | FAVORITE
   createdAt DateTime @default(now()) @map("created_at")
 
   user    User    @relation(fields: [userId], references: [id])
@@ -463,11 +444,11 @@ model Order {
 // ============ 监控统计 - 每日用量 ============
 model MonitoringDaily {
   id                  String   @id @default(cuid())
-  date                DateTime @db.Date
+  date                DateTime
   functionInvocations Int      @default(0) @map("function_invocations")
   edgeRequests        Int      @default(0) @map("edge_requests")
   cpuTimeMs           Int      @default(0) @map("cpu_time_ms")
-  dataTransferBytes   BigInt   @default(0) @map("data_transfer_bytes")
+  dataTransferBytes   Int      @default(0) @map("data_transfer_bytes")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
@@ -478,12 +459,12 @@ model MonitoringDaily {
 // ============ 监控统计 - 路由级别明细 ============
 model MonitoringRoute {
   id                  String   @id @default(cuid())
-  date                DateTime @db.Date
+  date                DateTime
   path                String
   method              String
   requestCount        Int      @default(0) @map("request_count")
   totalCpuMs          Int      @default(0) @map("total_cpu_ms")
-  totalDataBytes      BigInt   @default(0) @map("total_data_bytes")
+  totalDataBytes      Int      @default(0) @map("total_data_bytes")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
