@@ -57,9 +57,11 @@ function findAll(buffer, pattern) {
 }
 
 function main() {
+  // [修复] WASM 文件不存在时优雅跳过，不中断部署
   if (!fs.existsSync(WASM_PATH)) {
-    console.error('[patch-wasm] WASM file not found:', WASM_PATH);
-    process.exit(1);
+    console.warn('[patch-wasm] WASM file not found:', WASM_PATH);
+    console.warn('[patch-wasm] 跳过 WASM 修补，使用默认配置继续部署。');
+    return;
   }
 
   const wasm = fs.readFileSync(WASM_PATH);
