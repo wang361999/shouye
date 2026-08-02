@@ -39,7 +39,16 @@ async function main() {
   }
 
   log('开始数据库初始化...');
-  log(`数据库类型：${process.env.DATABASE_URL.split('://')[0] || 'unknown'}`);
+  const dbType = process.env.DATABASE_URL.split('://')[0] || 'unknown';
+  log(`数据库类型：${dbType}`);
+
+  // Turso/libsql 数据库不支持 prisma db push（Prisma CLI 引擎不兼容 libsql 适配器）
+  // 表结构和数据已通过其他方式初始化，跳过 db push 和 seed
+  if (dbType === 'libsql' || dbType === 'https' || dbType === 'http') {
+    log('⚠️ 检测到 Turso/libsql 数据库，跳过 prisma db push（不兼容）');
+    log('✅ 表结构和数据已预先初始化，无需构建时同步');
+    return;
+  }
 
   // ============ 第一步：同步表结构 ============
   log('━━━ 步骤 1/2：同步数据库表结构 (prisma db push) ━━━');
