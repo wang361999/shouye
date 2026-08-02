@@ -10,7 +10,10 @@ async function loadPg(): Promise<typeof import('pg') | null> {
   if (pgPool) return pgPool;
   if (pgLoadFailed) return null;
   try {
-    pgPool = await import('pg');
+    // 使用 Function 构造器避免打包器静态解析，从而不将 pg 打包进 Cloudflare Worker
+    // pg 依赖 TCP 连接，Cloudflare Workers 不支持，仅在 Vercel/Node.js 环境可用
+    const dynamicImport = new Function('m', 'return import(m)') as (m: string) => Promise<any>;
+    pgPool = await dynamicImport('pg');
     return pgPool;
   } catch {
     pgLoadFailed = true;

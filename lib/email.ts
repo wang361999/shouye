@@ -88,9 +88,11 @@ async function sendViaSmtp(
   }
 
   // 动态导入 nodemailer（Cloudflare 上会失败，但不会走到这里）
+  // 使用 Function 构造器避免打包器静态解析，从而不将 nodemailer 打包进 Cloudflare Worker
   let nodemailer: any;
   try {
-    nodemailer = await import('nodemailer');
+    const dynamicImport = new Function('m', 'return import(m)') as (m: string) => Promise<any>;
+    nodemailer = await dynamicImport('nodemailer');
   } catch {
     return {
       success: false,
