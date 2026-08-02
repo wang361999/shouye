@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import type { InValue } from '@libsql/client';
 import { getUserFromRequest } from '@/lib/auth';
-import { Prisma } from '@prisma/client';
 import { parseGithubRepoUrl, stringifyJsonArray } from '@/lib/collab';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
-export const dynamic = 'force-dynamic';
+const QUERY_TIMEOUT = 6000;
 
 // ============ GET /api/collab/projects - 获取召集令列表 ============
-// 查询参数: page, pageSize, status, keyword
-// 返回: 项目列表（含作者信息、成员数、任务统计）+ 总数
+// 使用原生 SQL 替代 Prisma
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -22,52 +22,112 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const keyword = searchParams.get('keyword')?.trim() || undefined;
 
-    // ---- 构建查询条件 ----
-    const where: Prisma.CollabProjectWhereInput = {};
+    // ---- 动态构建 WHERE ----
+    const conditions: string[] = [];
+    const args: InValue[] = [];
 
     if (status) {
-      where.status = status;
+      conditions.push('cp.status = ?');
+      args.push(status);
     }
 
     if (keyword) {
-      where.OR = [
-        { title: { contains: keyword } },
-        { description: { contains: keyword } },
-      ];
+      conditions.push(`(cp.title LIKE '%' || ? || '%' OR cp.description LIKE '%' || ? || '%')`);
+      args.push(keyword, keyword);
     }
 
-    // ---- 查询总数和分页数据 ----
-    const [projects, total] = await Promise.all([
-      prisma.collabProject.findMany({
-        where,
-        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-              avatar: true,
-              githubLogin: true,
-            },
-          },
-        },
-      }),
-      prisma.collabProject.count({ where }),
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    const offset = (page - 1) * pageSize;
+
+    let db;
+    try {
+      db = getDb();
+    } catch {
+      return NextResponse.json({ data: [], total: 0, page, pageSize, totalPages: 1 });
+    }
+
+    // ---- 并行查询列表 + 总数 ----
+    const listArgs = [...args];
+    const countArgs = [...args];
+
+    const [projectRows, countRows] = await Promise.all([
+      queryWithTimeout(
+        db,
+        `SELECT cp.id, cp.title, substr(cp.description, 1, 500) as description,
+                cp.repo_url, cp.repo_owner, cp.repo_name, cp.repo_created,
+                cp.default_branch, cp.tech_stack, cp.tags, cp.goals, cp.requirements,
+                cp.status, cp.max_members, cp.member_count, cp.task_count,
+                cp.completed_task_count, cp.contribution_count, cp.view_count,
+                cp.created_at, cp.updated_at,
+                u.id as author_id, u.username as author_username,
+                u.avatar as author_avatar, u.github_login as author_github_login
+         FROM CollabProject cp
+         LEFT JOIN User u ON cp.author_id = u.id
+         ${whereClause}
+         ORDER BY cp.status ASC, cp.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [...listArgs, pageSize, offset],
+        QUERY_TIMEOUT,
+        [],
+      ),
+      queryWithTimeout(
+        db,
+        `SELECT COUNT(*) as total FROM CollabProject cp ${whereClause}`,
+        countArgs,
+        QUERY_TIMEOUT,
+        [{ total: 0 }],
+      ),
     ]);
 
-    // ---- 序列化 JSON 数组字段，并添加前端期望的扁平字段 ----
-    const data = projects.map((project) => ({
-      ...project,
-      techStack: project.techStack ? JSON.parse(project.techStack) : [],
-      tags: project.tags ? JSON.parse(project.tags) : [],
-      // 前端 Project 类型期望 taskTotal / taskCompleted 字段名
-      taskTotal: project.taskCount,
-      taskCompleted: project.completedTaskCount,
-      // 前端 Project 类型期望 owner 字段名（API 返回的是 author）
-      owner: project.author,
-    }));
+    const total = Number((countRows as Record<string, unknown>[])[0]?.total) || 0;
+
+    // ---- 解析 JSON 字段并映射前端字段名 ----
+    const parseJsonArray = (value: unknown): string[] => {
+      if (!value || typeof value !== 'string') return [];
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const data = (projectRows as Record<string, unknown>[]).map((p) => {
+      const author = {
+        id: p.author_id || '',
+        username: p.author_username || '匿名',
+        avatar: p.author_avatar || null,
+        githubLogin: p.author_github_login || null,
+      };
+      return {
+        id: p.id,
+        title: p.title,
+        description: p.description || '',
+        repoUrl: p.repo_url || '',
+        repoOwner: p.repo_owner || '',
+        repoName: p.repo_name || '',
+        repoCreated: Boolean(p.repo_created),
+        defaultBranch: p.default_branch || null,
+        techStack: parseJsonArray(p.tech_stack),
+        tags: parseJsonArray(p.tags),
+        goals: p.goals || null,
+        requirements: p.requirements || null,
+        status: p.status,
+        maxMembers: Number(p.max_members) || 10,
+        memberCount: Number(p.member_count) || 0,
+        taskCount: Number(p.task_count) || 0,
+        completedTaskCount: Number(p.completed_task_count) || 0,
+        contributionCount: Number(p.contribution_count) || 0,
+        viewCount: Number(p.view_count) || 0,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+        author,
+        // 前端期望的别名
+        taskTotal: Number(p.task_count) || 0,
+        taskCompleted: Number(p.completed_task_count) || 0,
+        owner: author,
+      };
+    });
 
     return NextResponse.json({
       data,
@@ -86,13 +146,9 @@ export async function GET(request: NextRequest) {
 }
 
 // ============ POST /api/collab/projects - 创建新召集令 ============
-// 需要登录
-// body: title, description, repoUrl, techStack(数组), tags(数组), goals, requirements, maxMembers
-// 自动解析 repoUrl 提取 owner/repo
-// 创建项目时自动将创建者添加为 owner 成员
+// 保持 Prisma（写操作）
 export async function POST(request: NextRequest) {
   try {
-    // ---- 登录鉴权 ----
     const user = getUserFromRequest(request);
     if (!user) {
       return NextResponse.json(
@@ -113,7 +169,6 @@ export async function POST(request: NextRequest) {
       maxMembers,
     } = body;
 
-    // ---- 输入校验 ----
     if (!title || !description || !repoUrl) {
       return NextResponse.json(
         { error: '标题、描述和仓库地址不能为空' },
@@ -128,7 +183,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---- 解析 GitHub 仓库 URL ----
     const parsed = parseGithubRepoUrl(repoUrl);
     if (!parsed) {
       return NextResponse.json(
@@ -138,11 +192,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { owner: repoOwner, repo: repoName } = parsed;
-
-    // 规范化仓库 URL（去除可能的尾部路径与 .git）
     const normalizedRepoUrl = `https://github.com/${repoOwner}/${repoName}`;
 
-    // 校验技术栈与标签为数组
     const techStackArr = Array.isArray(techStack)
       ? techStack.filter((t: unknown) => typeof t === 'string')
       : [];
@@ -155,13 +206,11 @@ export async function POST(request: NextRequest) {
         ? Math.min(maxMembers, 100)
         : 10;
 
-    // ---- 查询创建者的 GitHub 登录名（用于成员记录） ----
     const creator = await prisma.user.findUnique({
       where: { id: user.userId },
       select: { githubLogin: true },
     });
 
-    // ---- 事务：创建项目 + 添加创建者为 owner 成员 ----
     const project = await prisma.$transaction(async (tx) => {
       const created = await tx.collabProject.create({
         data: {
@@ -192,7 +241,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 将创建者添加为 owner 成员
       await tx.collabMember.create({
         data: {
           projectId: created.id,
@@ -206,10 +254,8 @@ export async function POST(request: NextRequest) {
       return created;
     });
 
-    // 清除社区首页缓存，使新召集令及时在首页展示
     revalidateCommunityHome();
 
-    // ---- 返回创建的项目（含解析后的数组字段） ----
     return NextResponse.json(
       {
         ...project,
