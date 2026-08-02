@@ -6,7 +6,7 @@ import type { InValue } from '@libsql/client/http';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
-const QUERY_TIMEOUT = 6000;
+const QUERY_TIMEOUT = 8000;
 
 // ============ GET /api/forum/posts - 获取帖子列表 ============
 // 使用原生 SQL 替代 Prisma，支持分页/搜索/分类/排序/标签/类型过滤
@@ -81,30 +81,31 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    let db;
     const dbError = checkDbOr503();
     if (dbError) return dbError;
+    const db = getDb();
+
+    // ---- 先查总数（顺序执行，避免 Promise.all 并发 HTTP 请求问题）----
+    let total = 0;
     try {
-      db = getDb();
-    } catch (dbErr) {
-      const errorMessage = dbErr instanceof Error ? dbErr.message : '未知数据库错误';
-      console.error('[POSTS API] 数据库连接失败:', errorMessage);
-      return NextResponse.json(
-        {
-          error: '数据库连接失败',
-          detail: errorMessage,
-          hint: '请检查 DATABASE_URL 和 DATABASE_AUTH_TOKEN 是否正确配置',
-        },
-        { status: 503 }
+      const countRows = await queryWithTimeout(
+        db,
+        `SELECT COUNT(*) as total FROM Post p
+         LEFT JOIN Category c ON p.category_id = c.id
+         ${whereClause}`,
+        [...args],
+        QUERY_TIMEOUT,
       );
+      total = Number((countRows as Record<string, unknown>[])[0]?.total) || 0;
+    } catch (countErr) {
+      console.error('[POSTS COUNT ERROR]', countErr instanceof Error ? countErr.message : countErr);
+      // 总数查询失败不影响列表返回，total 默认为 0
     }
 
-    // ---- 并行查询帖子列表 + 总数 ----
-    const listArgs = [...args];
-    const countArgs = [...args];
-
-    const [postRows, countRows] = await Promise.all([
-      queryWithTimeout(
+    // ---- 再查帖子列表 ----
+    let postRows: Record<string, unknown>[];
+    try {
+      const rows = await queryWithTimeout(
         db,
         `SELECT p.id, p.title, substr(p.content, 1, 200) as summary_content,
                 p.view_count, p.like_count, p.comment_count, p.is_pinned, p.is_essence,
@@ -117,54 +118,62 @@ export async function GET(request: NextRequest) {
          ${whereClause}
          ORDER BY ${orderClause}
          LIMIT ? OFFSET ?`,
-        [...listArgs, limit, offset],
-        QUERY_TIMEOUT,
-      ),
-      queryWithTimeout(
-        db,
-        `SELECT COUNT(*) as total FROM Post p
-         LEFT JOIN Category c ON p.category_id = c.id
-         ${whereClause}`,
-        countArgs,
-        QUERY_TIMEOUT,
-      ),
-    ]);
-
-    const total = Number((countRows as Record<string, unknown>[])[0]?.total) || 0;
-
-    // ---- 查询帖子标签（如果有帖子返回）----
-    const posts = postRows as Record<string, unknown>[];
-    let tagsMap: Map<string, Array<{ tag: { id: string; name: string; slug: string } }>> = new Map();
-
-    if (posts.length > 0) {
-      const postIds = posts.map((p) => p.id as string);
-      const placeholders = postIds.map(() => '?').join(',');
-      const tagRows = await queryWithTimeout(
-        db,
-        `SELECT pt.post_id, t.id as tag_id, t.name as tag_name, t.slug as tag_slug
-         FROM PostTag pt
-         JOIN Tag t ON pt.tag_id = t.id
-         WHERE pt.post_id IN (${placeholders})`,
-        postIds,
+        [...args, limit, offset],
         QUERY_TIMEOUT,
       );
+      postRows = rows as Record<string, unknown>[];
+    } catch (listErr) {
+      const detail = listErr instanceof Error ? listErr.message : String(listErr);
+      console.error('[POSTS LIST QUERY ERROR]', detail);
+      return NextResponse.json(
+        {
+          error: '获取帖子列表失败',
+          detail,
+          hint: '数据库查询超时或失败，请稍后重试',
+        },
+        { status: 503 }
+      );
+    }
 
-      tagsMap = new Map();
-      for (const row of tagRows as Record<string, unknown>[]) {
-        const postId = row.post_id as string;
-        if (!tagsMap.has(postId)) tagsMap.set(postId, []);
-        tagsMap.get(postId)!.push({
-          tag: {
-            id: row.tag_id as string,
-            name: row.tag_name as string,
-            slug: row.tag_slug as string,
-          },
-        });
+    // ---- 查询帖子标签（如果有帖子返回）----
+    let tagsMap: Map<string, Array<{ tag: { id: string; name: string; slug: string } }>> = new Map();
+
+    if (postRows.length > 0) {
+      try {
+        const postIds = postRows.map((p) => p.id as string).filter(Boolean);
+        if (postIds.length > 0) {
+          const placeholders = postIds.map(() => '?').join(',');
+          const tagRows = await queryWithTimeout(
+            db,
+            `SELECT pt.post_id, t.id as tag_id, t.name as tag_name, t.slug as tag_slug
+             FROM PostTag pt
+             JOIN Tag t ON pt.tag_id = t.id
+             WHERE pt.post_id IN (${placeholders})`,
+            postIds,
+            QUERY_TIMEOUT,
+          );
+
+          tagsMap = new Map();
+          for (const row of tagRows as Record<string, unknown>[]) {
+            const postId = row.post_id as string;
+            if (!tagsMap.has(postId)) tagsMap.set(postId, []);
+            tagsMap.get(postId)!.push({
+              tag: {
+                id: row.tag_id as string,
+                name: row.tag_name as string,
+                slug: row.tag_slug as string,
+              },
+            });
+          }
+        }
+      } catch (tagErr) {
+        console.error('[POSTS TAG QUERY ERROR]', tagErr instanceof Error ? tagErr.message : tagErr);
+        // 标签查询失败不影响帖子列表主体返回
       }
     }
 
     // ---- 格式化返回数据 ----
-    const postsWithSummary = posts.map((p) => ({
+    const postsWithSummary = postRows.map((p) => ({
       id: p.id,
       title: p.title,
       content: p.summary_content || '',
@@ -195,16 +204,22 @@ export async function GET(request: NextRequest) {
       posts: postsWithSummary,
       total,
       page,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit) || 1,
     }, {
       headers: {
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
       },
     });
   } catch (error) {
-    console.error('[POSTS LIST ERROR]', error);
+    const detail = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack?.split('\n').slice(0, 4).join('\n') : '';
+    console.error('[POSTS LIST ERROR]', detail, stack);
     return NextResponse.json(
-      { error: '获取帖子列表失败' },
+      {
+        error: '获取帖子列表失败',
+        detail: process.env.NODE_ENV === 'production' ? undefined : detail,
+        hint: '服务器内部错误，请联系管理员',
+      },
       { status: 500 }
     );
   }
