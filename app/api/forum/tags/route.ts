@@ -40,8 +40,18 @@ export async function GET(request: NextRequest) {
     if (dbError) return dbError;
     try {
       db = getDb();
-    } catch {
-      return NextResponse.json([]);
+    } catch (dbErr) {
+      // 不再静默返回空数组，返回明确的错误信息
+      const errorMessage = dbErr instanceof Error ? dbErr.message : '未知数据库错误';
+      console.error('[TAGS API] 数据库连接失败:', errorMessage);
+      return NextResponse.json(
+        {
+          error: '数据库连接失败',
+          detail: errorMessage,
+          hint: '请检查 DATABASE_URL 和 DATABASE_AUTH_TOKEN 是否正确配置',
+        },
+        { status: 503 }
+      );
     }
 
     // ---- 动态构建 WHERE ----
@@ -83,10 +93,17 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[TAGS LIST ERROR]', error);
+    // 记录详细错误，返回有意义的错误信息
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('[TAGS LIST ERROR]', errorMessage, errorStack);
     return NextResponse.json(
-      { error: '获取标签列表失败' },
-      { status: 500 },
+      {
+        error: '获取标签列表失败',
+        detail: errorMessage,
+        hint: '数据库查询出错，请稍后重试或检查数据库状态',
+      },
+      { status: 500 }
     );
   }
 }
