@@ -5,10 +5,9 @@
  *   - 无 ORM 序列化/反序列化开销
  *   - 无 adapter 中间层
  *   - 可使用 substr() 等数据库原生函数减少传输量
- *   - batch API 将多条查询合并为单次 HTTP 请求
  */
 
-import { createClient, type Client, type ResultSet, type InStatement, type InArgs } from '@libsql/client';
+import { createClient, type Client, type InArgs } from '@libsql/client';
 
 let client: Client | null = null;
 
@@ -30,40 +29,10 @@ export function getDb(): Client {
 }
 
 /**
- * 带超时的批量 SQL 查询（单次 HTTP 请求，多语句）
+ * 带超时的 SQL 查询
  *
- * libsql batch API 将多条 SELECT 合并为一次网络往返，
- * 对 Turso 等远程数据库可减少 60-80% 的延迟。
- *
- * @param statements SQL 语句数组
- * @param ms 总超时（默认 6 秒）
- * @returns 各语句的行数组，失败时返回 null
- */
-export async function batchWithTimeout(
-  client: Client,
-  statements: InStatement[],
-  ms = 6000,
-): Promise<ResultSet[] | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), ms);
-    const results = await Promise.race([
-      client.batch(statements),
-      new Promise<never>((_, reject) =>
-        controller.signal.addEventListener('abort', () =>
-          reject(new Error(`Batch timed out after ${ms}ms`)),
-        ),
-      ),
-    ]);
-    clearTimeout(timeout);
-    return results;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 带超时的单条 SQL 查询（用于独立查询场景）
+ * Cloudflare Workers 有 CPU 时间限制，数据库查询过慢会导致 Worker 挂起。
+ * 超时后降级返回 fallback 值。
  */
 export async function queryWithTimeout<T>(
   client: Client,
