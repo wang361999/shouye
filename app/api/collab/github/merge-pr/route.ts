@@ -76,14 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---- 合并成功后，自动记录贡献 ----
-    try {
-      console.log(
-        `[PR MERGE SUCCESS] PR #${prNumber} merged by user ${user.userId} for project ${projectId}`,
-      );
-    } catch {
-      // 贡献记录更新失败不影响合并结果
-    }
+    // ---- 合并成功后自动记录贡献（移除多余冗余 console.log） ----
 
     return NextResponse.json({
       success: true,

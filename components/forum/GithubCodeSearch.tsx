@@ -384,36 +384,30 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
                     </span>
                   </div>
                   {/* 文件路径 */}
-                  <div className="mt-1 flex items-center gap-1 text-xs text-gray-500 font-mono">
-                    <span className="truncate">{result.path}</span>
-                  </div>
-                  {/* 插入提示 */}
-                  <div className="mt-1 text-xs text-blue-500 flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    点击插入到帖子
+                  <div className="mt-1 text-xs text-gray-500 font-mono truncate">
+                    {result.path}
                   </div>
                 </button>
               ))}
-
-              {/* 分页 */}
+              {/* 分页控制 */}
               {totalCount > 10 && (
-                <div className="flex items-center justify-center gap-2 py-2 border-t border-gray-100">
+                <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-500">
                   <button
                     type="button"
+                    disabled={page <= 1 || loading}
                     onClick={() => doSearch(query, page - 1)}
-                    disabled={page <= 1}
-                    className="px-2 py-1 text-xs text-gray-500 disabled:text-gray-300 disabled:cursor-not-allowed hover:text-blue-600 transition-colors"
+                    className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
                   >
                     上一页
                   </button>
-                  <span className="text-xs text-gray-400">{page}</span>
+                  <span>
+                    第 {page} / {Math.ceil(Math.min(totalCount, 1000) / 10)} 页
+                  </span>
                   <button
                     type="button"
+                    disabled={page * 10 >= Math.min(totalCount, 1000) || loading}
                     onClick={() => doSearch(query, page + 1)}
-                    disabled={results.length < 10}
-                    className="px-2 py-1 text-xs text-gray-500 disabled:text-gray-300 disabled:cursor-not-allowed hover:text-blue-600 transition-colors"
+                    className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
                   >
                     下一页
                   </button>

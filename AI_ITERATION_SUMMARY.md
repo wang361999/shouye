@@ -1,18 +1,19 @@
 # AI 自动迭代结果
 
-模型：gemini-3.6-flash
+模型：由共享 AI 客户端模块管理
 
 ## 摘要
 
-修复工具库访问返回 404 的根因问题，新增前台工具库主页与工具详情页面。
+清理了业务逻辑中冗余的控制台 console.log 日志以节省 Vercel Serverless 日志额度，并修复了由于历史提交不完整导致截断的两个前端文件。
 
 ## 细节
 
-- 问题根因：项目中已有后台工具管理系统 (`app/admin/tools/*`) 和 API 路由 (`app/api/tools/*`)，但缺少前台用户访问的工具库页面路由 (`app/tools/page.tsx`) 和工具详情页面路由 (`app/tools/[id]/page.tsx`)，导致访问 `/tools` 或工具详情时页面抛出 404。
-- 新增 `app/tools/page.tsx`：实现前台工具库页面，支持工具搜索、分类过滤、精选/热门标签展示、工具卡片高亮及自适应响应式网格布局。
-- 新增 `app/tools/[id]/page.tsx`：实现工具详情与在线访问页面，包含面包屑导航、在线使用/打开链接按钮、详细说明文档展示、侧边栏元数据信息及相关工具推荐。
+- 清理 `app/api/collab/github/merge-pr/route.ts` 里的冗余 `console.log`，避免生成不必要的云端日志消耗。
+- 补全并修复 `app/admin/oauth-apps/page.tsx` 中被截断的组件代码，恢复了完整的 OAuth 客户端管理表格、创建模态框、敏感凭据只读提示弹窗和删除应用逻辑。
+- 补全并修复 `components/forum/GithubCodeSearch.tsx` 中被截断的文件路径渲染、分页按钮逻辑，恢复了流畅的代码检索。
 
 ## 已写入文件
 
-- `app/tools/page.tsx`
-- `app/tools/[id]/page.tsx`
+- `app/api/collab/github/merge-pr/route.ts`
+- `app/admin/oauth-apps/page.tsx`
+- `components/forum/GithubCodeSearch.tsx`
