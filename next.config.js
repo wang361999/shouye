@@ -86,6 +86,7 @@ const nextConfig = {
     '@prisma/client',
     '@prisma/adapter-libsql',
     '.prisma/client',
+    'nodemailer',
   ],
 
   // ============ 实验性功能 ============
