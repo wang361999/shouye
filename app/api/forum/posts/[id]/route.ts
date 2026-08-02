@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getDb, queryWithTimeout } from '@/lib/db';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
+const QUERY_TIMEOUT = 6000;
+
 // ============ GET /api/forum/posts/[id] - 获取帖子详情 ============
+// 使用原生 SQL 替代 Prisma，通过并行查询获取帖子+作者+分类+标签+评论
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     const { id } = params;
@@ -14,117 +18,248 @@ export async function GET(
     if (!id) {
       return NextResponse.json(
         { error: '无效的帖子 ID' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const post = await prisma.post.findUnique({
-      where: { id },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        // include tags：通过 PostTag include Tag
-        tags: {
-          include: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
-        comments: {
-          where: { parentId: null },
-          take: 10,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-                avatar: true,
-              },
-            },
-            replies: {
-              orderBy: { createdAt: 'asc' },
-              include: {
-                author: {
-                  select: {
-                    id: true,
-                    username: true,
-                    avatar: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    let db;
+    try {
+      db = getDb();
+    } catch {
+      return NextResponse.json(
+        { error: '数据库连接失败' },
+        { status: 503 },
+      );
+    }
 
-    if (!post || post.status === 'DELETED') {
+    // ---- 1. 查询帖子 + 作者 + 分类（单次 JOIN 查询）----
+    const postRows = await queryWithTimeout(
+      db,
+      `SELECT p.id, p.title, p.content, p.category_id,
+              p.view_count, p.like_count, p.comment_count,
+              p.is_pinned, p.is_essence, p.is_locked, p.status,
+              p.post_type, p.accepted_comment_id, p.author_name,
+              p.deleted_at, p.created_at, p.updated_at,
+              u.id as author_id, u.username as author_username, u.avatar as author_avatar,
+              c.id as cat_id, c.name as cat_name, c.slug as cat_slug
+       FROM Post p
+       LEFT JOIN User u ON p.author_id = u.id
+       LEFT JOIN Category c ON p.category_id = c.id
+       WHERE p.id = ?`,
+      [id],
+      QUERY_TIMEOUT,
+      [],
+    );
+
+    const postRow = (postRows as Record<string, unknown>[])[0];
+
+    if (!postRow || postRow.status === 'DELETED') {
       return NextResponse.json(
         { error: '帖子不存在' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // 浏览量 +1
-    await prisma.post.update({
-      where: { id },
-      data: { viewCount: { increment: 1 } },
+    // ---- 2. 并行查询：标签 + 顶级评论 + 浏览量+1 + 采纳评论 ----
+    const [tagRows, commentRows] = await Promise.all([
+      queryWithTimeout(
+        db,
+        `SELECT t.id as tag_id, t.name as tag_name, t.slug as tag_slug
+         FROM PostTag pt
+         JOIN Tag t ON pt.tag_id = t.id
+         WHERE pt.post_id = ?`,
+        [id],
+        QUERY_TIMEOUT,
+        [],
+      ),
+      queryWithTimeout(
+        db,
+        `SELECT cm.id, cm.content, cm.post_id, cm.parent_id,
+                cm.like_count, cm.is_approved, cm.is_accepted,
+                cm.deleted_at, cm.created_at, cm.updated_at,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar
+         FROM Comment cm
+         LEFT JOIN User u ON cm.author_id = u.id
+         WHERE cm.post_id = ? AND cm.parent_id IS NULL
+         ORDER BY cm.created_at DESC
+         LIMIT 10`,
+        [id],
+        QUERY_TIMEOUT,
+        [],
+      ),
+    ]);
+
+    // 浏览量 +1（异步执行，不阻塞响应）
+    db.execute({
+      sql: 'UPDATE Post SET view_count = view_count + 1 WHERE id = ?',
+      args: [id],
+    }).catch(() => {
+      // 忽略浏览量更新失败
     });
 
-    // 若存在采纳评论（问答帖），单独查询 acceptedComment 返回
-    // （acceptedCommentId 为普通字段而非关系，故此处单独获取）
-    let acceptedComment = null;
-    if (post.acceptedCommentId) {
-      acceptedComment = await prisma.comment.findUnique({
-        where: { id: post.acceptedCommentId },
-        select: {
-          id: true,
-          content: true,
-          isAccepted: true,
-          createdAt: true,
-          author: {
-            select: {
-              id: true,
-              username: true,
-              avatar: true,
-            },
-          },
-        },
-      });
+    // ---- 3. 查询评论的回复 ----
+    const comments = commentRows as Record<string, unknown>[];
+    let repliesMap: Map<string, Record<string, unknown>[]> = new Map();
+
+    if (comments.length > 0) {
+      const commentIds = comments.map((c) => c.id as string);
+      const placeholders = commentIds.map(() => '?').join(',');
+      const replyRows = await queryWithTimeout(
+        db,
+        `SELECT cm.id, cm.content, cm.post_id, cm.parent_id,
+                cm.like_count, cm.is_approved, cm.is_accepted,
+                cm.deleted_at, cm.created_at, cm.updated_at,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar
+         FROM Comment cm
+         LEFT JOIN User u ON cm.author_id = u.id
+         WHERE cm.parent_id IN (${placeholders})
+         ORDER BY cm.created_at ASC`,
+        commentIds,
+        QUERY_TIMEOUT,
+        [],
+      );
+
+      repliesMap = new Map();
+      for (const reply of replyRows as Record<string, unknown>[]) {
+        const parentId = reply.parent_id as string;
+        if (!repliesMap.has(parentId)) repliesMap.set(parentId, []);
+        repliesMap.get(parentId)!.push(reply);
+      }
     }
 
-    return NextResponse.json({
-      ...post,
-      viewCount: post.viewCount + 1, // 返回更新后的浏览量
-      acceptedComment,
-      // 如果设置了自定义作者名，覆盖 author.username 用于前端显示
-      author: post.authorName
-        ? { ...post.author, username: post.authorName }
-        : post.author,
+    // ---- 4. 查询采纳评论（如果存在）----
+    const acceptedCommentId = postRow.accepted_comment_id as string | null;
+    let acceptedComment = null;
+
+    if (acceptedCommentId) {
+      const acceptedRows = await queryWithTimeout(
+        db,
+        `SELECT cm.id, cm.content, cm.is_accepted, cm.created_at,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar
+         FROM Comment cm
+         LEFT JOIN User u ON cm.author_id = u.id
+         WHERE cm.id = ?`,
+        [acceptedCommentId],
+        QUERY_TIMEOUT,
+        [],
+      );
+
+      const ac = (acceptedRows as Record<string, unknown>[])[0];
+      if (ac) {
+        acceptedComment = {
+          id: ac.id,
+          content: ac.content,
+          isAccepted: Boolean(ac.is_accepted),
+          createdAt: ac.created_at,
+          author: {
+            id: ac.author_id || '',
+            username: ac.author_username || '匿名',
+            avatar: ac.author_avatar || null,
+          },
+        };
+      }
+    }
+
+    // ---- 5. 组装返回数据（保持与 Prisma 响应格式一致）----
+    const authorObj = {
+      id: postRow.author_id || '',
+      username: postRow.author_username || '匿名',
+      avatar: postRow.author_avatar || null,
+    };
+
+    // 如果设置了自定义作者名，覆盖 author.username 用于前端显示
+    const finalAuthor = postRow.author_name
+      ? { ...authorObj, username: postRow.author_name as string }
+      : authorObj;
+
+    const tags = (tagRows as Record<string, unknown>[]).map((t) => ({
+      tag: {
+        id: t.tag_id,
+        name: t.tag_name,
+        slug: t.tag_slug,
+      },
+    }));
+
+    const commentsWithReplies = comments.map((c) => {
+      const commentAuthor = {
+        id: c.author_id || '',
+        username: c.author_username || '匿名',
+        avatar: c.author_avatar || null,
+      };
+      const replies = (repliesMap.get(c.id as string) || []).map((r) => ({
+        id: r.id,
+        content: r.content,
+        postId: r.post_id,
+        authorId: r.author_id,
+        parentId: r.parent_id,
+        likeCount: Number(r.like_count) || 0,
+        isApproved: Boolean(r.is_approved),
+        isAccepted: Boolean(r.is_accepted),
+        deletedAt: r.deleted_at,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        author: {
+          id: r.author_id || '',
+          username: r.author_username || '匿名',
+          avatar: r.author_avatar || null,
+        },
+      }));
+
+      return {
+        id: c.id,
+        content: c.content,
+        postId: c.post_id,
+        authorId: c.author_id,
+        parentId: c.parent_id,
+        likeCount: Number(c.like_count) || 0,
+        isApproved: Boolean(c.is_approved),
+        isAccepted: Boolean(c.is_accepted),
+        deletedAt: c.deleted_at,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+        author: commentAuthor,
+        replies,
+      };
     });
+
+    const response = {
+      id: postRow.id,
+      title: postRow.title,
+      content: postRow.content,
+      categoryId: postRow.category_id,
+      authorId: postRow.author_id,
+      viewCount: Number(postRow.view_count) + 1, // 返回更新后的浏览量
+      likeCount: Number(postRow.like_count) || 0,
+      commentCount: Number(postRow.comment_count) || 0,
+      isPinned: Boolean(postRow.is_pinned),
+      isEssence: Boolean(postRow.is_essence),
+      isLocked: Boolean(postRow.is_locked),
+      status: postRow.status,
+      postType: postRow.post_type,
+      acceptedCommentId: postRow.accepted_comment_id,
+      authorName: postRow.author_name,
+      deletedAt: postRow.deleted_at,
+      createdAt: postRow.created_at,
+      updatedAt: postRow.updated_at,
+      author: finalAuthor,
+      category: postRow.cat_id
+        ? {
+            id: postRow.cat_id,
+            name: postRow.cat_name,
+            slug: postRow.cat_slug,
+          }
+        : null,
+      tags,
+      comments: commentsWithReplies,
+      acceptedComment,
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('[POST DETAIL ERROR]', error);
     return NextResponse.json(
       { error: '获取帖子详情失败' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -132,7 +267,7 @@ export async function GET(
 // ============ PUT /api/forum/posts/[id] - 编辑帖子 ============
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     // 登录鉴权
@@ -140,7 +275,7 @@ export async function PUT(
     if (!user) {
       return NextResponse.json(
         { error: '请先登录' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -149,7 +284,7 @@ export async function PUT(
     if (!id) {
       return NextResponse.json(
         { error: '无效的帖子 ID' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -158,7 +293,7 @@ export async function PUT(
     if (!existing || existing.status === 'DELETED') {
       return NextResponse.json(
         { error: '帖子不存在' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -166,7 +301,7 @@ export async function PUT(
     if (existing.authorId !== user.userId && user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: '无权编辑此帖子' },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -177,14 +312,14 @@ export async function PUT(
     if (!title || !content) {
       return NextResponse.json(
         { error: '标题和内容不能为空' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (title.length > 100) {
       return NextResponse.json(
         { error: '标题不能超过 100 个字符' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -200,7 +335,7 @@ export async function PUT(
       if (!Array.isArray(tags)) {
         return NextResponse.json(
           { error: '标签必须为字符串数组' },
-          { status: 400 }
+          { status: 400 },
         );
       }
       tagEntries = [];
@@ -297,7 +432,7 @@ export async function PUT(
     console.error('[POST UPDATE ERROR]', error);
     return NextResponse.json(
       { error: '编辑帖子失败' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -305,7 +440,7 @@ export async function PUT(
 // ============ DELETE /api/forum/posts/[id] - 删除帖子（软删除） ============
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     // 登录鉴权
@@ -313,7 +448,7 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json(
         { error: '请先登录' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -322,7 +457,7 @@ export async function DELETE(
     if (!id) {
       return NextResponse.json(
         { error: '无效的帖子 ID' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -331,7 +466,7 @@ export async function DELETE(
     if (!existing || existing.status === 'DELETED') {
       return NextResponse.json(
         { error: '帖子不存在' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -339,7 +474,7 @@ export async function DELETE(
     if (existing.authorId !== user.userId && user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: '无权删除此帖子' },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -357,7 +492,7 @@ export async function DELETE(
     console.error('[POST DELETE ERROR]', error);
     return NextResponse.json(
       { error: '删除帖子失败' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -365,7 +500,7 @@ export async function DELETE(
 // ============ PATCH /api/forum/posts/[id] - 管理操作（置顶/加精） ============
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     // 管理员鉴权
@@ -377,7 +512,7 @@ export async function PATCH(
     if (!id) {
       return NextResponse.json(
         { error: '无效的帖子 ID' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -386,7 +521,7 @@ export async function PATCH(
     if (!existing || existing.status === 'DELETED') {
       return NextResponse.json(
         { error: '帖子不存在' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -457,13 +592,13 @@ export async function PATCH(
 
     return NextResponse.json(
       { error: '不支持的操作，请使用 pin、essence、lock、unlock 或 setCategory' },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error) {
     console.error('[POST PATCH ERROR]', error);
     return NextResponse.json(
       { error: '管理操作失败' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

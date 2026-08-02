@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getDb, queryWithTimeout } from '@/lib/db';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { sendNotification } from '@/lib/notify';
 import { revalidateCommunityHome } from '@/lib/revalidate';
+
+const QUERY_TIMEOUT = 6000;
 
 // ============ 简单敏感词列表 ============
 const SENSITIVE_WORDS = [
@@ -29,42 +32,88 @@ export async function GET(request: NextRequest) {
     const approved = searchParams.get('approved');
 
     // ---- 模式1：按 postId 查询帖子评论树 ----
+    // 使用原生 SQL 替代 Prisma，通过并行查询获取评论+作者+回复
     if (postId && approved === null) {
-      const where: Record<string, unknown> = {
-        postId,
-        parentId: null,
-        deletedAt: null,
-      };
+      let db;
+      try {
+        db = getDb();
+      } catch {
+        return NextResponse.json([]);
+      }
 
-      // 查询顶级评论（parentId 为 null）
-      const comments = await prisma.comment.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-              avatar: true,
-            },
-          },
-          replies: {
-            where: { deletedAt: null },
-            orderBy: { createdAt: 'asc' },
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  username: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
+      // 1. 查询顶级评论 + 作者
+      const commentRows = await queryWithTimeout(
+        db,
+        `SELECT cm.id, cm.content, cm.post_id, cm.parent_id,
+                cm.like_count, cm.is_approved, cm.is_accepted,
+                cm.deleted_at, cm.created_at, cm.updated_at,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar
+         FROM Comment cm
+         LEFT JOIN User u ON cm.author_id = u.id
+         WHERE cm.post_id = ? AND cm.parent_id IS NULL AND cm.deleted_at IS NULL
+         ORDER BY cm.created_at DESC`,
+        [postId],
+        QUERY_TIMEOUT,
+        [],
+      );
+
+      const comments = commentRows as Record<string, unknown>[];
+
+      // 2. 查询回复 + 作者（如果有顶级评论）
+      let repliesMap: Map<string, Record<string, unknown>[]> = new Map();
+
+      if (comments.length > 0) {
+        const commentIds = comments.map((c) => c.id as string);
+        const placeholders = commentIds.map(() => '?').join(',');
+        const replyRows = await queryWithTimeout(
+          db,
+          `SELECT cm.id, cm.content, cm.post_id, cm.parent_id,
+                  cm.like_count, cm.is_approved, cm.is_accepted,
+                  cm.deleted_at, cm.created_at, cm.updated_at,
+                  u.id as author_id, u.username as author_username, u.avatar as author_avatar
+           FROM Comment cm
+           LEFT JOIN User u ON cm.author_id = u.id
+           WHERE cm.parent_id IN (${placeholders}) AND cm.deleted_at IS NULL
+           ORDER BY cm.created_at ASC`,
+          commentIds,
+          QUERY_TIMEOUT,
+          [],
+        );
+
+        repliesMap = new Map();
+        for (const reply of replyRows as Record<string, unknown>[]) {
+          const parentId = reply.parent_id as string;
+          if (!repliesMap.has(parentId)) repliesMap.set(parentId, []);
+          repliesMap.get(parentId)!.push(reply);
+        }
+      }
+
+      // 3. 组装嵌套结构（保持与 Prisma 响应格式一致）
+      const formatComment = (c: Record<string, unknown>) => ({
+        id: c.id,
+        content: c.content,
+        postId: c.post_id,
+        authorId: c.author_id,
+        parentId: c.parent_id,
+        likeCount: Number(c.like_count) || 0,
+        isApproved: Boolean(c.is_approved),
+        isAccepted: Boolean(c.is_accepted),
+        deletedAt: c.deleted_at,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+        author: {
+          id: c.author_id || '',
+          username: c.author_username || '匿名',
+          avatar: c.author_avatar || null,
         },
       });
 
-      return NextResponse.json(comments);
+      const result = comments.map((c) => ({
+        ...formatComment(c),
+        replies: (repliesMap.get(c.id as string) || []).map(formatComment),
+      }));
+
+      return NextResponse.json(result);
     }
 
     // ---- 模式2：管理后台查询评论列表 ----

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import type { InValue } from '@libsql/client';
 import { getUserFromRequest } from '@/lib/auth';
+
+const QUERY_TIMEOUT = 6000;
 
 // ============ 生成唯一 slug ============
 // 将 name 转小写、空格转 -，如 slug 已存在则追加随机后缀
@@ -24,29 +28,69 @@ async function generateUniqueSlug(name: string): Promise<string> {
 
 // ============ GET /api/forum/tags - 获取标签列表 ============
 // 按 postCount 降序排列，支持 ?search= 模糊搜索标签名
+// 使用原生 SQL 替代 Prisma，提升 Cloudflare Workers 性能
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const search = searchParams.get('search') || undefined;
+    const search = searchParams.get('search')?.trim() || undefined;
 
-    const tags = await prisma.tag.findMany({
-      where: search
-        ? { name: { contains: search } }
-        : undefined,
-      orderBy: { postCount: 'desc' },
+    let db;
+    try {
+      db = getDb();
+    } catch {
+      return NextResponse.json([]);
+    }
+
+    // ---- 动态构建 WHERE ----
+    let sql: string;
+    let args: InValue[];
+
+    if (search) {
+      sql = `SELECT id, name, slug, post_count, created_at
+             FROM Tag
+             WHERE name LIKE '%' || ? || '%'
+             ORDER BY post_count DESC, created_at DESC`;
+      args = [search];
+    } else {
+      sql = `SELECT id, name, slug, post_count, created_at
+             FROM Tag
+             ORDER BY post_count DESC, created_at DESC`;
+      args = [];
+    }
+
+    const rows = await queryWithTimeout(
+      db,
+      sql,
+      args,
+      QUERY_TIMEOUT,
+      [],
+    );
+
+    // ---- 映射为 Prisma 兼容的 camelCase 字段名 ----
+    const tags = (rows as Record<string, unknown>[]).map((row) => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      postCount: Number(row.post_count) || 0,
+      createdAt: row.created_at,
+    }));
+
+    return NextResponse.json(tags, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
+      },
     });
-
-    return NextResponse.json(tags);
   } catch (error) {
     console.error('[TAGS LIST ERROR]', error);
     return NextResponse.json(
       { error: '获取标签列表失败' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // ============ POST /api/forum/tags - 创建新标签（需登录） ============
+// 保持 Prisma（写操作）
 export async function POST(request: NextRequest) {
   try {
     // 登录鉴权
@@ -54,7 +98,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { error: '请先登录' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -65,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (!name || !name.trim()) {
       return NextResponse.json(
         { error: '标签名称不能为空' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -78,7 +122,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       return NextResponse.json(
         { error: '该标签已存在' },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -98,7 +142,7 @@ export async function POST(request: NextRequest) {
     console.error('[TAG CREATE ERROR]', error);
     return NextResponse.json(
       { error: '创建标签失败' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
