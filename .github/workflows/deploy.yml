@@ -49,6 +49,15 @@ jobs:
           DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
+      - name: Set Cloudflare Worker secrets
+        run: |
+          echo "${{ secrets.DATABASE_URL }}" | npx wrangler secret put DATABASE_URL --name shouye
+          echo "${{ secrets.DATABASE_AUTH_TOKEN }}" | npx wrangler secret put DATABASE_AUTH_TOKEN --name shouye
+          echo "${{ secrets.JWT_SECRET }}" | npx wrangler secret put JWT_SECRET --name shouye
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Summary
         if: always()
         run: |
