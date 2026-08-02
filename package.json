@@ -13,7 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:setup": "node scripts/db-setup.mjs",
     "gen:env": "node scripts/generate-env.mjs",
-    "vercel-build": "prisma generate && rm -rf tsconfig.tsbuildinfo .next && next build"
+    "vercel-build": "next build"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
