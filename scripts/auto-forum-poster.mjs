@@ -161,7 +161,8 @@ async function generatePostContent(title, topicType, categories) {
 // ===== 发布帖子 =====
 async function publishPost(token, postData, categories) {
   let categoryId = null;
-  if (postData.categoryId) {
+  // 验证 AI 返回的 categoryId 是否真实存在，不存在则用第一个分类
+  if (postData.categoryId && categories.some((c) => c.id === postData.categoryId)) {
     categoryId = postData.categoryId;
   } else if (categories.length > 0) {
     categoryId = categories[0].id;
