@@ -17,7 +17,7 @@ interface CommunityPost {
   isEssence: boolean;
   timeAgo: string;
   author: { id: string; username: string; avatar: string | null };
-  category: { id: string; name: string; slug: string };
+  category: { id: string; name: string; slug: string } | null;
 }
 
 interface ActiveMember {
@@ -137,9 +137,11 @@ function PostCard({ post, rank }: { post: CommunityPost; rank?: number }) {
         <div className="flex-1 min-w-0">
           {/* 标签行 */}
           <div className="flex items-center gap-1.5 mb-1.5">
-            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-              {post.category.name}
-            </span>
+            {post.category && (
+              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                {post.category.name}
+              </span>
+            )}
             {post.isPinned && (
               <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-600 border border-red-200">
                 📌 置顶
