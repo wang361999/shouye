@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import type { InValue } from '@libsql/client';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
-import { Prisma } from '@prisma/client';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
+const QUERY_TIMEOUT = 6000;
+
 // ============ GET /api/forum/posts - 获取帖子列表 ============
-// 管理员（带 Authorization header）可通过 ?admin=1 获取全部帖子（含已删除/草稿）
-// 支持 ?tag=xxx 按标签筛选、?postType=question|discussion 按类型筛选、?sort=latest|hot|essence
+// 使用原生 SQL 替代 Prisma，支持分页/搜索/分类/排序/标签/类型过滤
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -22,127 +24,162 @@ export async function GET(request: NextRequest) {
     const tag = searchParams.get('tag') || undefined;
     const postType = searchParams.get('postType') || undefined;
 
-    // 构建排序规则：置顶始终在最前
-    let orderBy: Prisma.PostOrderByWithRelationInput[];
-    if (sort === 'hot') {
-      // 热门排序：点赞数 + 浏览数
-      orderBy = [
-        { isPinned: 'desc' },
-        { likeCount: 'desc' },
-        { viewCount: 'desc' },
-        { createdAt: 'desc' },
-      ];
-    } else {
-      // 默认最新排序（essence 也走最新排序，仅过滤条件不同）
-      orderBy = [
-        { isPinned: 'desc' },
-        { createdAt: 'desc' },
-      ];
-    }
-
-    // 判断是否为管理员请求
+    // 判断管理员
     const admin = adminAuth(request);
     const isAdmin = !!admin && !(admin instanceof Response) && adminFlag;
 
-    // ---- 构建查询条件 ----
-    const where: Prisma.PostWhereInput = {};
+    // ---- 动态构建 WHERE 条件 ----
+    const conditions: string[] = [];
+    const args: InValue[] = [];
 
-    // 非管理员只能看到已发布帖子
     if (!isAdmin) {
-      where.status = 'PUBLISHED';
+      conditions.push("p.status = 'PUBLISHED'");
     } else if (statusParam) {
-      // 管理员可按状态筛选
-      where.status = statusParam as string;
+      conditions.push("p.status = ?");
+      args.push(statusParam);
     }
 
     if (categorySlug) {
-      where.category = { slug: categorySlug };
+      conditions.push("c.slug = ?");
+      args.push(categorySlug);
     }
 
-    // 搜索：同时搜索标题、内容和标签名
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { content: { contains: search } },
-        { tags: { some: { tag: { name: { contains: search } } } } },
-      ];
+      conditions.push("(p.title LIKE '%' || ? || '%' OR p.content LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM PostTag pt JOIN Tag t ON pt.tag_id = t.id WHERE pt.post_id = p.id AND t.name LIKE '%' || ? || '%'))");
+      args.push(search, search, search);
     }
 
     if (authorId) {
-      where.authorId = authorId;
+      conditions.push("p.author_id = ?");
+      args.push(authorId);
     }
 
-    // 按标签筛选（通过 PostTag 关联查询，支持按 slug 或 name 匹配）
     if (tag) {
-      where.tags = {
-        some: {
-          tag: {
-            OR: [{ slug: tag }, { name: tag }],
-          },
-        },
-      };
+      conditions.push("EXISTS (SELECT 1 FROM PostTag pt JOIN Tag t ON pt.tag_id = t.id WHERE pt.post_id = p.id AND (t.slug = ? OR t.name = ?))");
+      args.push(tag, tag);
     }
 
-    // 按帖子类型筛选
     if (postType) {
-      where.postType = postType;
+      conditions.push("p.post_type = ?");
+      args.push(postType);
     }
 
-    // essence：只看精华帖
     if (sort === 'essence') {
-      where.isEssence = true;
+      conditions.push("p.is_essence = 1");
     }
 
-    // ---- 查询总数和分页数据 ----
-    const [posts, total] = await Promise.all([
-      prisma.post.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-              avatar: true,
-            },
-          },
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-          // include tags：通过 PostTag include Tag
-          tags: {
-            include: {
-              tag: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                },
-              },
-            },
-          },
-        },
-      }),
-      prisma.post.count({ where }),
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    // ---- 排序 ----
+    let orderClause: string;
+    if (sort === 'hot') {
+      orderClause = 'p.is_pinned DESC, p.like_count DESC, p.view_count DESC, p.created_at DESC';
+    } else {
+      orderClause = 'p.is_pinned DESC, p.created_at DESC';
+    }
+
+    const offset = (page - 1) * limit;
+
+    let db;
+    try {
+      db = getDb();
+    } catch {
+      return NextResponse.json({ posts: [], total: 0, page, totalPages: 1 });
+    }
+
+    // ---- 并行查询帖子列表 + 总数 ----
+    const listArgs = [...args];
+    const countArgs = [...args];
+
+    const [postRows, countRows] = await Promise.all([
+      queryWithTimeout(
+        db,
+        `SELECT p.id, p.title, substr(p.content, 1, 200) as summary_content,
+                p.view_count, p.like_count, p.comment_count, p.is_pinned, p.is_essence,
+                p.created_at, p.post_type, p.author_name, p.status,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar,
+                c.id as cat_id, c.name as cat_name, c.slug as cat_slug
+         FROM Post p
+         LEFT JOIN User u ON p.author_id = u.id
+         LEFT JOIN Category c ON p.category_id = c.id
+         ${whereClause}
+         ORDER BY ${orderClause}
+         LIMIT ? OFFSET ?`,
+        [...listArgs, limit, offset],
+        QUERY_TIMEOUT,
+        [],
+      ),
+      queryWithTimeout(
+        db,
+        `SELECT COUNT(*) as total FROM Post p
+         LEFT JOIN Category c ON p.category_id = c.id
+         ${whereClause}`,
+        countArgs,
+        QUERY_TIMEOUT,
+        [{ total: 0 }],
+      ),
     ]);
 
-    // ---- 截断 content 用于列表展示 ----
-    const postsWithSummary = posts.map((post) => ({
-      ...post,
-      // 取前 200 字作为摘要
-      summary: post.content.length > 200
-        ? post.content.substring(0, 200) + '...'
-        : post.content,
-      // 如果设置了自定义作者名，覆盖 author.username 用于前端显示
-      author: post.authorName
-        ? { ...post.author, username: post.authorName }
-        : post.author,
+    const total = Number((countRows as Record<string, unknown>[])[0]?.total) || 0;
+
+    // ---- 查询帖子标签（如果有帖子返回）----
+    const posts = postRows as Record<string, unknown>[];
+    let tagsMap: Map<string, Array<{ tag: { id: string; name: string; slug: string } }>> = new Map();
+
+    if (posts.length > 0) {
+      const postIds = posts.map((p) => p.id as string);
+      const placeholders = postIds.map(() => '?').join(',');
+      const tagRows = await queryWithTimeout(
+        db,
+        `SELECT pt.post_id, t.id as tag_id, t.name as tag_name, t.slug as tag_slug
+         FROM PostTag pt
+         JOIN Tag t ON pt.tag_id = t.id
+         WHERE pt.post_id IN (${placeholders})`,
+        postIds,
+        QUERY_TIMEOUT,
+        [],
+      );
+
+      tagsMap = new Map();
+      for (const row of tagRows as Record<string, unknown>[]) {
+        const postId = row.post_id as string;
+        if (!tagsMap.has(postId)) tagsMap.set(postId, []);
+        tagsMap.get(postId)!.push({
+          tag: {
+            id: row.tag_id as string,
+            name: row.tag_name as string,
+            slug: row.tag_slug as string,
+          },
+        });
+      }
+    }
+
+    // ---- 格式化返回数据 ----
+    const postsWithSummary = posts.map((p) => ({
+      id: p.id,
+      title: p.title,
+      content: p.summary_content || '',
+      summary: p.summary_content ? (p.summary_content as string).length >= 200
+        ? (p.summary_content as string) + '...'
+        : p.summary_content as string
+        : '',
+      viewCount: Number(p.view_count) || 0,
+      likeCount: Number(p.like_count) || 0,
+      commentCount: Number(p.comment_count) || 0,
+      isPinned: Boolean(p.is_pinned),
+      isEssence: Boolean(p.is_essence),
+      createdAt: p.created_at,
+      postType: p.post_type,
+      status: p.status,
+      author: {
+        id: p.author_id || '',
+        username: p.author_name || p.author_username || '匿名',
+        avatar: p.author_avatar || null,
+      },
+      category: p.cat_id
+        ? { id: p.cat_id as string, name: p.cat_name as string, slug: p.cat_slug as string }
+        : null,
+      tags: tagsMap.get(p.id as string) || [],
     }));
 
     return NextResponse.json({
@@ -152,7 +189,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     }, {
       headers: {
-        // 公开帖子列表缓存 60 秒，减少数据库查询
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
       },
     });
@@ -166,11 +202,8 @@ export async function GET(request: NextRequest) {
 }
 
 // ============ POST /api/forum/posts - 发布新帖 ============
-// 支持接收 tags(string[]) 和 postType('discussion'|'question')
-// 发帖频率限制：同一用户 60 秒内只能发 1 帖
 export async function POST(request: NextRequest) {
   try {
-    // 登录鉴权
     const user = getUserFromRequest(request);
     if (!user) {
       return NextResponse.json(
@@ -182,7 +215,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, content, categoryId, tags, postType: rawPostType, authorName } = body;
 
-    // ---- 输入校验 ----
     if (!title || !content) {
       return NextResponse.json(
         { error: '标题和内容不能为空' },
@@ -197,15 +229,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 帖子类型校验：仅允许 discussion | question，默认 discussion
     const postType = rawPostType === 'question' ? 'question' : 'discussion';
 
-    // authorName 仅管理员可设置（AI 自动发帖/周报用自定义显示名）
     const safeAuthorName = (user.role === 'ADMIN' && typeof authorName === 'string' && authorName.trim())
       ? authorName.trim().slice(0, 50)
       : undefined;
 
-    // 标签校验：必须是字符串数组，去重并最多保留 5 个
     let tagEntries: { name: string; slug: string }[] = [];
     if (tags !== undefined && tags !== null) {
       if (!Array.isArray(tags)) {
@@ -219,7 +248,6 @@ export async function POST(request: NextRequest) {
         const name = String(raw).trim();
         if (!name) continue;
         const slug = name.toLowerCase().replace(/\s+/g, '-');
-        // 按 slug 去重，避免不同大小写/空格产生相同 slug 导致 PostTag 主键冲突
         if (seenSlugs.has(slug)) continue;
         seenSlugs.add(slug);
         tagEntries.push({ name, slug });
@@ -227,7 +255,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 如果指定了分类，验证分类是否存在
     if (categoryId) {
       const category = await prisma.category.findUnique({
         where: { id: categoryId },
@@ -240,7 +267,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ---- 发帖频率限制：同一用户 60 秒内只能发 1 帖 ----
     const latestPost = await prisma.post.findFirst({
       where: { authorId: user.userId },
       orderBy: { createdAt: 'desc' },
@@ -258,7 +284,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ---- 创建帖子（含标签关联与用户计数更新，使用事务保证一致性）----
     const created = await prisma.$transaction(async (tx) => {
       const post = await tx.post.create({
         data: {
@@ -272,7 +297,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 处理标签：对每个标签名，查找或创建 Tag 记录，然后创建 PostTag 关联
       for (const { name, slug } of tagEntries) {
         const tag = await tx.tag.upsert({
           where: { slug },
@@ -284,7 +308,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 创建帖子后更新用户 postCount +1
       await tx.user.update({
         where: { id: user.userId },
         data: { postCount: { increment: 1 } },
@@ -293,42 +316,17 @@ export async function POST(request: NextRequest) {
       return post;
     });
 
-    // 查询带关联（author/category/tags）的帖子数据返回
     const post = await prisma.post.findUnique({
       where: { id: created.id },
       include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        tags: {
-          include: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-              },
-            },
-          },
-        },
+        author: { select: { id: true, username: true, avatar: true } },
+        category: { select: { id: true, name: true, slug: true } },
+        tags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
       },
     });
 
-    // 清除社区首页缓存，使新帖及时在首页展示
     revalidateCommunityHome();
 
-    // 如果设置了自定义作者名，覆盖 author.username 用于前端显示
     const displayPost = post?.authorName
       ? { ...post, author: { ...post.author, username: post.authorName } }
       : post;
