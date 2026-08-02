@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 import { stripMarkdown, truncateText, formatTimeAgo } from '@/lib/utils';
 
 // ============ 两级缓存 ============
@@ -76,7 +77,6 @@ export async function GET() {
        LIMIT 6`,
       [],
       QUERY_TIMEOUT,
-      [],
     ));
 
     // 2. 热门讨论（5条）
@@ -95,7 +95,6 @@ export async function GET() {
        LIMIT 5`,
       [],
       QUERY_TIMEOUT,
-      [],
     ));
 
     // 3. 活跃成员（8人）
@@ -108,7 +107,6 @@ export async function GET() {
        LIMIT 8`,
       [],
       QUERY_TIMEOUT,
-      [],
     ));
 
     // 4. 协作召集令（6条）
@@ -126,7 +124,6 @@ export async function GET() {
        LIMIT 6`,
       [],
       QUERY_TIMEOUT,
-      [],
     ));
   }
 
@@ -141,7 +138,6 @@ export async function GET() {
          (SELECT COUNT(*) FROM Post WHERE status = 'PUBLISHED' AND created_at >= ?) as today_post_count`,
       [todayStart],
       QUERY_TIMEOUT,
-      [{ user_count: 0, post_count: 0, comment_count: 0, today_post_count: 0 }],
     ));
   }
 

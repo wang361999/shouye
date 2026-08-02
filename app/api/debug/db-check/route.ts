@@ -45,62 +45,62 @@ export async function GET() {
   // 3. 执行测试查询（使用 queryWithTimeout 和其他 API 一致的方式）
   const TIMEOUT = 8000;
 
-  // 测试查询 1: 获取所有表
-  const tables = await queryWithTimeout(
-    db,
-    "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
-    [],
-    TIMEOUT,
-    [],
-  );
-  diagnostics.tables = (tables as Record<string, unknown>[]).map((r) => r.name);
-
-  // 测试查询 2: 各表数据量
-  const tableCounts: Record<string, number> = {};
-  for (const table of diagnostics.tables as string[]) {
-    const rows = await queryWithTimeout(
+  try {
+    // 测试查询 1: 获取所有表
+    const tables = await queryWithTimeout(
       db,
-      `SELECT COUNT(*) as count FROM ${table}`,
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
       [],
       TIMEOUT,
-      [{ count: -1 }],
     );
-    tableCounts[table] = Number((rows as Record<string, unknown>[])[0]?.count) || -1;
+    diagnostics.tables = (tables as Record<string, unknown>[]).map((r) => r.name);
+
+    // 测试查询 2: 各表数据量
+    const tableCounts: Record<string, number> = {};
+    for (const table of diagnostics.tables as string[]) {
+      const rows = await queryWithTimeout(
+        db,
+        `SELECT COUNT(*) as count FROM ${table}`,
+        [],
+        TIMEOUT,
+      );
+      tableCounts[table] = Number((rows as Record<string, unknown>[])[0]?.count) || -1;
+    }
+    diagnostics.tableCounts = tableCounts;
+
+    // 测试查询 3: 已发布帖子
+    const posts = await queryWithTimeout(
+      db,
+      "SELECT id, title, status FROM Post WHERE status = 'PUBLISHED' ORDER BY created_at DESC LIMIT 5",
+      [],
+      TIMEOUT,
+    );
+    diagnostics.recentPosts = posts;
+
+    // 测试查询 4: 分类
+    const cats = await queryWithTimeout(
+      db,
+      'SELECT id, name, slug FROM Category ORDER BY sort_order ASC',
+      [],
+      TIMEOUT,
+    );
+    diagnostics.categories = cats;
+
+    // 测试查询 5: 标签
+    const tags = await queryWithTimeout(
+      db,
+      'SELECT id, name, slug, post_count FROM Tag ORDER BY post_count DESC LIMIT 10',
+      [],
+      TIMEOUT,
+    );
+    diagnostics.tags = tags;
+
+    diagnostics.status = 'OK';
+    diagnostics.message = '数据库连接正常，查询成功';
+  } catch (error) {
+    diagnostics.status = 'QUERY_ERROR';
+    diagnostics.error = error instanceof Error ? error.message : String(error);
   }
-  diagnostics.tableCounts = tableCounts;
-
-  // 测试查询 3: 已发布帖子
-  const posts = await queryWithTimeout(
-    db,
-    "SELECT id, title, status FROM Post WHERE status = 'PUBLISHED' ORDER BY created_at DESC LIMIT 5",
-    [],
-    TIMEOUT,
-    [],
-  );
-  diagnostics.recentPosts = posts;
-
-  // 测试查询 4: 分类
-  const cats = await queryWithTimeout(
-    db,
-    'SELECT id, name, slug FROM Category ORDER BY sort_order ASC',
-    [],
-    TIMEOUT,
-    [],
-  );
-  diagnostics.categories = cats;
-
-  // 测试查询 5: 标签
-  const tags = await queryWithTimeout(
-    db,
-    'SELECT id, name, slug, post_count FROM Tag ORDER BY post_count DESC LIMIT 10',
-    [],
-    TIMEOUT,
-    [],
-  );
-  diagnostics.tags = tags;
-
-  diagnostics.status = 'OK';
-  diagnostics.message = '数据库连接正常，查询成功';
 
   return NextResponse.json(diagnostics, {
     headers: {

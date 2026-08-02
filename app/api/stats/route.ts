@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 
 // 模块级缓存：统计数据 10 分钟
 let cachedStats: object | null = null;
@@ -42,7 +43,6 @@ export async function GET() {
        (SELECT COUNT(*) FROM Post WHERE status = 'PUBLISHED' AND created_at >= ?) as today_post_count`,
     [todayStart],
     6000,
-    [{ tool_count: 0, user_count: 0, post_count: 0, today_post_count: 0 }],
   );
 
   const row = (rows as Record<string, unknown>[])[0] || {};

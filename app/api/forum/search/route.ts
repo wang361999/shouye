@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 
 // ============ GET /api/forum/search - 论坛增强搜索 ============
 // 参数: ?q=关键词&page=1&limit=20&type=post|comment|all
@@ -108,7 +109,6 @@ export async function GET(request: NextRequest) {
          ORDER BY p.created_at DESC`,
         [q, q, q],
         QUERY_TIMEOUT,
-        [],
       );
 
       const posts = postRows as Record<string, unknown>[];
@@ -126,7 +126,6 @@ export async function GET(request: NextRequest) {
            WHERE pt.post_id IN (${placeholders})`,
           postIds,
           QUERY_TIMEOUT,
-          [],
         );
 
         tagsMap = new Map();
@@ -196,7 +195,6 @@ export async function GET(request: NextRequest) {
          ORDER BY cm.created_at DESC`,
         [q],
         QUERY_TIMEOUT,
-        [],
       );
 
       for (const c of commentRows as Record<string, unknown>[]) {

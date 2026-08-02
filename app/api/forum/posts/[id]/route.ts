@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
@@ -50,7 +51,6 @@ export async function GET(
        WHERE p.id = ?`,
       [id],
       QUERY_TIMEOUT,
-      [],
     );
 
     const postRow = (postRows as Record<string, unknown>[])[0];
@@ -72,7 +72,6 @@ export async function GET(
          WHERE pt.post_id = ?`,
         [id],
         QUERY_TIMEOUT,
-        [],
       ),
       queryWithTimeout(
         db,
@@ -87,7 +86,6 @@ export async function GET(
          LIMIT 10`,
         [id],
         QUERY_TIMEOUT,
-        [],
       ),
     ]);
 
@@ -118,7 +116,6 @@ export async function GET(
          ORDER BY cm.created_at ASC`,
         commentIds,
         QUERY_TIMEOUT,
-        [],
       );
 
       repliesMap = new Map();
@@ -143,7 +140,6 @@ export async function GET(
          WHERE cm.id = ?`,
         [acceptedCommentId],
         QUERY_TIMEOUT,
-        [],
       );
 
       const ac = (acceptedRows as Record<string, unknown>[])[0];

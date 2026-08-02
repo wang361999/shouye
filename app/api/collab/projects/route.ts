@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 import type { InValue } from '@libsql/client';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseGithubRepoUrl, stringifyJsonArray } from '@/lib/collab';
@@ -70,14 +71,12 @@ export async function GET(request: NextRequest) {
          LIMIT ? OFFSET ?`,
         [...listArgs, pageSize, offset],
         QUERY_TIMEOUT,
-        [],
       ),
       queryWithTimeout(
         db,
         `SELECT COUNT(*) as total FROM CollabProject cp ${whereClause}`,
         countArgs,
         QUERY_TIMEOUT,
-        [{ total: 0 }],
       ),
     ]);
 

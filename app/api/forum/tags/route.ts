@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 import type { InValue } from '@libsql/client';
 import { getUserFromRequest } from '@/lib/auth';
 
@@ -65,7 +66,6 @@ export async function GET(request: NextRequest) {
       sql,
       args,
       QUERY_TIMEOUT,
-      [],
     );
 
     // ---- 映射为 Prisma 兼容的 camelCase 字段名 ----

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 import { adminAuth } from '@/lib/auth';
 
 // GET 请求缓存 1 小时（分类数据不频繁变化）
@@ -38,7 +39,6 @@ export async function GET() {
      ORDER BY c.sort_order ASC`,
     [],
     6000,
-    [],
   );
 
   const result = (rows as Record<string, unknown>[]).map((cat) => ({

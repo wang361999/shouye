@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 import type { InValue } from '@libsql/client';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
@@ -109,7 +110,6 @@ export async function GET(request: NextRequest) {
          LIMIT ? OFFSET ?`,
         [...listArgs, limit, offset],
         QUERY_TIMEOUT,
-        [],
       ),
       queryWithTimeout(
         db,
@@ -118,7 +118,6 @@ export async function GET(request: NextRequest) {
          ${whereClause}`,
         countArgs,
         QUERY_TIMEOUT,
-        [{ total: 0 }],
       ),
     ]);
 
@@ -139,7 +138,6 @@ export async function GET(request: NextRequest) {
          WHERE pt.post_id IN (${placeholders})`,
         postIds,
         QUERY_TIMEOUT,
-        [],
       );
 
       tagsMap = new Map();
