@@ -5,10 +5,11 @@ import { checkDbOr503 } from '@/lib/db-check';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
-const QUERY_TIMEOUT = 6000;
+const QUERY_TIMEOUT = 8000;
 
 // ============ GET /api/forum/posts/[id] - 获取帖子详情 ============
-// 使用原生 SQL 替代 Prisma，通过并行查询获取帖子+作者+分类+标签+评论
+// 使用原生 SQL 替代 Prisma，通过顺序查询获取帖子+作者+分类+标签+评论
+// 注意：不使用 Promise.all，避免 libsql HTTP 客户端并发请求失败
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } },
@@ -36,24 +37,33 @@ export async function GET(
     }
 
     // ---- 1. 查询帖子 + 作者 + 分类（单次 JOIN 查询）----
-    const postRows = await queryWithTimeout(
-      db,
-      `SELECT p.id, p.title, p.content, p.category_id,
-              p.view_count, p.like_count, p.comment_count,
-              p.is_pinned, p.is_essence, p.is_locked, p.status,
-              p.post_type, p.accepted_comment_id, p.author_name,
-              p.deleted_at, p.created_at, p.updated_at,
-              u.id as author_id, u.username as author_username, u.avatar as author_avatar,
-              c.id as cat_id, c.name as cat_name, c.slug as cat_slug
-       FROM Post p
-       LEFT JOIN User u ON p.author_id = u.id
-       LEFT JOIN Category c ON p.category_id = c.id
-       WHERE p.id = ?`,
-      [id],
-      QUERY_TIMEOUT,
-    );
-
-    const postRow = (postRows as Record<string, unknown>[])[0];
+    let postRow: Record<string, unknown> | undefined;
+    try {
+      const postRows = await queryWithTimeout(
+        db,
+        `SELECT p.id, p.title, p.content, p.category_id,
+                p.view_count, p.like_count, p.comment_count,
+                p.is_pinned, p.is_essence, p.is_locked, p.status,
+                p.post_type, p.accepted_comment_id, p.author_name,
+                p.deleted_at, p.created_at, p.updated_at,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar,
+                c.id as cat_id, c.name as cat_name, c.slug as cat_slug
+         FROM Post p
+         LEFT JOIN User u ON p.author_id = u.id
+         LEFT JOIN Category c ON p.category_id = c.id
+         WHERE p.id = ?`,
+        [id],
+        QUERY_TIMEOUT,
+      );
+      postRow = (postRows as Record<string, unknown>[])[0];
+    } catch (postErr) {
+      const detail = postErr instanceof Error ? postErr.message : String(postErr);
+      console.error('[POST DETAIL QUERY ERROR]', detail);
+      return NextResponse.json(
+        { error: '获取帖子详情失败', detail },
+        { status: 503 },
+      );
+    }
 
     if (!postRow || postRow.status === 'DELETED') {
       return NextResponse.json(
@@ -62,9 +72,12 @@ export async function GET(
       );
     }
 
-    // ---- 2. 并行查询：标签 + 顶级评论 + 浏览量+1 + 采纳评论 ----
-    const [tagRows, commentRows] = await Promise.all([
-      queryWithTimeout(
+    // ---- 2. 顺序查询：标签 + 顶级评论（不使用 Promise.all）----
+    let tagRows: Record<string, unknown>[] = [];
+    let commentRows: Record<string, unknown>[] = [];
+
+    try {
+      const tagResult = await queryWithTimeout(
         db,
         `SELECT t.id as tag_id, t.name as tag_name, t.slug as tag_slug
          FROM PostTag pt
@@ -72,8 +85,15 @@ export async function GET(
          WHERE pt.post_id = ?`,
         [id],
         QUERY_TIMEOUT,
-      ),
-      queryWithTimeout(
+      );
+      tagRows = tagResult as Record<string, unknown>[];
+    } catch (tagErr) {
+      console.error('[POST TAGS QUERY ERROR]', tagErr instanceof Error ? tagErr.message : tagErr);
+      // 标签查询失败不影响帖子主体
+    }
+
+    try {
+      const commentResult = await queryWithTimeout(
         db,
         `SELECT cm.id, cm.content, cm.post_id, cm.parent_id,
                 cm.like_count, cm.is_approved, cm.is_accepted,
@@ -86,43 +106,56 @@ export async function GET(
          LIMIT 10`,
         [id],
         QUERY_TIMEOUT,
-      ),
-    ]);
+      );
+      commentRows = commentResult as Record<string, unknown>[];
+    } catch (commentErr) {
+      console.error('[POST COMMENTS QUERY ERROR]', commentErr instanceof Error ? commentErr.message : commentErr);
+      // 评论查询失败不影响帖子主体
+    }
 
-    // 浏览量 +1（异步执行，不阻塞响应）
-    db.execute({
-      sql: 'UPDATE Post SET view_count = view_count + 1 WHERE id = ?',
-      args: [id],
-    }).catch(() => {
-      // 忽略浏览量更新失败
-    });
+    // 浏览量 +1（异步执行，不阻塞响应，fire-and-forget）
+    if (db && typeof db.execute === 'function') {
+      db.execute({
+        sql: 'UPDATE Post SET view_count = view_count + 1 WHERE id = ?',
+        args: [id],
+      }).catch(() => {
+        // 忽略浏览量更新失败
+      });
+    }
 
     // ---- 3. 查询评论的回复 ----
-    const comments = commentRows as Record<string, unknown>[];
+    const comments = commentRows;
     let repliesMap: Map<string, Record<string, unknown>[]> = new Map();
 
     if (comments.length > 0) {
-      const commentIds = comments.map((c) => c.id as string);
-      const placeholders = commentIds.map(() => '?').join(',');
-      const replyRows = await queryWithTimeout(
-        db,
-        `SELECT cm.id, cm.content, cm.post_id, cm.parent_id,
-                cm.like_count, cm.is_approved, cm.is_accepted,
-                cm.deleted_at, cm.created_at, cm.updated_at,
-                u.id as author_id, u.username as author_username, u.avatar as author_avatar
-         FROM Comment cm
-         LEFT JOIN User u ON cm.author_id = u.id
-         WHERE cm.parent_id IN (${placeholders})
-         ORDER BY cm.created_at ASC`,
-        commentIds,
-        QUERY_TIMEOUT,
-      );
+      try {
+        const commentIds = comments.map((c) => c.id as string).filter(Boolean);
+        if (commentIds.length > 0) {
+          const placeholders = commentIds.map(() => '?').join(',');
+          const replyRows = await queryWithTimeout(
+            db,
+            `SELECT cm.id, cm.content, cm.post_id, cm.parent_id,
+                    cm.like_count, cm.is_approved, cm.is_accepted,
+                    cm.deleted_at, cm.created_at, cm.updated_at,
+                    u.id as author_id, u.username as author_username, u.avatar as author_avatar
+             FROM Comment cm
+             LEFT JOIN User u ON cm.author_id = u.id
+             WHERE cm.parent_id IN (${placeholders})
+             ORDER BY cm.created_at ASC`,
+            commentIds,
+            QUERY_TIMEOUT,
+          );
 
-      repliesMap = new Map();
-      for (const reply of replyRows as Record<string, unknown>[]) {
-        const parentId = reply.parent_id as string;
-        if (!repliesMap.has(parentId)) repliesMap.set(parentId, []);
-        repliesMap.get(parentId)!.push(reply);
+          repliesMap = new Map();
+          for (const reply of replyRows as Record<string, unknown>[]) {
+            const parentId = reply.parent_id as string;
+            if (!repliesMap.has(parentId)) repliesMap.set(parentId, []);
+            repliesMap.get(parentId)!.push(reply);
+          }
+        }
+      } catch (replyErr) {
+        console.error('[POST REPLIES QUERY ERROR]', replyErr instanceof Error ? replyErr.message : replyErr);
+        // 回复查询失败不影响帖子主体
       }
     }
 
@@ -131,30 +164,35 @@ export async function GET(
     let acceptedComment = null;
 
     if (acceptedCommentId) {
-      const acceptedRows = await queryWithTimeout(
-        db,
-        `SELECT cm.id, cm.content, cm.is_accepted, cm.created_at,
-                u.id as author_id, u.username as author_username, u.avatar as author_avatar
-         FROM Comment cm
-         LEFT JOIN User u ON cm.author_id = u.id
-         WHERE cm.id = ?`,
-        [acceptedCommentId],
-        QUERY_TIMEOUT,
-      );
+      try {
+        const acceptedRows = await queryWithTimeout(
+          db,
+          `SELECT cm.id, cm.content, cm.is_accepted, cm.created_at,
+                  u.id as author_id, u.username as author_username, u.avatar as author_avatar
+           FROM Comment cm
+           LEFT JOIN User u ON cm.author_id = u.id
+           WHERE cm.id = ?`,
+          [acceptedCommentId],
+          QUERY_TIMEOUT,
+        );
 
-      const ac = (acceptedRows as Record<string, unknown>[])[0];
-      if (ac) {
-        acceptedComment = {
-          id: ac.id,
-          content: ac.content,
-          isAccepted: Boolean(ac.is_accepted),
-          createdAt: ac.created_at,
-          author: {
-            id: ac.author_id || '',
-            username: ac.author_username || '匿名',
-            avatar: ac.author_avatar || null,
-          },
-        };
+        const ac = (acceptedRows as Record<string, unknown>[])[0];
+        if (ac) {
+          acceptedComment = {
+            id: ac.id,
+            content: ac.content,
+            isAccepted: Boolean(ac.is_accepted),
+            createdAt: ac.created_at,
+            author: {
+              id: ac.author_id || '',
+              username: ac.author_username || '匿名',
+              avatar: ac.author_avatar || null,
+            },
+          };
+        }
+      } catch (acceptedErr) {
+        console.error('[POST ACCEPTED COMMENT ERROR]', acceptedErr instanceof Error ? acceptedErr.message : acceptedErr);
+        // 采纳评论查询失败不影响帖子主体
       }
     }
 
@@ -170,7 +208,7 @@ export async function GET(
       ? { ...authorObj, username: postRow.author_name as string }
       : authorObj;
 
-    const tags = (tagRows as Record<string, unknown>[]).map((t) => ({
+    const tags = tagRows.map((t) => ({
       tag: {
         id: t.tag_id,
         name: t.tag_name,
@@ -254,9 +292,10 @@ export async function GET(
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('[POST DETAIL ERROR]', error);
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error('[POST DETAIL ERROR]', detail);
     return NextResponse.json(
-      { error: '获取帖子详情失败' },
+      { error: '获取帖子详情失败', detail: process.env.NODE_ENV === 'production' ? undefined : detail },
       { status: 500 },
     );
   }
@@ -489,7 +528,7 @@ export async function DELETE(
   } catch (error) {
     console.error('[POST DELETE ERROR]', error);
     return NextResponse.json(
-      { error: '删除帖子失败' },
+      { error: '帖子删除失败' },
       { status: 500 },
     );
   }
