@@ -335,6 +335,87 @@ A: 建议 ZIP 不超过 50MB。
     console.log('ℹ️  协议文档已存在（跳过）');
   }
 
+  // ============ 9. 初始化默认标签 ============
+  const defaultTags = [
+    { name: '公告', slug: 'announcement', postCount: 1 },
+    { name: '教程', slug: 'tutorial', postCount: 1 },
+    { name: '反馈建议', slug: 'feedback', postCount: 1 },
+    { name: '问答', slug: 'question', postCount: 0 },
+    { name: '经验分享', slug: 'experience', postCount: 0 },
+    { name: '工具推荐', slug: 'tools', postCount: 0 },
+    { name: 'Bug反馈', slug: 'bug', postCount: 0 },
+    { name: '功能建议', slug: 'feature', postCount: 0 },
+  ];
+
+  let tagsCount = 0;
+  for (const tag of defaultTags) {
+    const existing = await prisma.tag.findUnique({ where: { slug: tag.slug } });
+    if (!existing) {
+      await prisma.tag.create({ data: tag });
+      tagsCount++;
+    }
+  }
+  if (tagsCount > 0) {
+    console.log(`✅ 初始化默认标签（${tagsCount} 个）`);
+  } else {
+    console.log('ℹ️  标签已存在（跳过）');
+  }
+
+  // 为示例帖子关联标签
+  const welcomePost = await prisma.post.findFirst({
+    where: { title: welcomePostTitle },
+  });
+  if (welcomePost) {
+    const announcementTag = await prisma.tag.findUnique({ where: { slug: 'announcement' } });
+    if (announcementTag) {
+      const existing = await prisma.postTag.findFirst({
+        where: { postId: welcomePost.id, tagId: announcementTag.id },
+      });
+      if (!existing) {
+        await prisma.postTag.create({
+          data: { postId: welcomePost.id, tagId: announcementTag.id },
+        });
+        console.log('✅ 为欢迎帖添加"公告"标签');
+      }
+    }
+  }
+
+  const tutorialPost = await prisma.post.findFirst({
+    where: { title: tutorialTitle },
+  });
+  if (tutorialPost) {
+    const tutorialTag = await prisma.tag.findUnique({ where: { slug: 'tutorial' } });
+    if (tutorialTag) {
+      const existing = await prisma.postTag.findFirst({
+        where: { postId: tutorialPost.id, tagId: tutorialTag.id },
+      });
+      if (!existing) {
+        await prisma.postTag.create({
+          data: { postId: tutorialPost.id, tagId: tutorialTag.id },
+        });
+        console.log('✅ 为教程帖添加"教程"标签');
+      }
+    }
+  }
+
+  const feedbackPost = await prisma.post.findFirst({
+    where: { title: feedbackTitle },
+  });
+  if (feedbackPost) {
+    const feedbackTag = await prisma.tag.findUnique({ where: { slug: 'feedback' } });
+    if (feedbackTag) {
+      const existing = await prisma.postTag.findFirst({
+        where: { postId: feedbackPost.id, tagId: feedbackTag.id },
+      });
+      if (!existing) {
+        await prisma.postTag.create({
+          data: { postId: feedbackPost.id, tagId: feedbackTag.id },
+        });
+        console.log('✅ 为反馈帖添加"反馈建议"标签');
+      }
+    }
+  }
+
   console.log('\n✨ 数据库播种完成！');
   console.log(`\n📋 登录信息：`);
   console.log(`   用户名：${adminUsername}`);
