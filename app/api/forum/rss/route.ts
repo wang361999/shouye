@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       <link>${escapeXml(postUrl)}</link>
       <guid isPermaLink="false">${escapeXml(post.id)}</guid>
       <pubDate>${post.createdAt.toUTCString()}</pubDate>
-      <author>${escapeXml(post.author.username)}</author>${
+      <author>${escapeXml(post.authorName || post.author.username)}</author>${
           post.category
             ? `\n      <category>${escapeXml(post.category.name)}</category>`
             : ''

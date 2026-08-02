@@ -139,6 +139,10 @@ export async function GET(request: NextRequest) {
       summary: post.content.length > 200
         ? post.content.substring(0, 200) + '...'
         : post.content,
+      // 如果设置了自定义作者名，覆盖 author.username 用于前端显示
+      author: post.authorName
+        ? { ...post.author, username: post.authorName }
+        : post.author,
     }));
 
     return NextResponse.json({
@@ -171,7 +175,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, content, categoryId, tags, postType: rawPostType } = body;
+    const { title, content, categoryId, tags, postType: rawPostType, authorName } = body;
 
     // ---- 输入校验 ----
     if (!title || !content) {
@@ -190,6 +194,11 @@ export async function POST(request: NextRequest) {
 
     // 帖子类型校验：仅允许 discussion | question，默认 discussion
     const postType = rawPostType === 'question' ? 'question' : 'discussion';
+
+    // authorName 仅管理员可设置（AI 自动发帖/周报用自定义显示名）
+    const safeAuthorName = (user.role === 'ADMIN' && typeof authorName === 'string' && authorName.trim())
+      ? authorName.trim().slice(0, 50)
+      : undefined;
 
     // 标签校验：必须是字符串数组，去重并最多保留 5 个
     let tagEntries: { name: string; slug: string }[] = [];
@@ -254,6 +263,7 @@ export async function POST(request: NextRequest) {
           categoryId: categoryId || null,
           status: 'PUBLISHED',
           postType,
+          ...(safeAuthorName && { authorName: safeAuthorName }),
         },
       });
 
@@ -313,7 +323,12 @@ export async function POST(request: NextRequest) {
     // 清除社区首页缓存，使新帖及时在首页展示
     revalidateCommunityHome();
 
-    return NextResponse.json(post, { status: 201 });
+    // 如果设置了自定义作者名，覆盖 author.username 用于前端显示
+    const displayPost = post?.authorName
+      ? { ...post, author: { ...post.author, username: post.authorName } }
+      : post;
+
+    return NextResponse.json(displayPost, { status: 201 });
   } catch (error) {
     console.error('[POST CREATE ERROR]', error);
     return NextResponse.json(

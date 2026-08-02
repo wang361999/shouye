@@ -115,6 +115,10 @@ export async function GET(
       ...post,
       viewCount: post.viewCount + 1, // 返回更新后的浏览量
       acceptedComment,
+      // 如果设置了自定义作者名，覆盖 author.username 用于前端显示
+      author: post.authorName
+        ? { ...post.author, username: post.authorName }
+        : post.author,
     });
   } catch (error) {
     console.error('[POST DETAIL ERROR]', error);

@@ -86,6 +86,7 @@ jobs:
       AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
       AI_MODEL: gemini-3.6-flash
       POST_TOPIC: ${{ github.event.inputs.post_topic || 'random' }}
+      AUTHOR_NAME: ${{ secrets.POSTER_AUTHOR_NAME }}
 
     steps:
       - name: Checkout

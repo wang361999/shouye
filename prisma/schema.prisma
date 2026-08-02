@@ -124,6 +124,7 @@ model Post {
   status       PostStatus @default(DRAFT)
   postType     String     @default("discussion") @map("post_type") // discussion | question
   acceptedCommentId String? @map("accepted_comment_id") // 问答帖采纳的评论ID
+  authorName   String?    @map("author_name") // AI 发帖时自定义显示名（为空则显示 author.username）
   deletedAt    DateTime?  @map("deleted_at") // 软删除时间
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")

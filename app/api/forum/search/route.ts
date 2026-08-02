@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
           content: true,
           postType: true,
           createdAt: true,
+          authorName: true,
           author: { select: { id: true, username: true, avatar: true } },
           category: { select: { id: true, name: true, slug: true } },
           tags: {
@@ -124,7 +125,7 @@ export async function GET(request: NextRequest) {
           highlightedContent: highlight(snippet, q),
           postType: p.postType,
           author: p.author
-            ? { id: p.author.id, username: p.author.username, avatar: p.author.avatar }
+            ? { id: p.author.id, username: p.authorName || p.author.username, avatar: p.author.avatar }
             : null,
           category: p.category
             ? { id: p.category.id, name: p.category.name, slug: p.category.slug }

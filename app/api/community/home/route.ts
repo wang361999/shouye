@@ -42,6 +42,7 @@ export async function GET() {
               isPinned: true,
               isEssence: true,
               createdAt: true,
+              authorName: true,
               author: {
                 select: { id: true, username: true, avatar: true },
               },
@@ -72,6 +73,7 @@ export async function GET() {
               isPinned: true,
               isEssence: true,
               createdAt: true,
+              authorName: true,
               author: {
                 select: { id: true, username: true, avatar: true },
               },
@@ -176,7 +178,7 @@ export async function GET() {
       isPinned: p.isPinned,
       isEssence: p.isEssence,
       timeAgo: formatTimeAgo(p.createdAt),
-      author: p.author,
+      author: p.authorName ? { ...p.author, username: p.authorName } : p.author,
       category: p.category,
     }));
 
@@ -190,7 +192,7 @@ export async function GET() {
       isPinned: p.isPinned,
       isEssence: p.isEssence,
       timeAgo: formatTimeAgo(p.createdAt),
-      author: p.author,
+      author: p.authorName ? { ...p.author, username: p.authorName } : p.author,
       category: p.category,
     }));
 

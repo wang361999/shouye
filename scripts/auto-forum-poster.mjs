@@ -15,6 +15,7 @@ const {
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
   POST_TOPIC = '', // tutorial | opensource | random
+  AUTHOR_NAME = '', // AI 发帖时显示的自定义作者名
 } = process.env;
 
 const TAG = '[auto-forum-poster]';
@@ -172,6 +173,11 @@ async function publishPost(token, postData, categories) {
     postType: postData.postType || 'discussion',
   };
 
+  // 传递自定义作者名（仅管理员账号有效）
+  if (AUTHOR_NAME) {
+    body.authorName = AUTHOR_NAME;
+  }
+
   if (categoryId) body.categoryId = categoryId;
   if (Array.isArray(postData.tags) && postData.tags.length > 0) {
     body.tags = postData.tags.slice(0, 5);
@@ -208,6 +214,7 @@ log(`使用 AI 模型：${healthyModel}`);
 
 const { topicType, title } = pickTopic();
 log(`本次主题类型：${topicType}，标题：${title}`);
+if (AUTHOR_NAME) log(`自定义作者名：${AUTHOR_NAME}`);
 
 const token = await login();
 const categories = await fetchCategories(token);
