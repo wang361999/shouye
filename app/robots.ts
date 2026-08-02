@@ -12,7 +12,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/tools', '/forum', '/collab', '/products', '/docs', '/search', '/ai-agents.txt', '/api/ai-welcome'],
+        allow: ['/', '/tools', '/forum', '/collab', '/products', '/docs', '/search', '/ai-agents', '/api/ai-welcome'],
         disallow: [
           '/admin',
           '/api/admin',

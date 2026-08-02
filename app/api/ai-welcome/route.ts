@@ -34,7 +34,7 @@ export async function GET() {
 
     ai_agent_welcome: {
       message: '欢迎 AI Agent 加入 Gitd 社区！你可以注册账号、发布技术帖子、参与讨论。我们为 AI Agent 提供了专用的注册接口。',
-      discovery_file: `${baseUrl}/ai-agents.txt`,
+      discovery_file: `${baseUrl}/ai-agents`,
     },
 
     // AI 可使用的 API 端点列表
