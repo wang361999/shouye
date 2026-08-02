@@ -6,10 +6,10 @@ import { adminAuth } from '@/lib/auth';
  * 一键部署 API
  *
  * GET  /api/admin/deploy  - 检查 Deploy Hook 是否已配置
- * POST /api/admin/deploy  - 触发当前账号的 Vercel 重新部署
+ * POST /api/admin/deploy  - 触发 Cloudflare Workers 重新部署
  *
- * 用途：双 Vercel 账号轮替场景下，切换到新账号后，
- *       在后台点一下按钮即可触发重新部署，拉取最新代码。
+ * 支持 Cloudflare Pages Deploy Hook 和 Vercel Deploy Hook。
+ * 优先使用 CLOUDFLARE_DEPLOY_HOOK_URL，其次 VERCEL_DEPLOY_HOOK_URL。
  */
 
 // ============ GET - 检查配置状态 ============
@@ -17,12 +17,17 @@ export async function GET(request: NextRequest) {
   const admin = adminAuth(request);
   if (admin instanceof Response) return admin;
 
-  const hookUrl = process.env.VERCEL_DEPLOY_HOOK_URL;
+  const cfHookUrl = process.env.CLOUDFLARE_DEPLOY_HOOK_URL;
+  const vercelHookUrl = process.env.VERCEL_DEPLOY_HOOK_URL;
+  const hookUrl = cfHookUrl || vercelHookUrl;
+  const platform = cfHookUrl ? 'Cloudflare' : vercelHookUrl ? 'Vercel' : null;
+
   return NextResponse.json({
     configured: Boolean(hookUrl),
+    platform,
     message: hookUrl
-      ? 'Deploy Hook 已配置，可以一键部署'
-      : '未配置 VERCEL_DEPLOY_HOOK_URL 环境变量，请在 Vercel 项目设置中创建 Deploy Hook 并填入环境变量',
+      ? `${platform} Deploy Hook 已配置，可以一键部署`
+      : '未配置 Deploy Hook URL，请在环境变量中设置 CLOUDFLARE_DEPLOY_HOOK_URL 或 VERCEL_DEPLOY_HOOK_URL',
   });
 }
 
@@ -32,19 +37,24 @@ export async function POST(request: NextRequest) {
     const admin = adminAuth(request);
     if (admin instanceof Response) return admin;
 
-    const hookUrl = process.env.VERCEL_DEPLOY_HOOK_URL;
+    const cfHookUrl = process.env.CLOUDFLARE_DEPLOY_HOOK_URL;
+    const vercelHookUrl = process.env.VERCEL_DEPLOY_HOOK_URL;
+    const hookUrl = cfHookUrl || vercelHookUrl;
+    const platform = cfHookUrl ? 'Cloudflare' : vercelHookUrl ? 'Vercel' : null;
 
     if (!hookUrl) {
       return NextResponse.json(
         {
           error:
-            '未配置 VERCEL_DEPLOY_HOOK_URL，请在 Vercel → Settings → Git → Deploy Hooks 创建并填入环境变量',
+            '未配置 Deploy Hook URL。\n' +
+            'Cloudflare: Dashboard → Workers → your-worker → Settings → Builds → Deploy Hooks\n' +
+            'Vercel: Dashboard → Settings → Git → Deploy Hooks',
         },
         { status: 400 },
       );
     }
 
-    // 触发 Vercel Deploy Hook
+    // 触发 Deploy Hook
     const deployRes = await fetch(hookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -64,8 +74,8 @@ export async function POST(request: NextRequest) {
           userId: admin.userId,
           username: admin.username,
           action: 'manual_deploy',
-          target: 'vercel',
-          detail: `一键部署触发：${deployRes.ok ? '成功' : '失败'}（HTTP ${deployRes.status}）`,
+          target: platform?.toLowerCase() || 'unknown',
+          detail: `一键部署触发（${platform}）：${deployRes.ok ? '成功' : '失败'}（HTTP ${deployRes.status}）`,
           ip: request.headers.get('x-forwarded-for') || 'unknown',
         },
       });
@@ -85,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: '部署已触发，Vercel 正在重新构建，预计 2-5 分钟后完成',
+      message: `部署已触发（${platform}），正在重新构建，预计 2-5 分钟后完成`,
       detail: deployBody,
     });
   } catch (error) {

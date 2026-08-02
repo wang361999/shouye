@@ -1,6 +1,9 @@
 node_modules/
 .next/
+.open-next/
 .env.local
 .env*.local
+.dev.vars
 prisma/*.db
 tsconfig.tsbuildinfo
+cloudflare-env.d.ts

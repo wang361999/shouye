@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "shouye",
+  "compatibility_date": "2025-05-05",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "shouye"
+    }
+  ],
+  "r2_buckets": [
+    // 可选：启用 R2 缓存以提升 ISR 性能
+    // 需要先在 Cloudflare 创建名为 shouye-cache 的 R2 bucket
+    // {
+    //   "binding": "NEXT_INC_CACHE_R2_BUCKET",
+    //   "bucket_name": "shouye-cache"
+    // }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  // 环境变量请在 Cloudflare Dashboard → Workers → shouye → Settings → Variables 中配置
+  // 或使用 wrangler secret put <NAME> 命令设置敏感变量
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": ""
+  }
+}

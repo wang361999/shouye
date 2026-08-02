@@ -1,5 +1,29 @@
-import { Pool } from 'pg';
 import { getJwtSecret } from './env';
+
+// pg 模块使用 TCP 连接，Cloudflare Workers 不支持。
+// 使用动态导入 + 缓存，在 Cloudflare 上优雅降级。
+type PoolType = any;
+let pgPool: typeof import('pg') | null = null;
+let pgLoadFailed = false;
+
+async function loadPg(): Promise<typeof import('pg') | null> {
+  if (pgPool) return pgPool;
+  if (pgLoadFailed) return null;
+  try {
+    pgPool = await import('pg');
+    return pgPool;
+  } catch {
+    pgLoadFailed = true;
+    return null;
+  }
+}
+
+function pgNotAvailableError() {
+  return {
+    ok: false,
+    message: '外部 PostgreSQL 数据库管理功能在 Cloudflare Workers 上不可用（不支持 TCP 连接）。请在 Vercel 环境使用此功能。',
+  };
+}
 
 // 简单加解密（基于 JWT_SECRET 的 XOR 混淆，防止明文存储）
 // 密钥延迟解析：避免模块加载阶段因密钥缺失而抛出异常（构建安全），
@@ -57,9 +81,14 @@ export function buildConnectionString(config: {
 // 创建连接池（用完即关）
 export async function withExternalPool<T>(
   config: { host: string; port: number; database: string; username: string; password: string; sslMode: string },
-  fn: (pool: Pool) => Promise<T>,
+  fn: (pool: PoolType) => Promise<T>,
 ): Promise<T> {
-  const pool = new Pool({
+  const pg = await loadPg();
+  if (!pg) {
+    throw new Error('外部 PostgreSQL 数据库管理功能在 Cloudflare Workers 上不可用（不支持 TCP 连接）。');
+  }
+
+  const pool = new pg.Pool({
     host: config.host,
     port: config.port,
     database: config.database,
@@ -105,7 +134,7 @@ export async function testConnection(config: {
 }
 
 // 获取数据库表列表
-export async function getDatabaseTables(pool: Pool): Promise<Array<{ name: string; schema: string; type: string }>> {
+export async function getDatabaseTables(pool: PoolType): Promise<Array<{ name: string; schema: string; type: string }>> {
   const res = await pool.query(`
     SELECT 
       table_name as name,
@@ -119,7 +148,7 @@ export async function getDatabaseTables(pool: Pool): Promise<Array<{ name: strin
 }
 
 // 获取表结构
-export async function getTableStructure(pool: Pool, tableName: string, schema = 'public'): Promise<{
+export async function getTableStructure(pool: PoolType, tableName: string, schema = 'public'): Promise<{
   columns: Array<{ name: string; type: string; nullable: boolean; default: string | null; isPrimaryKey: boolean }>;
   rowCount: number;
   sizeBytes: number;
@@ -161,7 +190,7 @@ export async function getTableStructure(pool: Pool, tableName: string, schema = 
   }
 
   return {
-    columns: colRes.rows.map((r) => ({
+    columns: colRes.rows.map((r: Record<string, any>) => ({
       name: r.name,
       type: r.type,
       nullable: r.nullable,
@@ -175,7 +204,7 @@ export async function getTableStructure(pool: Pool, tableName: string, schema = 
 
 // 查询表数据（分页）
 export async function queryTableData(
-  pool: Pool,
+  pool: PoolType,
   tableName: string,
   schema = 'public',
   options: { page?: number; pageSize?: number; orderBy?: string; orderDir?: 'asc' | 'desc' } = {},
@@ -203,14 +232,14 @@ export async function queryTableData(
 
 // 执行自定义 SQL
 export async function executeQuery(
-  pool: Pool,
+  pool: PoolType,
   sql: string,
   limit = 100,
 ): Promise<{ rows: Record<string, unknown>[]; rowCount: number; fields: string[]; duration: number }> {
   const start = Date.now();
   const res = await pool.query(`${sql} LIMIT ${limit}`);
   const duration = Date.now() - start;
-  const fields = res.fields.map((f) => f.name);
+  const fields = res.fields.map((f: Record<string, any>) => f.name);
   return {
     rows: res.rows,
     rowCount: res.rowCount || 0,
@@ -220,7 +249,7 @@ export async function executeQuery(
 }
 
 // 获取数据库概览
-export async function getDatabaseOverview(pool: Pool): Promise<{
+export async function getDatabaseOverview(pool: PoolType): Promise<{
   dbSize: number;
   tableCount: number;
   tables: Array<{ name: string; schema: string; sizeBytes: number; rowCount: number }>;
@@ -253,7 +282,7 @@ export async function getDatabaseOverview(pool: Pool): Promise<{
     ORDER BY size_bytes DESC
   `);
 
-  const tables = tablesRes.rows.map((r) => ({
+  const tables = tablesRes.rows.map((r: Record<string, any>) => ({
     name: r.name,
     schema: r.schema,
     sizeBytes: parseInt(r.size_bytes || '0', 10),
