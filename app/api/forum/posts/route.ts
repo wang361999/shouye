@@ -86,8 +86,17 @@ export async function GET(request: NextRequest) {
     if (dbError) return dbError;
     try {
       db = getDb();
-    } catch {
-      return NextResponse.json({ posts: [], total: 0, page, totalPages: 1 });
+    } catch (dbErr) {
+      const errorMessage = dbErr instanceof Error ? dbErr.message : '未知数据库错误';
+      console.error('[POSTS API] 数据库连接失败:', errorMessage);
+      return NextResponse.json(
+        {
+          error: '数据库连接失败',
+          detail: errorMessage,
+          hint: '请检查 DATABASE_URL 和 DATABASE_AUTH_TOKEN 是否正确配置',
+        },
+        { status: 503 }
+      );
     }
 
     // ---- 并行查询帖子列表 + 总数 ----
