@@ -1,0 +1,45 @@
+name: Auto announcer
+
+on:
+  schedule:
+    # 每 3 天执行一次（北京时间凌晨 10:00 = UTC 02:00）
+    - cron: '0 2 */3 * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "强制执行（忽略重复检查）"
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-announcer
+  cancel-in-progress: true
+
+jobs:
+  announce:
+    name: Generate and publish announcement
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+      AUTHOR_NAME: ${{ secrets.POSTER_AUTHOR_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate and publish announcement
+        run: node scripts/auto-announcer.mjs

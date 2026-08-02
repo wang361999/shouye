@@ -1,0 +1,44 @@
+name: Auto categorizer
+
+on:
+  schedule:
+    # 每 6 小时执行一次
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "强制执行"
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-categorizer
+  cancel-in-progress: true
+
+jobs:
+  categorize:
+    name: Auto categorize posts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run auto categorizer
+        run: node scripts/auto-categorizer.mjs

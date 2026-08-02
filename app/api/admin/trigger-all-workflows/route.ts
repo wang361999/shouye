@@ -12,6 +12,8 @@ const WORKFLOWS = [
   { id: 'auto-patrol.yml', name: '自动巡检' },
   { id: 'auto-forum-poster.yml', name: '自动发帖' },
   { id: 'auto-forum-reply.yml', name: '自动回复' },
+  { id: 'auto-categorizer.yml', name: '自动分类' },
+  { id: 'auto-announcer.yml', name: '自动公告' },
   { id: 'auto-link-checker.yml', name: '链接检查' },
   { id: 'auto-stale-cleanup.yml', name: '过期清理' },
   { id: 'auto-weekly-report.yml', name: '周报生成' },
