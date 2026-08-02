@@ -9,16 +9,27 @@ export const revalidate = 600;
 const DEFAULT_SITE_NAME = 'Gitd';
 const DEFAULT_SITE_DESC = '开发者交流社区';
 
-export async function generateMetadata(): Promise<Metadata> {
+/**
+ * 带超时的站点设置查询（3 秒超时，降级返回默认值）
+ */
+async function getSiteSettings() {
   let siteName = DEFAULT_SITE_NAME;
   let siteDescription = DEFAULT_SITE_DESC;
 
   try {
-    const settings = await prisma.systemSetting.findMany({
-      where: {
-        key: { in: ['site_name', 'site_description'] },
-      },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const settings = await Promise.race([
+      prisma.systemSetting.findMany({
+        where: { key: { in: ['site_name', 'site_description'] } },
+      }),
+      new Promise<never>((_, reject) =>
+        controller.signal.addEventListener('abort', () =>
+          reject(new Error('timeout')),
+        ),
+      ),
+    ]);
+    clearTimeout(timeout);
     for (const s of settings) {
       if (s.key === 'site_name' && s.value) siteName = s.value;
       if (s.key === 'site_description' && s.value) siteDescription = s.value;
@@ -26,6 +37,12 @@ export async function generateMetadata(): Promise<Metadata> {
   } catch {
     // 数据库不可用时降级使用默认值
   }
+
+  return { siteName, siteDescription };
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteName, siteDescription } = await getSiteSettings();
 
   const title = '首页';
 
@@ -54,22 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * 社区数据由前端通过 /api/community/home 获取
  */
 export default async function HomePage() {
-  let siteName = DEFAULT_SITE_NAME;
-  let siteDescription = DEFAULT_SITE_DESC;
-
-  try {
-    const settings = await prisma.systemSetting.findMany({
-      where: {
-        key: { in: ['site_name', 'site_description'] },
-      },
-    });
-    for (const s of settings) {
-      if (s.key === 'site_name' && s.value) siteName = s.value;
-      if (s.key === 'site_description' && s.value) siteDescription = s.value;
-    }
-  } catch {
-    // 数据库不可用时降级使用默认值
-  }
+  const { siteName, siteDescription } = await getSiteSettings();
 
   return <CommunityHomeClient siteName={siteName} siteDesc={siteDescription} />;
 }
