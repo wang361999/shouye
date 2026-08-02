@@ -47,11 +47,28 @@ export async function generateMetadata(): Promise<Metadata> {
     ? { icon: siteFavicon, shortcut: siteFavicon }
     : undefined;
 
+  const defaultTitle = `${siteName} - ${siteDescription}`;
+
   return {
-    title: `${siteName} - ${siteDescription}`,
+    title: {
+      template: `%s | ${siteName}`,
+      default: defaultTitle,
+    },
     description: siteDescription,
     keywords: [siteName, '开发者工具', 'GitHub', 'AI', '技术社区'],
     icons,
+    openGraph: {
+      title: defaultTitle,
+      description: siteDescription,
+      type: 'website',
+      locale: 'zh_CN',
+      siteName,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: defaultTitle,
+      description: siteDescription,
+    },
   };
 }
 
