@@ -54,7 +54,13 @@ export async function queryWithTimeout<T>(
     ]);
     clearTimeout(timeout);
     return result.rows as unknown as T;
-  } catch {
+  } catch (error) {
+    // 记录错误信息，方便排查部署环境问题
+    console.error('[DB QUERY ERROR]', {
+      sql: sql.substring(0, 200),
+      error: error instanceof Error ? error.message : String(error),
+      hasUrl: !!process.env.DATABASE_URL,
+    });
     return fallback;
   }
 }
