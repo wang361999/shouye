@@ -17,8 +17,10 @@ const {
   AI_MODEL = 'gemini-3.6-flash',
 } = process.env;
 
-// AI 调用超时（30 秒）
+// AI 调用默认超时（30 秒），大 prompt 会自动延长
 const AI_TIMEOUT_MS = 30_000;
+// AI 调用最大超时（120 秒，用于超大 prompt）
+const AI_MAX_TIMEOUT_MS = 120_000;
 // 站点 API 超时（10 秒）
 const SITE_TIMEOUT_MS = 10_000;
 // 最大重试次数
@@ -32,12 +34,21 @@ const RATE_LIMIT_DELAY_MS = 10_000;
 const FALLBACK_MODELS = [
   AI_MODEL,
   'gemini-3.5-flash',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
+  'gemini-3.5-flash-lite',
 ];
 
 // 去重，避免主模型和备用模型重复
 const UNIQUE_MODELS = [...new Set(FALLBACK_MODELS)];
+
+/**
+ * 根据prompt长度动态计算超时时间
+ * 基础30秒，每1万字符增加10秒，上限120秒
+ */
+function calcTimeout(promptLength) {
+  const base = AI_TIMEOUT_MS;
+  const extra = Math.floor(promptLength / 10_000) * 10_000;
+  return Math.min(base + extra, AI_MAX_TIMEOUT_MS);
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -136,6 +147,13 @@ export async function checkAIHealth(tag = '[ai-client]') {
 export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseFormat, tag = '[ai-client]' }) {
   let lastError = null;
 
+  // 根据prompt长度动态计算超时
+  const promptLength = (prompt?.length || 0) + (systemPrompt?.length || 0);
+  const timeoutMs = calcTimeout(promptLength);
+  if (timeoutMs > AI_TIMEOUT_MS) {
+    console.warn(`${tag} prompt 较长（${promptLength} 字符），超时调整为 ${timeoutMs / 1000} 秒`);
+  }
+
   for (const model of UNIQUE_MODELS) {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -165,7 +183,7 @@ export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseF
             },
             body: JSON.stringify(body),
           },
-          AI_TIMEOUT_MS,
+          timeoutMs,
         );
 
         if (res.ok) {
@@ -211,7 +229,7 @@ export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseF
         break; // 尝试下一个模型
       } catch (error) {
         if (error?.name === 'AbortError') {
-          lastError = new Error(`AI API 超时（${AI_TIMEOUT_MS}ms）`);
+          lastError = new Error(`AI API 超时（${timeoutMs}ms）`);
         } else {
           lastError = error;
         }
