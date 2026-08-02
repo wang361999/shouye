@@ -210,7 +210,7 @@ https://nextjs.org/telemetry
 3:20  Warning: 'useEffect' is defined but never used.  @typescript-eslint/no-unused-vars
 
 ./components/home/CommunityHomeClient.tsx
-255:57  Warning: 'siteDesc' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+257:57  Warning: 'siteDesc' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
 
 ./lib/collab.ts
 224:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
@@ -362,20 +362,6 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
   description: "Route /api/forum/feed couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
-[REPUTATION ERROR] B [Error]: Dynamic server usage: Route /api/forum/reputation couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
-    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
-    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at p (/home/runner/work/shouye/shouye/.next/server/app/api/forum/reputation/route.js:1:777)
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
-    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
-    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
-    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
-    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
-  description: "Route /api/forum/reputation couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
-  digest: 'DYNAMIC_SERVER_USAGE'
-}
 [RSS ERROR] B [Error]: Dynamic server usage: Route /api/forum/rss couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
@@ -388,6 +374,20 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
     at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
   description: "Route /api/forum/rss couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[REPUTATION ERROR] B [Error]: Dynamic server usage: Route /api/forum/reputation couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at p (/home/runner/work/shouye/shouye/.next/server/app/api/forum/reputation/route.js:1:777)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/forum/reputation couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
 [FORUM SEARCH ERROR] B [Error]: Dynamic server usage: Route /api/forum/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
@@ -474,6 +474,26 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
   description: "Route /api/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
+[PUBLIC SETTINGS GET ERROR] PrismaClientInitializationError: 
+Invalid `prisma.systemSetting.findMany()` invocation:
+
+
+Can't reach database server at `localhost:5432`
+
+Please make sure your database server is running at `localhost:5432`.
+    at $n.handleRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:7615)
+    at $n.handleAndLogRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async l (/home/runner/work/shouye/shouye/.next/server/app/api/settings/route.js:1:663)
+    at async /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/home/runner/work/shouye/shouye/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/home/runner/work/shouye/shouye/node_modules/next/dist/export/worker.js:175:20) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
 [SPONSOR SETTINGS GET ERROR] PrismaClientInitializationError: 
 Invalid `prisma.systemSetting.findMany()` invocation:
 
@@ -486,26 +506,6 @@ Please make sure your database server is running at `localhost:5432`.
     at $n.request (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6307)
     at async l (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:130:9633)
     at async l (/home/runner/work/shouye/shouye/.next/server/app/api/settings/sponsor/route.js:1:668)
-    at async /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
-    at async e_.execute (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
-    at async e_.handle (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
-    at async exportAppRoute (/home/runner/work/shouye/shouye/node_modules/next/dist/export/routes/app-route.js:77:26)
-    at async exportPageImpl (/home/runner/work/shouye/shouye/node_modules/next/dist/export/worker.js:175:20) {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
-[PUBLIC SETTINGS GET ERROR] PrismaClientInitializationError: 
-Invalid `prisma.systemSetting.findMany()` invocation:
-
-
-Can't reach database server at `localhost:5432`
-
-Please make sure your database server is running at `localhost:5432`.
-    at $n.handleRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:7615)
-    at $n.handleAndLogRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6623)
-    at $n.request (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6307)
-    at async l (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async l (/home/runner/work/shouye/shouye/.next/server/app/api/settings/route.js:1:668)
     at async /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
     at async e_.execute (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
     at async e_.handle (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
@@ -594,7 +594,7 @@ Please make sure your database server is running at `localhost:5432`.
 [USER PROFILE GET ERROR] B [Error]: Dynamic server usage: Route /api/user/profile couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3468)
+    at E (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:491)
     at v (/home/runner/work/shouye/shouye/.next/server/app/api/user/profile/route.js:1:1285)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
@@ -641,16 +641,16 @@ Route (app)                                              Size     First Load JS
 ├ ○ /admin/forum/reports                                 3.22 kB         117 kB
 ├ ○ /admin/free-dashboard                                6.98 kB         121 kB
 ├ ○ /admin/licenses                                      9.39 kB         123 kB
-├ ○ /admin/login                                         3.64 kB         113 kB
+├ ○ /admin/login                                         3.63 kB         113 kB
 ├ ○ /admin/monitoring                                    4.04 kB         118 kB
 ├ ○ /admin/oauth-apps                                    4.92 kB         119 kB
 ├ ○ /admin/orders                                        7.56 kB         121 kB
 ├ ○ /admin/products                                      9.34 kB         123 kB
 ├ ○ /admin/profile                                       1.51 kB         115 kB
-├ ○ /admin/settings/agreements                           5.37 kB         119 kB
+├ ○ /admin/settings/agreements                           5.36 kB         119 kB
 ├ ○ /admin/settings/appearance                           2 kB            116 kB
 ├ ○ /admin/settings/general                              1.52 kB         115 kB
-├ ○ /admin/settings/security                             4.69 kB         118 kB
+├ ○ /admin/settings/security                             4.68 kB         118 kB
 ├ ○ /admin/settings/seo                                  1.51 kB         115 kB
 ├ ○ /admin/settings/sponsor                              2.58 kB         116 kB
 ├ ○ /admin/tools                                         3.53 kB         117 kB
@@ -659,7 +659,7 @@ Route (app)                                              Size     First Load JS
 ├ ○ /admin/tools/new                                     2.8 kB          116 kB
 ├ ○ /admin/users                                         4.37 kB         118 kB
 ├ ○ /admin/users/logs                                    3 kB            117 kB
-├ ƒ /agreements/[type]                                   4.46 kB         144 kB
+├ ƒ /agreements/[type]                                   4.45 kB         144 kB
 ├ ƒ /api/admin/auto-iteration                            0 B                0 B
 ├ ƒ /api/admin/database                                  0 B                0 B
 ├ ƒ /api/admin/database/backup                           0 B                0 B
@@ -773,7 +773,7 @@ Route (app)                                              Size     First Load JS
 ├ ○ /profile                                             8.43 kB         118 kB
 ├ ○ /profile/licenses                                    7.71 kB         117 kB
 ├ ○ /profile/orders                                      6.14 kB         116 kB
-├ ○ /register                                            3.82 kB         113 kB
+├ ○ /register                                            3.81 kB         113 kB
 ├ ○ /robots.txt                                          0 B                0 B
 ├ ○ /search                                              3.32 kB         113 kB
 ├ ○ /sitemap.xml                                         0 B                0 B
