@@ -1,97 +1,153 @@
 /**
- * 预构建脚本：修补 @libsql/client 的 package.json 导出条件
+ * 预构建脚本：修补 @libsql 相关包以兼容 Cloudflare Workers (OpenNext)
  *
  * 问题：
- *   @libsql/client 的 package.json 在 "." 导出中有一个 "workerd" 条件：
- *     "workerd": "./lib-esm/web.js"
- *   但 OpenNext 构建时不会将 lib-esm/ 目录完整复制到 .open-next/ 输出中，
- *   导致 esbuild 解析 @libsql/client 时报错 "Could not resolve @libsql/client"。
+ *   1. @libsql/client 的 package.json 有 "workerd": "./lib-esm/web.js" 导出条件
+ *      OpenNext 构建时不会将 lib-esm/ 目录复制到 .open-next/ 输出中
+ *      → esbuild 报错 "Could not resolve @libsql/client"
+ *
+ *   2. @libsql/hrana-client 导入 @libsql/isomorphic-ws
+ *      OpenNext 不复制 @libsql/isomorphic-ws 到输出目录
+ *      → esbuild 报错 "Could not resolve @libsql/isomorphic-ws"
  *
  * 修复：
- *   1. 移除 "workerd" 条件
- *   2. 将 "browser" 和 "default" 条件改为指向 "./lib-esm/http.js"
- *      （HTTP-only 客户端，适合 Cloudflare Workers 环境）
- *   3. 这样 esbuild 会解析到 http.js，而 http.js 会被 NFT 追踪到
- *      （因为我们的代码直接从 @libsql/client/http 导入）
+ *   1. 修补 @libsql/client/package.json：
+ *      - 移除 workerd 条件
+ *      - 将 browser/default 改为 http.js（HTTP-only 客户端）
+ *   2. 修补 @libsql/hrana-client 的 ESM 和 CJS 入口文件：
+ *      - 将 @libsql/isomorphic-ws 的 WebSocket 导入替换为全局 WebSocket 引用
+ *      - Cloudflare Workers 原生支持 WebSocket，无需 isomorphic-ws 包
  *
  * 用法: node scripts/patch-libsql-exports.mjs
- *
  * 在 cf:build 中运行，位于 opennextjs-cloudflare build 之前
  */
 import fs from 'fs';
 import path from 'path';
 
-const PACKAGE_JSON_PATH = path.join(
-  process.cwd(),
-  'node_modules/@libsql/client/package.json',
-);
+// ============ 1. 修补 @libsql/client/package.json ============
+function patchClientPackageJson() {
+  const pkgPath = path.join(process.cwd(), 'node_modules/@libsql/client/package.json');
 
-function main() {
-  if (!fs.existsSync(PACKAGE_JSON_PATH)) {
-    console.error('[patch-libsql] package.json not found:', PACKAGE_JSON_PATH);
-    process.exit(1);
-  }
-
-  const pkg = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, 'utf8'));
-
-  if (!pkg.exports || !pkg.exports['.']) {
-    console.log('[patch-libsql] No exports map found, skipping');
+  if (!fs.existsSync(pkgPath)) {
+    console.error('[patch-libsql] @libsql/client/package.json not found');
     return;
   }
 
-  const dotExport = pkg.exports['.'];
-  if (!dotExport.import) {
-    console.log('[patch-libsql] No import condition in exports, skipping');
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+
+  if (!pkg.exports?.['.']?.import) {
+    console.log('[patch-libsql] No import conditions in @libsql/client, skipping');
     return;
   }
 
-  const importConditions = dotExport.import;
+  const importConditions = pkg.exports['.'].import;
   let modified = false;
 
-  // 1. 移除 workerd 条件（指向不存在的 web.js）
+  // 移除 workerd 条件（指向不存在于 OpenNext 输出中的 web.js）
   if (importConditions.workerd) {
     delete importConditions.workerd;
     modified = true;
     console.log('[patch-libsql] Removed "workerd" condition (was: ./lib-esm/web.js)');
   }
 
-  // 2. 将 browser 条件改为 http.js（确保使用 HTTP-only 客户端）
-  if (importConditions.browser && importConditions.browser !== './lib-esm/http.js') {
-    console.log(`[patch-libsql] Changed "browser" condition: ${importConditions.browser} -> ./lib-esm/http.js`);
-    importConditions.browser = './lib-esm/http.js';
-    modified = true;
-  }
-
-  // 3. 将 default 条件改为 http.js
-  if (importConditions.default && importConditions.default !== './lib-esm/http.js') {
-    console.log(`[patch-libsql] Changed "default" condition: ${importConditions.default} -> ./lib-esm/http.js`);
-    importConditions.default = './lib-esm/http.js';
-    modified = true;
-  }
-
-  // 4. 移除 edge-light 和 netlify 条件（也指向 web.js，可能不存在）
-  for (const cond of ['edge-light', 'netlify']) {
-    if (importConditions[cond]) {
-      console.log(`[patch-libsql] Removed "${cond}" condition (was: ${importConditions[cond]})`);
-      delete importConditions[cond];
+  // 将 browser/default 改为 http.js
+  for (const cond of ['browser', 'default']) {
+    if (importConditions[cond] && importConditions[cond] !== './lib-esm/http.js') {
+      console.log(`[patch-libsql] Changed "${cond}" condition: ${importConditions[cond]} -> ./lib-esm/http.js`);
+      importConditions[cond] = './lib-esm/http.js';
       modified = true;
     }
   }
 
-  if (modified) {
-    // 备份原始文件
-    const backupPath = PACKAGE_JSON_PATH + '.bak';
-    if (!fs.existsSync(backupPath)) {
-      fs.copyFileSync(PACKAGE_JSON_PATH, backupPath);
-      console.log('[patch-libsql] Backed up original package.json to', path.basename(backupPath));
+  // 移除 edge-light/netlify 条件（也指向 web.js）
+  for (const cond of ['edge-light', 'netlify']) {
+    if (importConditions[cond]) {
+      delete importConditions[cond];
+      modified = true;
+      console.log(`[patch-libsql] Removed "${cond}" condition`);
     }
-
-    fs.writeFileSync(PACKAGE_JSON_PATH, JSON.stringify(pkg, null, 2) + '\n');
-    console.log('[patch-libsql] Successfully patched @libsql/client/package.json');
-    console.log('[patch-libsql] Updated exports["."].import:', JSON.stringify(importConditions, null, 2));
-  } else {
-    console.log('[patch-libsql] No changes needed, package.json already patched');
   }
+
+  if (modified) {
+    const backupPath = pkgPath + '.bak';
+    if (!fs.existsSync(backupPath)) {
+      fs.copyFileSync(pkgPath, backupPath);
+    }
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+    console.log('[patch-libsql] Patched @libsql/client/package.json');
+  } else {
+    console.log('[patch-libsql] @libsql/client/package.json already patched');
+  }
+}
+
+// ============ 2. 修补 @libsql/hrana-client 移除 isomorphic-ws 依赖 ============
+function patchHranaClient() {
+  const basePath = path.join(process.cwd(), 'node_modules/@libsql/hrana-client');
+
+  // 修补 ESM 版本 (lib-esm/index.js)
+  const esmPath = path.join(basePath, 'lib-esm/index.js');
+  if (fs.existsSync(esmPath)) {
+    const backupPath = esmPath + '.bak';
+    let content = fs.readFileSync(esmPath, 'utf8');
+
+    // 检查是否已修补
+    if (!content.includes('@libsql/isomorphic-ws')) {
+      console.log('[patch-libsql] @libsql/hrana-client/lib-esm/index.js already patched');
+    } else {
+      if (!fs.existsSync(backupPath)) {
+        fs.copyFileSync(esmPath, backupPath);
+      }
+
+      // 替换 import { WebSocket } from "@libsql/isomorphic-ws"
+      content = content.replace(
+        /import\s*\{\s*WebSocket\s*\}\s*from\s*"@libsql\/isomorphic-ws";/,
+        '// Patched: use global WebSocket instead of @libsql/isomorphic-ws\nconst WebSocket = typeof globalThis.WebSocket !== "undefined" ? globalThis.WebSocket : undefined;',
+      );
+
+      // 替换 export { WebSocket } from "@libsql/isomorphic-ws"
+      content = content.replace(
+        /export\s*\{\s*WebSocket\s*\}\s*from\s*"@libsql\/isomorphic-ws";/,
+        '// Patched: WebSocket re-export removed (use global)',
+      );
+
+      fs.writeFileSync(esmPath, content);
+      console.log('[patch-libsql] Patched @libsql/hrana-client/lib-esm/index.js (removed isomorphic-ws import)');
+    }
+  }
+
+  // 修补 CJS 版本 (lib-cjs/index.js)
+  const cjsPath = path.join(basePath, 'lib-cjs/index.js');
+  if (fs.existsSync(cjsPath)) {
+    const backupPath = cjsPath + '.bak';
+    let content = fs.readFileSync(cjsPath, 'utf8');
+
+    if (!content.includes('@libsql/isomorphic-ws')) {
+      console.log('[patch-libsql] @libsql/hrana-client/lib-cjs/index.js already patched');
+    } else {
+      if (!fs.existsSync(backupPath)) {
+        fs.copyFileSync(cjsPath, backupPath);
+      }
+
+      // 替换 require("@libsql/isomorphic-ws") 调用
+      // CJS 模式: const isomorphic_ws_1 = require("@libsql/isomorphic-ws");
+      // 替换为: const isomorphic_ws_1 = { WebSocket: typeof globalThis.WebSocket !== "undefined" ? globalThis.WebSocket : undefined };
+      content = content.replace(
+        /require\("@libsql\/isomorphic-ws"\)/g,
+        '{ WebSocket: typeof globalThis.WebSocket !== "undefined" ? globalThis.WebSocket : undefined }',
+      );
+
+      fs.writeFileSync(cjsPath, content);
+      console.log('[patch-libsql] Patched @libsql/hrana-client/lib-cjs/index.js (removed isomorphic-ws require)');
+    }
+  }
+}
+
+// ============ 主函数 ============
+function main() {
+  console.log('━━━━━━━━━━━━━━ @libsql 补丁 ━━━━━━━━━━━━━━');
+  patchClientPackageJson();
+  patchHranaClient();
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
 main();
