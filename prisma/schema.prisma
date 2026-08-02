@@ -61,6 +61,8 @@ model User {
   following     Follow[]   @relation("UserFollowing") // 关注他人
   followers     Follow[]   @relation("UserFollowed")  // 被他人关注
 
+  // 社区首页查询优化索引
+  @@index([status, postCount, commentCount]) // 活跃成员：WHERE status + ORDER BY post_count, comment_count
   @@map("User")
 }
 
@@ -132,6 +134,9 @@ model Post {
   @@index([authorId])
   @@index([status])
   @@index([postType])
+  // 社区首页查询优化索引
+  @@index([status, createdAt])           // 最新帖子：WHERE status + ORDER BY created_at
+  @@index([status, likeCount, viewCount]) // 热门帖子：WHERE status + ORDER BY like_count, view_count
   @@map("Post")
 }
 
@@ -159,6 +164,8 @@ model Comment {
   @@index([authorId])
   @@index([parentId])
   @@index([isAccepted])
+  // 社区首页统计优化索引
+  @@index([deletedAt, isApproved]) // COUNT 查询：WHERE deleted_at IS NULL AND is_approved = 1
   @@map("Comment")
 }
 
@@ -534,6 +541,8 @@ model CollabProject {
 
   @@index([authorId])
   @@index([status])
+  // 社区首页查询优化索引
+  @@index([status, createdAt]) // WHERE status IN (...) + ORDER BY created_at
   @@map("CollabProject")
 }
 
