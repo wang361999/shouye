@@ -83,7 +83,7 @@ export default function RegisterPage() {
           <div className="text-center mb-8">
             <div className="text-5xl mb-3">📝</div>
             <h1 className="text-2xl font-bold text-gray-900">注册账号</h1>
-            <p className="text-gray-500 text-sm mt-1">加入 ET Studio 社区</p>
+            <p className="text-gray-500 text-sm mt-1">加入 Gitd 社区</p>
           </div>
 
           {/* 表单 */}

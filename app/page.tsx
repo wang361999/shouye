@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import prisma from '@/lib/prisma';
 import CommunityHomeClient from '@/components/home/CommunityHomeClient';
 
-const DEFAULT_SITE_NAME = 'ET Studio';
+const DEFAULT_SITE_NAME = 'Gitd';
 const DEFAULT_SITE_DESC = '开发者交流社区';
 
 export async function generateMetadata(): Promise<Metadata> {

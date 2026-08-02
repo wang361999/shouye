@@ -38,7 +38,7 @@ const showHelp = args.includes('--help') || args.includes('-h');
 
 if (showHelp) {
   console.log(`
-ET Studio 环境变量生成脚本
+Gitd 环境变量生成脚本
 
 用法：
   node scripts/generate-env.mjs                  仅打印生成的环境变量到控制台
@@ -169,7 +169,7 @@ const ENV_GROUPS = [
 function formatEnvFile(vars) {
   const lines = [
     '# ============================================================',
-    '# ET Studio 环境变量配置',
+    '# Gitd 环境变量配置',
     `# 生成时间：${new Date().toISOString()}`,
     `# 运行环境：${detectEnvironment()}`,
     '# 由 scripts/generate-env.mjs 生成（可手动修改）',

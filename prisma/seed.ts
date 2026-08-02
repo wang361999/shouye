@@ -135,7 +135,7 @@ async function main() {
   }
 
   // ============ 4. 创建欢迎帖 ============
-  const welcomePostTitle = '欢迎来到 ET Studio 社区';
+  const welcomePostTitle = '欢迎来到 Gitd 社区';
   const existingWelcome = await prisma.post.findFirst({
     where: { title: welcomePostTitle },
   });
@@ -144,9 +144,9 @@ async function main() {
     await prisma.post.create({
       data: {
         title: welcomePostTitle,
-        content: `# 欢迎来到 ET Studio 社区 🎉
+        content: `# 欢迎来到 Gitd 社区 🎉
 
-大家好！欢迎来到 **ET Studio** 开发者社区。
+大家好！欢迎来到 **Gitd** 开发者社区。
 
 ## 在这里你可以
 
@@ -194,7 +194,7 @@ async function main() {
         title: tutorialTitle,
         content: `# 如何一键上传代码到 GitHub 📦
 
-本教程介绍如何使用 ET Studio 的 **ZIP一键上传GitHub** 工具。
+本教程介绍如何使用 Gitd 的 **ZIP一键上传GitHub** 工具。
 
 ## 使用步骤
 
@@ -282,7 +282,7 @@ A: 建议 ZIP 不超过 50MB。
 
   // ============ 7. 初始化系统设置 ============
   const defaultSettings: { key: string; value: string }[] = [
-    { key: 'site_name', value: 'ET Studio' },
+    { key: 'site_name', value: 'Gitd' },
     { key: 'site_description', value: '开发者工具与社区' },
     { key: 'site_logo', value: '' },
     { key: 'site_favicon', value: '' },
@@ -296,7 +296,7 @@ A: 建议 ZIP 不超过 50MB。
     { key: 'login_lock_minutes', value: '10' },
     { key: 'email_verify', value: 'false' },
     { key: 'captcha', value: 'false' },
-    { key: 'seo_title', value: 'ET Studio - 开发者工具集' },
+    { key: 'seo_title', value: 'Gitd - 开发者工具集' },
     { key: 'seo_keywords', value: '开发者,工具,GitHub,AI' },
     { key: 'seo_description', value: '汇聚实用开发者工具，让效率翻倍' },
   ];

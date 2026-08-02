@@ -4,7 +4,7 @@ import { adminAuth } from '@/lib/auth';
 
 // ============ 默认系统设置 ============
 const DEFAULT_SETTINGS: Record<string, string> = {
-  site_name: 'ET Studio',
+  site_name: 'Gitd',
   site_description: '开发者工具与社区',
   site_logo: '',
   site_favicon: '',
@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   smtp_port: '587',
   smtp_user: '',
   smtp_pass: '',
-  seo_title: 'ET Studio - 开发者工具集',
+  seo_title: 'Gitd - 开发者工具集',
   seo_keywords: '开发者,工具,GitHub,AI',
   seo_description: '汇聚实用开发者工具',
   sponsor_wechat_qr: '',

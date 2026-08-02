@@ -63,7 +63,7 @@ function HeaderAvatar({
   );
 }
 
-export default function Header({ siteName: initialSiteName = "ET Studio" }: { siteName?: string }) {
+export default function Header({ siteName: initialSiteName = "Gitd" }: { siteName?: string }) {
   const { user, token, logout, hydrate, updateAvatar } = useAppStore();
   const [toolOpen, setToolOpen] = useState(false);
   const [forumOpen, setForumOpen] = useState(false);
@@ -132,7 +132,7 @@ export default function Header({ siteName: initialSiteName = "ET Studio" }: { si
   // 动态获取网站名称（仅当 prop 为默认值时才请求，避免不必要的 fetch）
   useEffect(() => {
     // 如果 prop 已经是数据库中的值，不需要再 fetch
-    if (initialSiteName !== "ET Studio") return;
+    if (initialSiteName !== "Gitd") return;
     let active = true;
     fetch("/api/settings")
       .then((res) => res.json())

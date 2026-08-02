@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-export default function Footer({ siteName = "ET Studio" }: { siteName?: string }) {
+export default function Footer({ siteName = "Gitd" }: { siteName?: string }) {
   return (
     <footer className="bg-gray-800 text-gray-300">
       <div className="max-w-7xl mx-auto px-4 py-12">

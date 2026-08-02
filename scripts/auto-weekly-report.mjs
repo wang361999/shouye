@@ -94,7 +94,7 @@ ${dateRange}
 ${hotPostList}
 
 ## 周报要求
-1. 标题格式：ET Studio 社区周报（${dateRange}）
+1. 标题格式：Gitd 社区周报（${dateRange}）
 2. 内容用 Markdown 格式，包含以下板块：
    - 社区概览（用数据说话，展示社区活跃度）
    - 本周热门内容（介绍排名前列的帖子）

@@ -59,17 +59,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const fromName = config.smtp_from_name || 'ET Studio';
+    const fromName = config.smtp_from_name || 'Gitd';
     const fromEmail = config.smtp_user;
 
     await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
       to,
-      subject: '[ET Studio] 邮件配置测试',
+      subject: '[Gitd] 邮件配置测试',
       html: `
         <div style="max-width:600px;margin:0 auto;padding:20px;font-family:sans-serif;">
           <h2 style="color:#3B82F6;">📧 邮件配置测试成功</h2>
-          <p>这是一封来自 ET Studio 的测试邮件。</p>
+          <p>这是一封来自 Gitd 的测试邮件。</p>
           <p>如果你收到了这封邮件，说明你的 SMTP 邮箱配置是正确的。</p>
           <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
           <p style="color:#999;font-size:12px;">

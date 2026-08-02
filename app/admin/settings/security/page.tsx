@@ -525,7 +525,7 @@ export default function SecuritySettingsPage() {
                 setForm((prev) => ({ ...prev, smtp_from_name: e.target.value }))
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="例如: ET Studio"
+              placeholder="例如: Gitd"
             />
             <p className="mt-1 text-xs text-gray-400">
               收件人看到的发件人名称，留空则使用邮箱地址

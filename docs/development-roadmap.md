@@ -1,6 +1,6 @@
-# ET Studio 后续开发清单（Development Roadmap）
+# Gitd 后续开发清单（Development Roadmap）
 
-> **项目**：ET Studio — 开发者工具与社区网站
+> **项目**：Gitd — 开发者工具与社区网站
 > **文档版本**：v1.0
 > **更新日期**：2026-07-31
 > **技术栈**：Next.js 14（App Router）+ TypeScript + Prisma + PostgreSQL + Tailwind CSS + Zustand + JWT + Nodemailer
@@ -12,7 +12,7 @@
 
 ### 项目背景
 
-ET Studio 已完成核心功能建设，包括：工具展示、论坛（帖子/评论/点赞）、用户注册登录、GitHub OAuth 登录、后台管理、邮件 SMTP 配置、用户协议管理、通知系统、用户个人中心、搜索功能。
+Gitd 已完成核心功能建设，包括：工具展示、论坛（帖子/评论/点赞）、用户注册登录、GitHub OAuth 登录、后台管理、邮件 SMTP 配置、用户协议管理、通知系统、用户个人中心、搜索功能。
 
 本文档为后续迭代开发清单，按模块组织，覆盖从**当前阶段（OAuth 授权服务）**到**中长期基础设施**的完整规划。
 
@@ -47,7 +47,7 @@ ET Studio 已完成核心功能建设，包括：工具展示、论坛（帖子/
 
 ## 一、OAuth 授权服务（当前阶段）
 
-> **阶段定位**：将 ET Studio 打造为 OAuth 2.0 Provider，允许第三方应用通过本站实现单点登录（SSO）。
+> **阶段定位**：将 Gitd 打造为 OAuth 2.0 Provider，允许第三方应用通过本站实现单点登录（SSO）。
 >
 > **现状**：数据模型 `OAuthApp`、`OAuthAuthorizationCode`、`OAuthAccessToken` 已在 `prisma/schema.prisma` 中定义完成，需补齐 API 端点、授权页面、后台管理与接入文档。
 

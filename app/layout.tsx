@@ -7,7 +7,7 @@ import { Toaster } from 'react-hot-toast';
 import prisma from '@/lib/prisma';
 
 // ============ 默认站点信息 ============
-const DEFAULT_SITE_NAME = 'ET Studio';
+const DEFAULT_SITE_NAME = 'Gitd';
 const DEFAULT_SITE_DESC = '开发者工具与社区';
 
 /**

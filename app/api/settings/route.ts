@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 
 // ============ 公开系统设置默认值 ============
 const DEFAULT_SETTINGS = {
-  site_name: 'ET Studio',
+  site_name: 'Gitd',
   site_description: '开发者工具与社区',
   site_logo: '',
   site_favicon: '',
