@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, queryWithTimeout } from '@/lib/db';
+import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
 import { stripMarkdown, truncateText, formatTimeAgo } from '@/lib/utils';
 
 // ============ 两级缓存 ============
@@ -36,6 +36,8 @@ export async function GET() {
 
   // 获取数据库客户端，失败时返回缓存或空数据
   let db;
+  const dbError = checkDbOr503();
+  if (dbError) return dbError;
   try {
     db = getDb();
   } catch {

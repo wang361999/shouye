@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, queryWithTimeout } from '@/lib/db';
+import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
 
 // 模块级缓存：统计数据 10 分钟
 let cachedStats: object | null = null;
@@ -20,6 +20,8 @@ export async function GET() {
   }
 
   let db;
+  const dbError = checkDbOr503();
+  if (dbError) return dbError;
   try {
     db = getDb();
   } catch {

@@ -169,10 +169,22 @@ export default function ForumPage() {
             ...prev,
             totalPosts: data.total || prev.totalPosts,
           }));
+          setLoadError(false);
         } else if (res.status === 401 && activeTab === 'following') {
           // 未登录时关注 Tab 返回空
           setPosts([]);
           setTotalPages(1);
+        } else if (res.status === 503) {
+          // 数据库未配置 - 显示明确错误信息
+          const errorData = await res.json().catch(() => ({}));
+          console.error('数据库错误:', errorData);
+          setLoadError(true);
+          setPosts([]);
+        } else {
+          // 其他 API 错误
+          console.error('API 返回错误:', res.status);
+          setLoadError(true);
+          setPosts([]);
         }
       } catch (err) {
         console.error('获取帖子失败:', err);

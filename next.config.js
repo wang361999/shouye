@@ -82,7 +82,10 @@ const nextConfig = {
   // 参考: https://opennext.js.org/cloudflare/howtos/workerd
   // nodemailer 和 pg 不在此列表中：它们使用 Function 构造器动态导入，
   // 打包器无法静态解析，因此不会被打包进 Cloudflare Worker（仅在 Vercel/Node.js 可用）
-  serverExternalPackages: [
+  //
+  // 注意：Next.js 14 使用 serverComponentsExternalPackages（非 serverExternalPackages）
+  // serverExternalPackages 是 Next.js 15+ 的名称，在 14 中会被忽略并产生警告
+  serverComponentsExternalPackages: [
     '@libsql/client',
     '@libsql/isomorphic-ws',
     '@prisma/client',

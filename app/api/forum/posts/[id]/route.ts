@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getDb, queryWithTimeout } from '@/lib/db';
+import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
@@ -23,6 +23,8 @@ export async function GET(
     }
 
     let db;
+    const dbError = checkDbOr503();
+    if (dbError) return dbError;
     try {
       db = getDb();
     } catch {

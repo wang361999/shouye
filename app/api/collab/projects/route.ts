@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getDb, queryWithTimeout } from '@/lib/db';
+import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
 import type { InValue } from '@libsql/client';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseGithubRepoUrl, stringifyJsonArray } from '@/lib/collab';
@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * pageSize;
 
     let db;
+    const dbError = checkDbOr503();
+    if (dbError) return dbError;
     try {
       db = getDb();
     } catch {

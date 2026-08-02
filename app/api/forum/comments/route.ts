@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getDb, queryWithTimeout } from '@/lib/db';
+import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { sendNotification } from '@/lib/notify';
 import { revalidateCommunityHome } from '@/lib/revalidate';
@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
     // 使用原生 SQL 替代 Prisma，通过并行查询获取评论+作者+回复
     if (postId && approved === null) {
       let db;
+      const dbError = checkDbOr503();
+      if (dbError) return dbError;
       try {
         db = getDb();
       } catch {

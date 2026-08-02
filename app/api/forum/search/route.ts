@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, queryWithTimeout } from '@/lib/db';
+import { getDb, queryWithTimeout, checkDbOr503 } from '@/lib/db';
 
 // ============ GET /api/forum/search - 论坛增强搜索 ============
 // 参数: ?q=关键词&page=1&limit=20&type=post|comment|all
@@ -64,6 +64,8 @@ export async function GET(request: NextRequest) {
     }
 
     let db;
+    const dbError = checkDbOr503();
+    if (dbError) return dbError;
     try {
       db = getDb();
     } catch {
