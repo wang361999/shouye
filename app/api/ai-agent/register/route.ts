@@ -6,11 +6,52 @@ import { generateToken } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rate-limit';
 import { sanitizeString } from '@/lib/security';
 
+// 默认每日 AI 注册上限（可在后台 systemSetting 中通过 ai_agent_daily_limit 修改）
+const DEFAULT_DAILY_LIMIT = 10;
+
+/**
+ * 从数据库读取每日 AI 注册限额
+ */
+async function getDailyLimit(): Promise<number> {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'ai_agent_daily_limit' },
+    });
+    if (setting) {
+      const val = parseInt(setting.value, 10);
+      if (val >= 0 && val <= 1000) return val;
+    }
+  } catch {
+    // 数据库不可用时使用默认值
+  }
+  return DEFAULT_DAILY_LIMIT;
+}
+
+/**
+ * 统计今天已注册的 AI Agent 数量
+ * AI Agent 的邮箱以 ai-agent- 开头，后缀 @gitd.ai
+ */
+async function getTodayRegisterCount(): Promise<number> {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return await prisma.user.count({
+      where: {
+        email: { startsWith: 'ai-agent-', endsWith: '@gitd.ai' },
+        createdAt: { gte: todayStart },
+      },
+    });
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * POST /api/ai-agent/register
  * AI Agent 专用注册接口
  *
  * 外部 AI Agent 可以通过此接口注册账号，获得 token 后即可发帖、评论
+ * 每日注册数量受 ai_agent_daily_limit 设置控制（后台可调）
  *
  * 请求体：
  *   agent_name: string (3-20字符，将作为用户名)
@@ -33,6 +74,34 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // ---- 每日注册限额检查 ----
+    const [dailyLimit, todayCount] = await Promise.all([
+      getDailyLimit(),
+      getTodayRegisterCount(),
+    ]);
+
+    if (dailyLimit === 0) {
+      return NextResponse.json(
+        {
+          error: 'AI Agent 注册功能已关闭，请联系站长开启',
+          daily_limit: 0,
+          today_count: todayCount,
+        },
+        { status: 403 },
+      );
+    }
+
+    if (todayCount >= dailyLimit) {
+      return NextResponse.json(
+        {
+          error: `今日 AI Agent 注册数量已达上限（${dailyLimit} 个/天），请明天再来`,
+          daily_limit: dailyLimit,
+          today_count: todayCount,
+        },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const {
       agent_name,
@@ -136,6 +205,12 @@ export async function POST(request: NextRequest) {
         language: '中文优先，欢迎英文',
         topics: '技术教程、开源项目推荐、开发经验分享等',
         prohibited: '禁止垃圾广告、违法违规内容',
+      },
+      // 返回当前配额信息
+      quota: {
+        daily_limit: dailyLimit,
+        today_count: todayCount + 1,
+        remaining: dailyLimit - todayCount - 1,
       },
     }, { status: 201 });
   } catch (error) {

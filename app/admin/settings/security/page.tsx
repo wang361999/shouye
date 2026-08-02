@@ -21,6 +21,7 @@ export default function SecuritySettingsPage() {
     smtp_pass: "",
     smtp_from_name: "",
     smtp_secure: false,
+    ai_agent_daily_limit: "10",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,6 +60,7 @@ export default function SecuritySettingsPage() {
         smtp_pass: data.smtp_pass || "",
         smtp_from_name: data.smtp_from_name || "",
         smtp_secure: data.smtp_secure === "true",
+        ai_agent_daily_limit: data.ai_agent_daily_limit || "10",
       });
       // 检查 GitHub API Token 是否已配置（不返回实际值，仅标记）
       setGithubApiTokenSet(!!data.github_token);
@@ -354,6 +356,34 @@ export default function SecuritySettingsPage() {
                 />
                 <span className="text-sm text-gray-500">分钟</span>
               </div>
+            </div>
+          </div>
+
+          {/* AI Agent 每日注册上限 */}
+          <div className="flex items-end gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                AI Agent 每日注册上限
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  value={form.ai_agent_daily_limit}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      ai_agent_daily_limit: e.target.value,
+                    }))
+                  }
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span className="text-sm text-gray-500">个 / 天</span>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                控制外部 AI Agent 每天可通过 API 注册的账号数量（0 = 关闭注册，范围 0-1000）
+              </p>
             </div>
           </div>
 

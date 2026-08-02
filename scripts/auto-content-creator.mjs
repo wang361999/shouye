@@ -15,7 +15,7 @@
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL, POST_TOPIC
  */
 
-import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
+import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -183,16 +183,7 @@ async function generateArticle(postType, title, categories) {
 
   let parsed;
   try {
-    const trimmed = content.trim();
-    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    const candidate = fenced ? fenced[1].trim() : trimmed;
-    const start = candidate.indexOf('{');
-    const end = candidate.lastIndexOf('}');
-    if (start !== -1 && end !== -1 && end > start) {
-      parsed = JSON.parse(candidate.slice(start, end + 1));
-    } else {
-      parsed = JSON.parse(candidate);
-    }
+    parsed = robustJSONParse(content);
   } catch (err) {
     log(`JSON 解析失败：${err.message}`);
     log(`模型返回内容（前 500 字符）：${content.slice(0, 500)}`);

@@ -3,7 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
+import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
 
 const {
   GITHUB_TOKEN,
@@ -140,14 +140,8 @@ function collectContext(issue) {
 }
 
 function extractJson(text) {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1].trim() : trimmed;
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) return null;
   try {
-    return JSON.parse(candidate.slice(start, end + 1));
+    return robustJSONParse(text);
   } catch (err) {
     console.error('[free-ai-issue-executor] JSON 解析失败：', err.message);
     return null;

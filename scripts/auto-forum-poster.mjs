@@ -8,7 +8,7 @@
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL
  */
 
-import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
+import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -109,6 +109,8 @@ async function fetchCategories(token) {
   return Array.isArray(data.categories) ? data.categories : [];
 }
 
+// ===== 健壮 JSON 解析已移至共享库 ai-client.mjs，直接导入使用 =====
+
 // ===== 调用 AI 生成帖子内容 =====
 async function generatePostContent(title, topicType, categories) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
@@ -153,7 +155,8 @@ async function generatePostContent(title, topicType, categories) {
     tag: TAG,
   });
 
-  const parsed = JSON.parse(content);
+  const parsed = robustJSONParse(content);
+  if (!parsed.title || !parsed.content) fail('AI 返回内容缺少 title 或 content');
   log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
   return parsed;
 }

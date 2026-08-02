@@ -250,6 +250,50 @@ export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseF
 }
 
 /**
+ * 健壮 JSON 解析：处理 AI 返回中可能含有的控制字符
+ *
+ * AI 模型偶尔会在 JSON 字符串值中输出裸换行符、制表符等控制字符，
+ * 导致标准 JSON.parse 抛出 "Bad control character in string literal" 错误。
+ * 此函数会：
+ *   1. 从 ```json ... ``` 代码块中提取 JSON
+ *   2. 定位第一个 { 和最后一个 } 之间的内容
+ *   3. 先尝试直接解析
+ *   4. 失败则转义所有字符串值中的裸控制字符后重试
+ *
+ * @param {string} text - AI 返回的原始文本
+ * @returns {object} 解析后的 JSON 对象
+ * @throws {Error} 无法解析时抛出异常
+ */
+export function robustJSONParse(text) {
+  const trimmed = String(text).trim();
+  // 提取 ```json ... ``` 代码块
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced ? fenced[1].trim() : trimmed;
+  // 找到第一个 { 和最后一个 }
+  const start = candidate.indexOf('{');
+  const end = candidate.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('未找到 JSON 对象边界');
+  }
+  let jsonStr = candidate.slice(start, end + 1);
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    // 尝试修复：转义字符串值中的裸控制字符（换行、回车、制表符等）
+    jsonStr = jsonStr.replace(/"(?:\\.|[^"\\])*"/g, (match) => {
+      return match.replace(/[\x00-\x1f]/g, (ch) => {
+        const code = ch.charCodeAt(0);
+        if (code === 10) return '\\n';
+        if (code === 13) return '\\r';
+        if (code === 9) return '\\t';
+        return '\\u' + code.toString(16).padStart(4, '0');
+      });
+    });
+    return JSON.parse(jsonStr);
+  }
+}
+
+/**
  * 站点 API fetch 包装：带超时保护
  */
 export async function siteFetch(url, options = {}, timeoutMs = SITE_TIMEOUT_MS) {
