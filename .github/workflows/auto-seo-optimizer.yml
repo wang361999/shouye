@@ -103,10 +103,10 @@ jobs:
       - name: Check generated diff
         id: diff
         run: |
-          # 检测已修改的已跟踪文件
-          if git diff --quiet; then
-            # 再检测是否有新增的未跟踪文件（AI 创建的新文件）
-            UNTRACKED=$(git ls-files --others --exclude-standard | head -1)
+          # 检测已修改的已跟踪文件，排除日志/摘要文件（这些不是真正的代码改动）
+          if git diff --quiet -- . ':!AI_ITERATION_SUMMARY.md' ':!ai-validation.log'; then
+            # 再检测是否有新增的未跟踪文件（AI 创建的新文件），排除日志文件
+            UNTRACKED=$(git ls-files --others --exclude-standard | grep -v -E '^(AI_ITERATION_SUMMARY\.md|ai-validation\.log)$' | head -1)
             if [ -z "$UNTRACKED" ]; then
               echo "has_changes=false" >> "$GITHUB_OUTPUT"
             else
