@@ -91,17 +91,20 @@ export default function ForumPage() {
     fetchCategories();
   }, []);
 
-  // 获取统计数据
+  // 获取统计数据（只取 userCount 和 todayPostCount，totalPosts 由帖子列表的 total 提供）
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('/api/stats');
+        const res = await fetch('/api/stats', {
+          signal: AbortSignal.timeout(8000),
+        });
         if (res.ok) {
           const data = await res.json();
           setStats((prev) => ({
-            totalPosts: data.postCount ?? prev.totalPosts,
+            // 不覆盖 totalPosts，由 fetchPosts 的 data.total 设置
+            totalPosts: prev.totalPosts,
             totalUsers: data.userCount ?? 0,
-            todayPosts: prev.todayPosts,
+            todayPosts: data.todayPostCount ?? 0,
           }));
         }
       } catch (err) {

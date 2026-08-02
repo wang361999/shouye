@@ -23,84 +23,110 @@ export async function GET() {
       }
     };
 
-    // 并行查询所有数据
+    // 每个查询独立容错，避免一个失败导致全部数据丢失
     const [latestPosts, hotPosts, activeMembers, stats, collabProjectsRaw] = await Promise.all([
       // 1. 最新帖子（6条）
-      prisma.post.findMany({
-        where: { status: 'PUBLISHED' },
-        orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
-        take: 6,
-        select: {
-          id: true,
-          title: true,
-          content: true,
-          viewCount: true,
-          likeCount: true,
-          commentCount: true,
-          isPinned: true,
-          isEssence: true,
-          createdAt: true,
-          author: {
-            select: { id: true, username: true, avatar: true },
-          },
-          category: {
-            select: { id: true, name: true, slug: true },
-          },
-        },
-      }),
+      (async () => {
+        try {
+          return await prisma.post.findMany({
+            where: { status: 'PUBLISHED' },
+            orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+            take: 6,
+            select: {
+              id: true,
+              title: true,
+              content: true,
+              viewCount: true,
+              likeCount: true,
+              commentCount: true,
+              isPinned: true,
+              isEssence: true,
+              createdAt: true,
+              author: {
+                select: { id: true, username: true, avatar: true },
+              },
+              category: {
+                select: { id: true, name: true, slug: true },
+              },
+            },
+          });
+        } catch (e) {
+          console.error('[COMMUNITY HOME] latestPosts error:', e);
+          return [];
+        }
+      })(),
 
       // 2. 热门讨论（按 点赞+浏览 排序，5条）
-      prisma.post.findMany({
-        where: { status: 'PUBLISHED' },
-        orderBy: [{ isPinned: 'desc' }, { likeCount: 'desc' }, { viewCount: 'desc' }],
-        take: 5,
-        select: {
-          id: true,
-          title: true,
-          viewCount: true,
-          likeCount: true,
-          commentCount: true,
-          isPinned: true,
-          isEssence: true,
-          createdAt: true,
-          author: {
-            select: { id: true, username: true, avatar: true },
-          },
-          category: {
-            select: { id: true, name: true, slug: true },
-          },
-        },
-      }),
+      (async () => {
+        try {
+          return await prisma.post.findMany({
+            where: { status: 'PUBLISHED' },
+            orderBy: [{ isPinned: 'desc' }, { likeCount: 'desc' }, { viewCount: 'desc' }],
+            take: 5,
+            select: {
+              id: true,
+              title: true,
+              viewCount: true,
+              likeCount: true,
+              commentCount: true,
+              isPinned: true,
+              isEssence: true,
+              createdAt: true,
+              author: {
+                select: { id: true, username: true, avatar: true },
+              },
+              category: {
+                select: { id: true, name: true, slug: true },
+              },
+            },
+          });
+        } catch (e) {
+          console.error('[COMMUNITY HOME] hotPosts error:', e);
+          return [];
+        }
+      })(),
 
       // 3. 活跃成员（按发帖数+评论数排序，8人）
-      prisma.user.findMany({
-        where: { status: 'active' },
-        orderBy: [{ postCount: 'desc' }, { commentCount: 'desc' }],
-        take: 8,
-        select: {
-          id: true,
-          username: true,
-          avatar: true,
-          bio: true,
-          postCount: true,
-          commentCount: true,
-        },
-      }),
+      (async () => {
+        try {
+          return await prisma.user.findMany({
+            where: { status: 'active' },
+            orderBy: [{ postCount: 'desc' }, { commentCount: 'desc' }],
+            take: 8,
+            select: {
+              id: true,
+              username: true,
+              avatar: true,
+              bio: true,
+              postCount: true,
+              commentCount: true,
+            },
+          });
+        } catch (e) {
+          console.error('[COMMUNITY HOME] activeMembers error:', e);
+          return [];
+        }
+      })(),
 
       // 4. 社区统计
       (async () => {
-        const [userCount, postCount, commentCount, todayPostCount] = await Promise.all([
-          prisma.user.count(),
-          prisma.post.count({ where: { status: 'PUBLISHED' } }),
-          prisma.comment.count({ where: { deletedAt: null, isApproved: true } }),
-          prisma.post.count({
-            where: {
-              status: 'PUBLISHED',
-              createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-            },
-          }),
-        ]);
-        return { userCount, postCount, commentCount, todayPostCount };
+        try {
+          const [userCount, postCount, commentCount, todayPostCount] = await Promise.all([
+            prisma.user.count(),
+            prisma.post.count({ where: { status: 'PUBLISHED' } }),
+            prisma.comment.count({ where: { deletedAt: null, isApproved: true } }),
+            prisma.post.count({
+              where: {
+                status: 'PUBLISHED',
+                createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+              },
+            }),
+          ]);
+          return { userCount, postCount, commentCount, todayPostCount };
+        } catch (e) {
+          console.error('[COMMUNITY HOME] stats error:', e);
+          return { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 };
+        }
       })(),
 
       // 5. 协作召集令（招募中的项目，按创建时间倒序，6条）
@@ -132,7 +158,8 @@ export async function GET() {
               },
             },
           });
-        } catch {
+        } catch (e) {
+          console.error('[COMMUNITY HOME] collabProjects error:', e);
           return [];
         }
       })(),

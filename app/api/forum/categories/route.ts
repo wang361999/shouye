@@ -13,7 +13,7 @@ export async function GET() {
       orderBy: { sortOrder: 'asc' },
       include: {
         _count: {
-          select: { posts: true },
+          select: { posts: { where: { status: 'PUBLISHED' } } },
         },
       },
     });
