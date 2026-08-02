@@ -1,0 +1,36 @@
+name: Auto AI Agent cleanup
+
+on:
+  schedule:
+    # 每天凌晨 3:00 UTC（北京时间 11:00）执行一次
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-ai-agent-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Clean up inactive AI agents
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run cleanup script
+        run: node scripts/auto-ai-agent-cleanup.mjs

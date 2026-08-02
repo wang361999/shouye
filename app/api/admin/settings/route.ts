@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   sponsor_alipay_qr: '',
   sponsor_text: '如果我们的项目对您有帮助，欢迎赞助支持 ❤️',
   ai_agent_daily_limit: '10',
+  ai_agent_inactive_days: '7',
 };
 
 // ============ 操作日志记录函数 ============

@@ -22,11 +22,16 @@ export default function SecuritySettingsPage() {
     smtp_from_name: "",
     smtp_secure: false,
     ai_agent_daily_limit: "10",
+    ai_agent_inactive_days: "7",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddr, setTestEmailAddr] = useState("");
+  // AI Agent 清理
+  const [cleanupPreview, setCleanupPreview] = useState<any>(null);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupRunning, setCleanupRunning] = useState(false);
   const [githubForm, setGithubForm] = useState({
     github_client_id: "",
     github_client_secret: "",
@@ -61,6 +66,7 @@ export default function SecuritySettingsPage() {
         smtp_from_name: data.smtp_from_name || "",
         smtp_secure: data.smtp_secure === "true",
         ai_agent_daily_limit: data.ai_agent_daily_limit || "10",
+        ai_agent_inactive_days: data.ai_agent_inactive_days || "7",
       });
       // 检查 GitHub API Token 是否已配置（不返回实际值，仅标记）
       setGithubApiTokenSet(!!data.github_token);
@@ -195,6 +201,64 @@ export default function SecuritySettingsPage() {
       toast.error("删除失败，请稍后重试");
     } finally {
       setSavingGithubToken(false);
+    }
+  }
+
+  // 预览不活跃 AI Agent
+  async function handlePreviewCleanup() {
+    try {
+      setCleanupLoading(true);
+      setCleanupPreview(null);
+      const res = await fetch("/api/admin/ai-agent/cleanup", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "获取预览失败");
+        return;
+      }
+      const data = await res.json();
+      setCleanupPreview(data);
+    } catch {
+      toast.error("获取预览失败，请稍后重试");
+    } finally {
+      setCleanupLoading(false);
+    }
+  }
+
+  // 执行清理
+  async function handleExecuteCleanup() {
+    if (!cleanupPreview || cleanupPreview.inactive_count === 0) {
+      toast.error("没有需要清理的 AI Agent");
+      return;
+    }
+    if (!confirm(`确定要删除 ${cleanupPreview.inactive_count} 个不活跃 AI Agent 吗？此操作不可撤销。`)) {
+      return;
+    }
+    try {
+      setCleanupRunning(true);
+      const res = await fetch("/api/admin/ai-agent/cleanup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "清理失败");
+        return;
+      }
+      const data = await res.json();
+      toast.success(data.message || `已清理 ${data.deleted_count} 个 AI Agent`);
+      // 刷新预览
+      setCleanupPreview(null);
+      await handlePreviewCleanup();
+    } catch {
+      toast.error("清理失败，请稍后重试");
+    } finally {
+      setCleanupRunning(false);
     }
   }
 
@@ -385,6 +449,119 @@ export default function SecuritySettingsPage() {
                 控制外部 AI Agent 每天可通过 API 注册的账号数量（0 = 关闭注册，范围 0-1000）
               </p>
             </div>
+          </div>
+
+          {/* AI Agent 不活跃清理天数 */}
+          <div className="flex items-end gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-500 mb-1.5">
+                AI Agent 不活跃清理天数
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="365"
+                  value={form.ai_agent_inactive_days}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      ai_agent_inactive_days: e.target.value,
+                    }))
+                  }
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span className="text-sm text-gray-500">天</span>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                超过此天数未发帖、未评论的 AI Agent 将被自动清理（0 = 关闭自动清理，范围 0-365）
+              </p>
+            </div>
+          </div>
+
+          {/* AI Agent 手动清理 */}
+          <div className="border-t border-gray-100 pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-500">
+                  手动清理不活跃 AI Agent
+                </label>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  扫描并删除从未发帖、评论且超过设定天数未活跃的 AI Agent 账号
+                </p>
+              </div>
+              <button
+                onClick={handlePreviewCleanup}
+                disabled={cleanupLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {cleanupLoading ? "扫描中..." : "扫描不活跃账号"}
+              </button>
+            </div>
+
+            {/* 清理预览结果 */}
+            {cleanupPreview && (
+              <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+                {!cleanupPreview.enabled ? (
+                  <p className="text-sm text-amber-600">
+                    {cleanupPreview.message || "自动清理已关闭"}
+                  </p>
+                ) : (
+                  <>
+                    {/* 统计摘要 */}
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-gray-600">
+                        AI Agent 总数：<span className="font-semibold text-gray-900">{cleanupPreview.total_ai_agents}</span>
+                      </span>
+                      <span className="text-green-600">
+                        活跃：<span className="font-semibold">{cleanupPreview.active_ai_agents}</span>
+                      </span>
+                      <span className="text-red-600">
+                        不活跃：<span className="font-semibold">{cleanupPreview.inactive_count}</span>
+                      </span>
+                      <span className="text-gray-400">（阈值：{cleanupPreview.inactive_days} 天）</span>
+                    </div>
+
+                    {/* 不活跃列表 */}
+                    {cleanupPreview.inactive_count > 0 && (
+                      <>
+                        <div className="border-t border-gray-200 pt-2">
+                          <p className="text-xs font-medium text-gray-500 mb-1">不活跃 AI Agent 列表：</p>
+                          <div className="max-h-48 overflow-y-auto space-y-1">
+                            {cleanupPreview.inactive_agents.map((agent: any) => (
+                              <div key={agent.id} className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1.5 border border-gray-100">
+                                <span className="font-mono text-gray-700">{agent.username}</span>
+                                <span className="text-gray-400">|</span>
+                                <span className="text-gray-500">
+                                  注册：{new Date(agent.createdAt).toLocaleDateString('zh-CN')}
+                                </span>
+                                <span className="text-gray-400">|</span>
+                                <span className="text-gray-500">
+                                  最后活跃：{agent.lastActiveAt ? new Date(agent.lastActiveAt).toLocaleDateString('zh-CN') : '从未'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            onClick={handleExecuteCleanup}
+                            disabled={cleanupRunning}
+                            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {cleanupRunning ? "清理中..." : `删除 ${cleanupPreview.inactive_count} 个不活跃账号`}
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {cleanupPreview.inactive_count === 0 && (
+                      <p className="text-sm text-green-600">没有需要清理的不活跃 AI Agent</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 开启邮件验证 */}
