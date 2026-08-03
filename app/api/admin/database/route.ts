@@ -9,29 +9,30 @@ interface TableConfig {
   canClean: boolean;
   cleanDescription?: string;
   timeField?: string;
+  cleanDays?: number; // 清理天数阈值，预估和实际清理一致使用此值
 }
 
 const TABLES: TableConfig[] = [
   { name: 'user', displayName: '用户', canClean: false },
   { name: 'category', displayName: '论坛分类', canClean: false },
   { name: 'tool', displayName: '工具', canClean: false },
-  { name: 'post', displayName: '帖子', canClean: true, cleanDescription: '清理已删除帖子（软删除标记）', timeField: 'deletedAt' },
-  { name: 'comment', displayName: '评论', canClean: true, cleanDescription: '清理已删除评论（软删除标记）', timeField: 'deletedAt' },
-  { name: 'like', displayName: '点赞/收藏', canClean: true, cleanDescription: '清理30天前的点赞记录', timeField: 'createdAt' },
-  { name: 'notification', displayName: '通知', canClean: true, cleanDescription: '清理已读通知和30天前通知', timeField: 'createdAt' },
-  { name: 'operationLog', displayName: '操作日志', canClean: true, cleanDescription: '清理90天前的操作日志', timeField: 'createdAt' },
+  { name: 'post', displayName: '帖子', canClean: true, cleanDescription: '清理所有已软删除帖子', timeField: 'deletedAt', cleanDays: 0 },
+  { name: 'comment', displayName: '评论', canClean: true, cleanDescription: '清理所有已软删除评论', timeField: 'deletedAt', cleanDays: 0 },
+  { name: 'like', displayName: '点赞/收藏', canClean: true, cleanDescription: '清理30天前的点赞记录', timeField: 'createdAt', cleanDays: 30 },
+  { name: 'notification', displayName: '通知', canClean: true, cleanDescription: '清理已读通知和30天前通知', timeField: 'createdAt', cleanDays: 30 },
+  { name: 'operationLog', displayName: '操作日志', canClean: true, cleanDescription: '清理90天前的操作日志', timeField: 'createdAt', cleanDays: 90 },
   { name: 'systemSetting', displayName: '系统设置', canClean: false },
   { name: 'oAuthApp', displayName: 'OAuth应用', canClean: false },
-  { name: 'oAuthAuthorizationCode', displayName: 'OAuth授权码', canClean: true, cleanDescription: '清理已过期/已使用的授权码', timeField: 'expiresAt' },
-  { name: 'oAuthAccessToken', displayName: 'OAuth访问令牌', canClean: true, cleanDescription: '清理已过期的访问令牌', timeField: 'expiresAt' },
+  { name: 'oAuthAuthorizationCode', displayName: 'OAuth授权码', canClean: true, cleanDescription: '清理已过期/已使用的授权码', timeField: 'expiresAt', cleanDays: 0 },
+  { name: 'oAuthAccessToken', displayName: 'OAuth访问令牌', canClean: true, cleanDescription: '清理已过期的访问令牌', timeField: 'expiresAt', cleanDays: 0 },
   { name: 'license', displayName: '授权码', canClean: false },
   { name: 'licenseDomain', displayName: '授权域名', canClean: false },
-  { name: 'licenseLog', displayName: '授权验证日志', canClean: true, cleanDescription: '清理30天前的验证日志', timeField: 'createdAt' },
+  { name: 'licenseLog', displayName: '授权验证日志', canClean: true, cleanDescription: '清理30天前的验证日志', timeField: 'createdAt', cleanDays: 30 },
   { name: 'product', displayName: '产品', canClean: false },
   { name: 'productVersion', displayName: '产品版本', canClean: false },
   { name: 'order', displayName: '订单', canClean: false },
-  { name: 'monitoringDaily', displayName: '监控统计(日)', canClean: true, cleanDescription: '清理90天前的每日监控数据', timeField: 'date' },
-  { name: 'monitoringRoute', displayName: '监控统计(路由)', canClean: true, cleanDescription: '清理90天前的路由监控数据', timeField: 'date' },
+  { name: 'monitoringDaily', displayName: '监控统计(日)', canClean: true, cleanDescription: '清理90天前的每日监控数据', timeField: 'date', cleanDays: 90 },
+  { name: 'monitoringRoute', displayName: '监控统计(路由)', canClean: true, cleanDescription: '清理90天前的路由监控数据', timeField: 'date', cleanDays: 90 },
 ];
 
 // ============ GET /api/admin/database - 获取数据库概览 ============
@@ -91,40 +92,48 @@ export async function GET(request: NextRequest) {
       // PRAGMA 可能在某些 Turso 版本不可用
     }
 
-    // ---- 各表大小（LibSQL/SQLite）----
+    // ---- 各表大小估算（基于行数和页面大小）----
     let tableSizes: Array<{ tableName: string; sizeBytes: number; rowCount: number }> = [];
+    const pageSize = dbSizeDetail ? dbSizeDetail.totalBytes : 4096; // 默认 4KB
+    const totalPages = dbSizeDetail ? Math.max(1, Math.floor(dbSizeDetail.totalBytes / pageSize)) : 0;
+
     try {
-      const sizes = await prisma.$queryRaw<
-        Array<{ name: string; pages: number; rowCount: number }>
-      >`
-        SELECT 
-          name,
-          0 as pages,
-          0 as rowCount
-        FROM sqlite_master 
-        WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_prisma%'
-        ORDER BY name
-      `;
-      // 用实际行数替代大小估算
-      tableSizes = await Promise.all(
-        sizes.map(async (s) => {
+      // 获取所有表的行数，按比例估算大小
+      const counts = await Promise.all(
+        TABLES.map(async (t) => {
           let rowCount = 0;
           try {
-            const config = TABLES.find((t) => t.name === s.name);
-            if (config) {
-              // @ts-expect-error - 动态模型名
-              rowCount = await prisma[s.name].count();
-            }
+            // @ts-expect-error - 动态模型名
+            rowCount = await prisma[t.name].count();
           } catch {
-            // 忽略
+            rowCount = 0;
           }
-          return {
-            tableName: s.name,
-            sizeBytes: 0,
-            rowCount,
-          };
+          return { name: t.name, displayName: t.displayName, rowCount };
         })
       );
+
+      const totalRows = counts.reduce((sum, c) => sum + c.rowCount, 0) || 1;
+
+      tableSizes = counts
+        .map((c) => ({
+          tableName: c.displayName,
+          sizeBytes: totalRows > 0 ? Math.round((c.rowCount / totalRows) * (dbSize || 0)) : 0,
+          rowCount: c.rowCount,
+        }))
+        .filter((t) => t.rowCount > 0)
+        .sort((a, b) => b.sizeBytes - a.sizeBytes);
+
+      // 如果无法获取 dbSize，使用行数*估算每行大小
+      if (!dbSize) {
+        tableSizes = counts
+          .filter((c) => c.rowCount > 0)
+          .map((c) => ({
+            tableName: c.displayName,
+            sizeBytes: c.rowCount * 512, // 粗略估算每行 512 字节
+            rowCount: c.rowCount,
+          }))
+          .sort((a, b) => b.sizeBytes - a.sizeBytes);
+      }
     } catch {
       // 忽略
     }
@@ -166,14 +175,14 @@ export async function POST(request: NextRequest) {
     if (admin instanceof Response) return admin;
 
     const body = await request.json();
-    const { action, tableName, days } = body as {
+    const { action, tableName } = body as {
       action: 'clean' | 'vacuum' | 'reindex';
       tableName?: string;
       days?: number;
     };
 
     if (action === 'clean') {
-      return await cleanTable(tableName, days || 30);
+      return await cleanTable(tableName);
     }
 
     if (action === 'vacuum') {
@@ -318,44 +327,54 @@ async function getTableDetail(tableName: string) {
   }
 }
 
-// ============ 获取可清理数据预估 ============
+// ============ 获取可清理数据预估（使用与实际清理一致的天数）============
 async function getCleanableEstimates() {
   const now = new Date();
-  const days30 = new Date(now.getTime() - 30 * 86400000);
-  const days90 = new Date(now.getTime() - 90 * 86400000);
-  const pastDate = new Date(now.getTime() - 86400000);
 
   const estimates: Array<{ table: string; label: string; count: number; description: string }> = [];
 
   try {
+    // post/comment - 清理所有软删除记录
     const deletedPosts = await prisma.post.count({ where: { deletedAt: { not: null } } });
-    if (deletedPosts > 0) estimates.push({ table: 'post', label: '已删除帖子', count: deletedPosts, description: '软删除标记的帖子' });
+    if (deletedPosts > 0) estimates.push({ table: 'post', label: '已删除帖子', count: deletedPosts, description: '软删除标记的帖子（全部清理）' });
 
     const deletedComments = await prisma.comment.count({ where: { deletedAt: { not: null } } });
-    if (deletedComments > 0) estimates.push({ table: 'comment', label: '已删除评论', count: deletedComments, description: '软删除标记的评论' });
+    if (deletedComments > 0) estimates.push({ table: 'comment', label: '已删除评论', count: deletedComments, description: '软删除标记的评论（全部清理）' });
 
-    const oldNotifications = await prisma.notification.count({ where: { createdAt: { lt: days30 } } });
-    if (oldNotifications > 0) estimates.push({ table: 'notification', label: '旧通知', count: oldNotifications, description: '30天前的通知' });
+    // notification - 30天前
+    const notifCutoff = new Date(now.getTime() - 30 * 86400000);
+    const oldNotifications = await prisma.notification.count({ where: { OR: [{ isRead: true }, { createdAt: { lt: notifCutoff } }] } });
+    if (oldNotifications > 0) estimates.push({ table: 'notification', label: '可清理通知', count: oldNotifications, description: '已读通知 + 30天前的通知' });
 
-    const oldLogs = await prisma.operationLog.count({ where: { createdAt: { lt: days90 } } });
+    // operationLog - 90天前
+    const logCutoff = new Date(now.getTime() - 90 * 86400000);
+    const oldLogs = await prisma.operationLog.count({ where: { createdAt: { lt: logCutoff } } });
     if (oldLogs > 0) estimates.push({ table: 'operationLog', label: '旧操作日志', count: oldLogs, description: '90天前的操作日志' });
 
-    const expiredCodes = await prisma.oAuthAuthorizationCode.count({ where: { expiresAt: { lt: pastDate } } });
-    if (expiredCodes > 0) estimates.push({ table: 'oAuthAuthorizationCode', label: '过期授权码', count: expiredCodes, description: '已过期的OAuth授权码' });
+    // oAuthAuthorizationCode - 过期或已使用
+    const expiredCodes = await prisma.oAuthAuthorizationCode.count({ where: { OR: [{ expiresAt: { lt: now } }, { used: true }] } });
+    if (expiredCodes > 0) estimates.push({ table: 'oAuthAuthorizationCode', label: '过期授权码', count: expiredCodes, description: '已过期或已使用的OAuth授权码' });
 
-    const expiredTokens = await prisma.oAuthAccessToken.count({ where: { expiresAt: { lt: pastDate } } });
+    // oAuthAccessToken - 过期
+    const expiredTokens = await prisma.oAuthAccessToken.count({ where: { expiresAt: { lt: now } } });
     if (expiredTokens > 0) estimates.push({ table: 'oAuthAccessToken', label: '过期令牌', count: expiredTokens, description: '已过期的访问令牌' });
 
-    const oldLicenseLogs = await prisma.licenseLog.count({ where: { createdAt: { lt: days30 } } });
+    // licenseLog - 30天前
+    const licenseCutoff = new Date(now.getTime() - 30 * 86400000);
+    const oldLicenseLogs = await prisma.licenseLog.count({ where: { createdAt: { lt: licenseCutoff } } });
     if (oldLicenseLogs > 0) estimates.push({ table: 'licenseLog', label: '旧验证日志', count: oldLicenseLogs, description: '30天前的授权验证日志' });
 
-    const oldMonitoringDaily = await prisma.monitoringDaily.count({ where: { date: { lt: days90 } } });
+    // monitoringDaily - 90天前
+    const monCutoff = new Date(now.getTime() - 90 * 86400000);
+    const oldMonitoringDaily = await prisma.monitoringDaily.count({ where: { date: { lt: monCutoff } } });
     if (oldMonitoringDaily > 0) estimates.push({ table: 'monitoringDaily', label: '旧监控(日)', count: oldMonitoringDaily, description: '90天前的每日监控数据' });
 
-    const oldMonitoringRoute = await prisma.monitoringRoute.count({ where: { date: { lt: days90 } } });
+    const oldMonitoringRoute = await prisma.monitoringRoute.count({ where: { date: { lt: monCutoff } } });
     if (oldMonitoringRoute > 0) estimates.push({ table: 'monitoringRoute', label: '旧监控(路由)', count: oldMonitoringRoute, description: '90天前的路由监控数据' });
 
-    const oldLikes = await prisma.like.count({ where: { createdAt: { lt: days30 } } });
+    // like - 30天前
+    const likeCutoff = new Date(now.getTime() - 30 * 86400000);
+    const oldLikes = await prisma.like.count({ where: { createdAt: { lt: likeCutoff } } });
     if (oldLikes > 0) estimates.push({ table: 'like', label: '旧点赞记录', count: oldLikes, description: '30天前的点赞记录' });
   } catch (error) {
     console.error('[CLEANABLE ESTIMATE ERROR]', error);
@@ -364,8 +383,8 @@ async function getCleanableEstimates() {
   return estimates;
 }
 
-// ============ 清理表数据 ============
-async function cleanTable(tableName: string | undefined, days: number) {
+// ============ 清理表数据（使用 config 中定义的 cleanDays）============
+async function cleanTable(tableName: string | undefined) {
   if (!tableName) {
     return NextResponse.json({ error: '缺少表名' }, { status: 400 });
   }
@@ -376,7 +395,8 @@ async function cleanTable(tableName: string | undefined, days: number) {
   }
 
   const now = new Date();
-  const cutoff = new Date(now.getTime() - days * 86400000);
+  const days = config.cleanDays || 0;
+  const cutoff = days > 0 ? new Date(now.getTime() - days * 86400000) : now;
   let deletedCount = 0;
 
   try {

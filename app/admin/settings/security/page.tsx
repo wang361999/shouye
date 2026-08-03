@@ -375,8 +375,29 @@ export default function SecuritySettingsPage() {
           <Icons.Lock className="w-6 h-6 text-gray-400" />
         } />
 
+        {/* 移动端横向导航 */}
+        <div className="lg:hidden -mx-4 px-4 mb-4 overflow-x-auto">
+          <div className="flex gap-2 pb-2">
+            {SECTIONS.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                onClick={() => setActiveSection(section.id)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                  activeSection === section.id
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-600 bg-gray-50 border border-transparent"
+                }`}
+              >
+                <span className="mr-1">{section.icon}</span>
+                {section.label}
+              </a>
+            ))}
+          </div>
+        </div>
+
         <div className="flex gap-6">
-        {/* 左侧导航 */}
+        {/* 桌面端左侧导航 */}
         <aside className="hidden lg:block w-48 flex-shrink-0">
           <nav className="sticky top-6 space-y-1">
             {SECTIONS.map((section) => (

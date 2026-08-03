@@ -103,9 +103,12 @@ export default function DatabasePage() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
+      } else {
+        toast.error("获取数据库数据失败");
       }
     } catch (err) {
       console.error("获取数据库数据失败:", err);
+      toast.error("获取数据库数据失败，请刷新重试");
     } finally {
       setLoading(false);
     }
@@ -116,14 +119,14 @@ export default function DatabasePage() {
   }, [fetchData]);
 
   // 清理操作
-  const handleClean = async (tableName: string, days: number = 30) => {
+  const handleClean = async (tableName: string) => {
     if (!token) return;
     setCleaning(tableName);
     setConfirmTable(null);
     try {
       const res = await adminFetch("/api/admin/database", {
         method: "POST",
-        body: JSON.stringify({ action: "clean", tableName, days }),
+        body: JSON.stringify({ action: "clean", tableName }),
       });
       const result = await res.json();
       if (res.ok && result.success) {
