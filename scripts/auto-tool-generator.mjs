@@ -232,11 +232,24 @@ async function generateTool(idea) {
 1. 输出一个完整的 HTML 文件内容（包含 HTML、CSS、JavaScript）。
 2. 所有代码必须内联在单个 HTML 文件中，不依赖外部 CDN 或库（纯原生 HTML/CSS/JS）。
 3. 界面必须美观现代：使用渐变、阴影、圆角等现代 CSS 技术，配色协调。
-4. 响应式布局，在手机和桌面端都能正常使用。
-5. 功能必须完整可用，不能有占位符或"TODO"。
-6. 所有交互必须有反馈（如复制成功提示、输入校验提示等）。
-7. 不使用 alert/prompt/confirm，用自定义 toast 或内联提示。
-8. 代码注释用中文。
+4. 功能必须完整可用，不能有占位符或"TODO"。
+5. 所有交互必须有反馈（如复制成功提示、输入校验提示等）。
+6. 不使用 alert/prompt/confirm，用自定义 toast 或内联提示。
+7. 代码注释用中文。
+
+## 移动端适配要求（非常重要！）
+1. 必须使用 viewport meta 标签：<meta name="viewport" content="width=device-width, initial-scale=1.0">
+2. 使用 CSS 变量定义间距和字体大小，便于响应式调整。
+3. 布局必须使用 flexbox 或 grid，禁止固定宽度（不用 px 宽度，用 % 或 rem/vw）。
+4. 移动端（max-width: 768px）下：
+   - 输入框和按钮宽度 100%，最小高度 44px（触摸友好）
+   - 字体最小 14px，标题 18-20px
+   - 间距适当缩小，内容区 padding 12-16px
+   - 横向排列的元素改为纵向堆叠
+5. 桌面端（min-width: 769px）下使用舒适的最大宽度（如 800px 居中）。
+6. 使用 box-sizing: border-box 确保宽度计算正确。
+7. textarea 和 input 要设置 width: 100% 并自适应。
+8. 避免使用 position: fixed/absolute 定位关键内容，防止移动端遮挡。
 
 ## 安全要求
 1. 不使用 eval() 或 new Function()。
