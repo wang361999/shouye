@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getDb, queryWithTimeout } from '@/lib/db';
+import { checkDbOr503 } from '@/lib/db-check';
 import { getUserFromRequest } from '@/lib/auth';
 import {
   fetchGithubRepoInfo,
@@ -12,15 +14,27 @@ import { revalidateCommunityHome } from '@/lib/revalidate';
 
 export const dynamic = 'force-dynamic';
 
+const QUERY_TIMEOUT = 8000;
+
+// 解析 JSON 数组或逗号分隔字符串
+function parseListValue(value: unknown): string[] {
+  if (!value || typeof value !== 'string') return [];
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) return parsed.map(String);
+  } catch { /* not JSON, fall through */ }
+  return trimmed.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+}
+
 // ============ GET /api/collab/projects/[id] - 获取项目详情 ============
-// 包含: 项目信息、作者信息、成员列表（含用户信息）、任务统计、贡献统计
-// 同时通过 GitHub API 获取仓库最近5条提交和贡献者统计
-// 增加浏览量 viewCount
-// 返回 isMember / myRole 供前端判断编辑权限
+// 使用原生 SQL 替代 Prisma，避免 Vercel Serverless 并发查询失败
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  let db;
   try {
     const { id } = params;
 
@@ -31,232 +45,218 @@ export async function GET(
       );
     }
 
-    // ---- 获取当前登录用户（可选，未登录时 isMember=false） ----
+    // ---- 获取当前登录用户 ----
     const currentUser = getUserFromRequest(request);
     const currentUserId = currentUser?.userId || null;
 
-    const project = await prisma.collabProject.findUnique({
-      where: { id },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
-            githubLogin: true,
-            bio: true,
-          },
-        },
-        members: {
-          where: { status: 'active' },
-          orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                avatar: true,
-                githubLogin: true,
-                bio: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const dbError = checkDbOr503();
+    if (dbError) return dbError;
+    db = getDb();
 
-    if (!project) {
+    // ---- 1. 查询项目 + 作者信息 ----
+    let projectRows: Record<string, unknown>[] = [];
+    try {
+      const rows = await queryWithTimeout(
+        db,
+        `SELECT cp.*,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar,
+                u.github_login as author_github_login, u.bio as author_bio
+         FROM CollabProject cp
+         LEFT JOIN User u ON cp.author_id = u.id
+         WHERE cp.id = ?`,
+        [id],
+        QUERY_TIMEOUT,
+      );
+      projectRows = rows as Record<string, unknown>[];
+    } catch (err) {
+      console.error('[COLLAB PROJECT QUERY ERROR]', err);
       return NextResponse.json(
-        { error: '项目不存在' },
-        { status: 404 },
+        { error: '获取项目详情失败', detail: err instanceof Error ? err.message : '' },
+        { status: 503 },
       );
     }
 
-    // ---- 统计：任务数、已完成任务数、贡献数（顺序执行，避免并发连接失败） ----
-    let taskStats: { status: string; _count: { status: number } }[] = [];
-    let contributionStats: { status: string; _count: { status: number } }[] = [];
+    const project = projectRows[0];
+    if (!project) {
+      return NextResponse.json({ error: '项目不存在' }, { status: 404 });
+    }
 
+    // ---- 2. 查询成员列表（顺序执行，避免并发请求失败） ----
+    let memberRows: Record<string, unknown>[] = [];
     try {
-      taskStats = await prisma.collabTask.groupBy({
-        by: ['status'],
-        where: { projectId: id },
-        _count: { status: true },
-      });
+      const rows = await queryWithTimeout(
+        db,
+        `SELECT cm.id, cm.project_id, cm.user_id, cm.role, cm.status,
+                cm.github_login as member_github_login, cm.joined_at, cm.left_at,
+                u.id as user_id, u.username as user_username, u.avatar as user_avatar,
+                u.github_login as user_github_login, u.bio as user_bio
+         FROM CollabMember cm
+         LEFT JOIN User u ON cm.user_id = u.id
+         WHERE cm.project_id = ? AND cm.status = 'active'
+         ORDER BY cm.role ASC, cm.joined_at ASC`,
+        [id],
+        QUERY_TIMEOUT,
+      );
+      memberRows = rows as Record<string, unknown>[];
+    } catch (err) {
+      console.error('[COLLAB MEMBERS QUERY ERROR]', err);
+    }
+
+    // ---- 3. 任务统计 ----
+    let taskSummary = { total: 0, open: 0, in_progress: 0, review: 0, completed: 0, cancelled: 0 };
+    try {
+      const rows = await queryWithTimeout(
+        db,
+        `SELECT status, COUNT(*) as cnt FROM CollabTask WHERE project_id = ? GROUP BY status`,
+        [id],
+        QUERY_TIMEOUT,
+      );
+      let total = 0;
+      for (const row of rows as Record<string, unknown>[]) {
+        const cnt = Number(row.cnt) || 0;
+        total += cnt;
+        const status = row.status as string;
+        if (status in taskSummary) {
+          (taskSummary as Record<string, number>)[status] = cnt;
+        }
+      }
+      taskSummary.total = total;
     } catch (err) {
       console.error('[COLLAB TASK STATS ERROR]', err);
     }
 
+    // ---- 4. 贡献统计 ----
+    let contributionSummary = { total: 0, pending: 0, approved: 0, rejected: 0 };
     try {
-      contributionStats = await prisma.collabContribution.groupBy({
-        by: ['status'],
-        where: { projectId: id },
-        _count: { status: true },
-      });
+      const rows = await queryWithTimeout(
+        db,
+        `SELECT status, COUNT(*) as cnt FROM CollabContribution WHERE project_id = ? GROUP BY status`,
+        [id],
+        QUERY_TIMEOUT,
+      );
+      let total = 0;
+      for (const row of rows as Record<string, unknown>[]) {
+        const cnt = Number(row.cnt) || 0;
+        total += cnt;
+        const status = row.status as string;
+        if (status in contributionSummary) {
+          (contributionSummary as Record<string, number>)[status] = cnt;
+        }
+      }
+      contributionSummary.total = total;
     } catch (err) {
       console.error('[COLLAB CONTRIBUTION STATS ERROR]', err);
     }
 
-    // 任务统计聚合
-    const taskSummary = {
-      total: taskStats.reduce((sum, t) => sum + t._count.status, 0),
-      open: 0,
-      in_progress: 0,
-      review: 0,
-      completed: 0,
-      cancelled: 0,
-    };
-    taskStats.forEach((t) => {
-      if (t.status in taskSummary) {
-        (taskSummary as Record<string, number>)[t.status] = t._count.status;
-      }
-    });
+    // ---- 5. 浏览量 +1 ----
+    let viewCount = Number(project.view_count || 0) + 1;
+    try {
+      await queryWithTimeout(
+        db,
+        `UPDATE CollabProject SET view_count = view_count + 1 WHERE id = ?`,
+        [id],
+        QUERY_TIMEOUT,
+      );
+    } catch (err) {
+      console.error('[COLLAB VIEWCOUNT ERROR]', err);
+    }
 
-    // 贡献统计聚合
-    const contributionSummary = {
-      total: contributionStats.reduce((sum, c) => sum + c._count.status, 0),
-      pending: 0,
-      approved: 0,
-      rejected: 0,
-    };
-    contributionStats.forEach((c) => {
-      if (c.status in contributionSummary) {
-        (contributionSummary as Record<string, number>)[c.status] = c._count.status;
-      }
-    });
-
-    // ---- 浏览量 +1 ----
-    const updated = await prisma.collabProject.update({
-      where: { id },
-      data: { viewCount: { increment: 1 } },
-    });
-
-    // ---- 查询当前用户在项目中的成员身份 ----
-    // 前端依赖 isMember / myRole 判断是否显示编辑按钮、加入/离开按钮等
+    // ---- 6. 当前用户成员身份 ----
     let myRole: string | null = null;
     let isMember = false;
     if (currentUserId) {
-      const myMember = await prisma.collabMember.findUnique({
-        where: {
-          projectId_userId: { projectId: id, userId: currentUserId },
-        },
-        select: { role: true, status: true },
-      });
-      if (myMember && myMember.status === 'active') {
-        myRole = myMember.role;
-        isMember = true;
+      try {
+        const rows = await queryWithTimeout(
+          db,
+          `SELECT role, status FROM CollabMember WHERE project_id = ? AND user_id = ?`,
+          [id, currentUserId],
+          QUERY_TIMEOUT,
+        );
+        const myMember = (rows as Record<string, unknown>[])[0];
+        if (myMember && myMember.status === 'active') {
+          myRole = myMember.role as string;
+          isMember = true;
+        }
+      } catch (err) {
+        console.error('[COLLAB MYMEMBER ERROR]', err);
       }
     }
 
-    // ---- 通过 GitHub API 获取仓库最近提交和贡献者 ----
-    // 使用 Promise.allSettled + 超时保护，避免新建项目仓库无数据或 GitHub API 限流
-    // 导致整个详情接口卡住/失败（此前是创建协同任务后无法打开详情页的根本原因）。
+    // ---- 7. GitHub API 信息获取 ----
     const withTimeout = <T>(p: Promise<T>, ms = 8000): Promise<T> =>
       Promise.race([
         p,
         new Promise<T>((resolve) => setTimeout(() => resolve(null as T), ms)),
       ]);
 
-    const [repoInfoResult, commitsResult, contributorsResult] =
-      await Promise.allSettled([
-        withTimeout(fetchGithubRepoInfo(project.repoOwner, project.repoName)),
-        withTimeout(
-          fetchGithubCommits(
-            project.repoOwner,
-            project.repoName,
-            project.defaultBranch || undefined,
-            5,
-          ),
-        ),
-        withTimeout(
-          fetchGithubContributors(project.repoOwner, project.repoName, 10),
-        ),
-      ]);
-
-    const repoInfo =
-      repoInfoResult.status === 'fulfilled' ? repoInfoResult.value : null;
-    const commits =
-      commitsResult.status === 'fulfilled' ? commitsResult.value : [];
-    const contributors =
-      contributorsResult.status === 'fulfilled' ? contributorsResult.value : [];
-
-    // ---- 如果仓库默认分支为空，尝试从 GitHub 信息补全 ----
-    if (!project.defaultBranch && repoInfo?.defaultBranch) {
-      try {
-        await prisma.collabProject.update({
-          where: { id },
-          data: { defaultBranch: repoInfo.defaultBranch },
-        });
-      } catch {
-        // 补全默认分支失败不影响主流程
-      }
+    let repoInfo = null;
+    let commits: unknown[] = [];
+    let contributors: unknown[] = [];
+    try {
+      const [repoInfoResult, commitsResult, contributorsResult] =
+        await Promise.allSettled([
+          withTimeout(fetchGithubRepoInfo(project.repo_owner as string, project.repo_name as string)),
+          withTimeout(fetchGithubCommits(project.repo_owner as string, project.repo_name as string, (project.default_branch as string) || undefined, 5)),
+          withTimeout(fetchGithubContributors(project.repo_owner as string, project.repo_name as string, 10)),
+        ]);
+      repoInfo = repoInfoResult.status === 'fulfilled' ? repoInfoResult.value : null;
+      commits = commitsResult.status === 'fulfilled' ? (commitsResult.value as unknown[]) : [];
+      contributors = contributorsResult.status === 'fulfilled' ? (contributorsResult.value as unknown[]) : [];
+    } catch (err) {
+      console.error('[COLLAB GITHUB API ERROR]', err);
     }
 
-    // ---- 计算前端期望的扁平字段（taskTotal/taskCompleted/contributionCount） ----
-    // API 此前只返回 taskStats/contributionStats 对象，与前端 ProjectDetail 类型不匹配，
-    // 导致详情页任务完成率等数据为 undefined，渲染异常。
-    const taskTotal = taskSummary.total;
-    const taskCompleted = taskSummary.completed;
-    const contributionCount = contributionSummary.total;
-
-    // ---- 映射关联字段为前端 ProjectDetail 期望的结构 ----
-    // Prisma 返回 author/members.user 嵌套结构，前端类型期望 owner(扁平) 与
-    // members(扁平: userId/username/avatar/githubUsername)。此前直接展开 ...project
-    // 导致 project.owner 为 undefined，前端访问 project.owner.username 抛 TypeError，
-    // 触发 Error Boundary（"页面出错了"）。
-    const owner = project.author
+    // ---- 组装返回数据 ----
+    const owner = project.author_id
       ? {
-          id: project.author.id,
-          username: project.author.username,
-          avatar: project.author.avatar ?? null,
-          githubUsername: project.author.githubLogin ?? undefined,
+          id: project.author_id,
+          username: project.author_username || '未知用户',
+          avatar: project.author_avatar || null,
+          githubUsername: project.author_github_login || undefined,
         }
       : { id: '', username: '未知用户', avatar: null };
 
-    const members = (project.members || []).map((m) => ({
+    const members = memberRows.map((m) => ({
       id: m.id,
-      userId: m.user?.id ?? '',
-      username: m.user?.username ?? '未知用户',
-      avatar: m.user?.avatar ?? null,
-      role: m.role,
-      githubUsername: m.user?.githubLogin ?? undefined,
-      joinedAt: m.joinedAt,
+      userId: m.user_id ?? '',
+      username: (m.user_username as string) || '未知用户',
+      avatar: m.user_avatar || null,
+      role: m.role as string,
+      githubUsername: m.user_github_login || undefined,
+      joinedAt: m.joined_at,
     }));
 
-    // 解析 JSON 数组或逗号分隔字符串
-    const parseListValue = (value: string | null | undefined): string[] => {
-      if (!value || typeof value !== 'string') return [];
-      const trimmed = value.trim();
-      if (!trimmed) return [];
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) return parsed.map(String);
-      } catch { /* not JSON, fall through */ }
-      return trimmed.split(/[,，]/).map(s => s.trim()).filter(Boolean);
-    };
-
     return NextResponse.json({
-      ...project,
-      techStack: parseListValue(project.techStack),
+      id: project.id,
+      title: project.title,
+      description: project.description,
+      authorId: project.author_id,
+      repoOwner: project.repo_owner,
+      repoName: project.repo_name,
+      defaultBranch: project.default_branch,
+      techStack: parseListValue(project.tech_stack),
       tags: parseListValue(project.tags),
-      viewCount: updated.viewCount,
-      // 关联字段（前端 ProjectDetail 期望的扁平结构）
+      goals: project.goals,
+      requirements: project.requirements,
+      status: project.status,
+      maxMembers: Number(project.max_members) || 0,
+      memberCount: Number(project.member_count) || 0,
+      taskCount: Number(project.task_count) || 0,
+      completedTaskCount: Number(project.completed_task_count) || 0,
+      contributionCount: Number(project.contribution_count) || 0,
+      viewCount,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
       owner,
       members,
-      // 扁平字段（前端 ProjectDetail 期望）
-      taskTotal,
-      taskCompleted,
-      contributionCount,
-      // 当前用户的成员身份（前端依赖此字段控制编辑按钮、加入/离开按钮等）
+      taskTotal: taskSummary.total,
+      taskCompleted: taskSummary.completed,
+      contributionCountStat: contributionSummary.total,
       isMember,
       myRole,
-      // 统计明细（保留供其他场景使用）
       taskStats: taskSummary,
       contributionStats: contributionSummary,
-      github: {
-        repoInfo,
-        commits,
-        contributors,
-      },
+      github: { repoInfo, commits, contributors },
     });
   } catch (error) {
     console.error('[COLLAB PROJECT DETAIL ERROR]', error);
