@@ -53,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "用户管理",
     items: [
       { key: "users", label: "用户列表", href: "/admin/users", icon: Icons.Users },
+      { key: "badges", label: "徽章管理", href: "/admin/badges", icon: Icons.Scroll },
       { key: "users-logs", label: "操作日志", href: "/admin/users/logs", icon: Icons.Clipboard },
       { key: "profile", label: "个人中心", href: "/admin/profile", icon: Icons.User },
     ],
