@@ -67,8 +67,6 @@ const nextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400, // 24小时
-    // Cloudflare Workers 上使用 OpenNext 的图片优化
-    // 不需要 unoptimized: true，OpenNext 会通过 Cloudflare Images 处理
   },
 
   // ============ ESLint ============
@@ -76,18 +74,6 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-
-  // ============ Cloudflare Workers 兼容 ============
-  // 这些包包含 workerd 专用代码（条件导出），需要由 OpenNext/esbuild 而非 Next.js 打包
-  // patch-libsql-exports.mjs 会在 OpenNext 构建前修补这些包的导出条件
-  // 参考: https://opennext.js.org/cloudflare/howtos/workerd
-  serverExternalPackages: [
-    '@libsql/client',
-    '@libsql/isomorphic-ws',
-    '@prisma/client',
-    '@prisma/adapter-libsql',
-    '.prisma/client',
-  ],
 
   // ============ 实验性功能 ============
   experimental: {
@@ -97,15 +83,3 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-
-// ============ Cloudflare OpenNext 本地开发集成 ============
-// 在本地开发时启用 Cloudflare 绑定（如 KV、R2 等）
-// 仅在开发环境加载，不影响生产构建
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    const { initOpenNextCloudflareForDev } = require('@opennextjs/cloudflare');
-    initOpenNextCloudflareForDev();
-  } catch {
-    // @opennextjs/cloudflare 未安装时静默跳过（不影响纯 Next.js 开发）
-  }
-}

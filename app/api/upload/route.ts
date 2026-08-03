@@ -66,29 +66,13 @@ function randomString(length: number): string {
 }
 
 /**
- * 尝试获取 Cloudflare R2 bucket binding
+ * 获取 R2 bucket（已移除 OpenNext 依赖）
  *
- * 在 Workers 环境，通过 getCloudflareContext() 获取 env 中的 R2 binding。
- * 在 Vercel 或本地开发环境（无 R2 binding），返回 null 以触发降级方案。
+ * 当前返回 null，触发 base64 data URL 降级模式。
+ * 如需 R2 存储，可在 Worker 环境中恢复此实现。
  */
 async function getR2Bucket(): Promise<R2BucketLike | null> {
-  try {
-    // 动态导入，避免在非 Cloudflare 环境构建失败
-    const { getCloudflareContext } = await import(
-      /* webpackIgnore: true */ '@opennextjs/cloudflare/cloudflare-context'
-    );
-
-    const ctx = getCloudflareContext();
-    const bucket = (ctx.env as Record<string, unknown>)?.NEXT_INC_CACHE_R2_BUCKET;
-
-    if (bucket && typeof (bucket as R2BucketLike).put === 'function') {
-      return bucket as R2BucketLike;
-    }
-    return null;
-  } catch {
-    // getCloudflareContext 在非 Cloudflare 环境会抛错，返回 null 触发降级
-    return null;
-  }
+  return null;
 }
 
 export async function POST(request: NextRequest) {

@@ -14,11 +14,7 @@
     "db:setup": "node scripts/db-setup.mjs",
     "gen:env": "node scripts/generate-env.mjs",
     "vercel-build": "next build",
-    "cf:build": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs",
-    "cf:preview": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && opennextjs-cloudflare preview",
-    "cf:deploy": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && OPEN_NEXT_DEPLOY=true wrangler deploy .open-next/worker.js",
-    "cf:upload": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && opennextjs-cloudflare upload",
-    "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf:deploy": "wrangler deploy"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -40,8 +36,6 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260730.1",
-    "@opennextjs/cloudflare": "1.15.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.11.0",

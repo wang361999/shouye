@@ -12,13 +12,13 @@ concurrency:
 
 jobs:
   # ============================================================
-  # Cloudflare Workers 部署
+  # Cloudflare Worker 部署（极简兜底 Worker）
   # Vercel 通过原生 Git 集成自动部署，无需在 Actions 中处理
   # ============================================================
   deploy-cloudflare:
-    name: Deploy to Cloudflare Workers
+    name: Deploy Fallback Worker
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -28,43 +28,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Wrangler
+        run: npm install -g wrangler
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
-      - name: Push database schema
-        run: npx prisma db push --accept-data-loss
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
-        continue-on-error: true
-
-      - name: Seed badges
-        run: node scripts/seed-badges.mjs
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
-        continue-on-error: true
-
-      - name: Build and deploy to Cloudflare Workers
-        run: npm run cf:deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # 构建时需要的环境变量（惰性加载，不会实际连接数据库）
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-
-      - name: Set Cloudflare Worker secrets
-        run: |
-          echo "${{ secrets.DATABASE_URL }}" | npx wrangler secret put DATABASE_URL --name shouye
-          echo "${{ secrets.DATABASE_AUTH_TOKEN }}" | npx wrangler secret put DATABASE_AUTH_TOKEN --name shouye
-          echo "${{ secrets.JWT_SECRET }}" | npx wrangler secret put JWT_SECRET --name shouye
+      - name: Deploy fallback worker
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -75,10 +44,9 @@ jobs:
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ job.status }}" = "success" ]; then
-            echo "✅ Cloudflare Workers 部署成功" >> $GITHUB_STEP_SUMMARY
-            echo "🔗 https://shouye.568165811.workers.dev" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Cloudflare Worker 部署成功" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Cloudflare Workers 部署失败" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Cloudflare Worker 部署失败" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Vercel 通过 Git 集成自动部署，请查看 Vercel Dashboard" >> $GITHUB_STEP_SUMMARY
