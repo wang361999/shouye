@@ -1,3 +1,5 @@
+const { withSentryConfig } = require('@sentry/nextjs');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // ============ 性能优化 ============
@@ -82,4 +84,21 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// ============ Sentry 配置 ============
+module.exports = withSentryConfig(
+  nextConfig,
+  {
+    // 仅在生产构建时上传 Source Map
+    // 未配置 SENTRY_AUTH_TOKEN 时自动跳过上传
+    silent: true,
+
+    // 禁用构建时自动创建 release（需要 SENTRY_AUTH_TOKEN）
+    autoInstrumentServerFunctions: true,
+
+    // 隐藏 Sentry 构建日志（非关键信息）
+    hideSourceMaps: true,
+
+    // 禁用 webpack treeshaking 警告
+    disableLogger: true,
+  },
+);

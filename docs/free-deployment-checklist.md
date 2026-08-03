@@ -38,8 +38,11 @@
 4. `GITHUB_CLIENT_ID`
 5. `GITHUB_CLIENT_SECRET`
 6. `VERCEL_DEPLOY_HOOK_URL`（可选，用于管理员确认后手动触发部署）
-7. 邮件服务相关配置
-8. 其他 OAuth 或第三方服务密钥
+7. `SENTRY_DSN`（可选，服务端错误监控，配置后自动启用）
+8. `NEXT_PUBLIC_SENTRY_DSN`（可选，客户端错误监控，与 `SENTRY_DSN` 使用相同值）
+9. 其他 OAuth 或第三方服务密钥
+
+> **注意**：邮件配置（Resend API Key 和发信邮箱）存储在数据库中，不需要设置环境变量。迁移 Vercel 账号时只需配置以上环境变量，邮件配置随数据库一起迁移。
 
 ## 免费额度观察
 
@@ -80,4 +83,6 @@
 3. Vercel 后台看部署日志。
 4. GitHub 提交状态看部署是否回写。
 
-暂不接入付费监控，除非出现频繁线上故障。
+已接入 Sentry 免费版（每月 5000 errors）用于错误监控。配置 `SENTRY_DSN` 环境变量后自动生效，未配置时无影响。
+
+如需更详细的应用性能监控（APM），可考虑 Vercel Analytics 或其他付费方案。

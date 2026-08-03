@@ -3,7 +3,7 @@
 > **项目**：Gitd — 开发者工具与社区网站
 > **文档版本**：v1.0
 > **更新日期**：2026-07-31
-> **技术栈**：Next.js 14（App Router）+ TypeScript + Prisma + PostgreSQL + Tailwind CSS + Zustand + JWT + Nodemailer
+> **技术栈**：Next.js 14（App Router）+ TypeScript + Prisma + SQLite/PostgreSQL + Tailwind CSS + Zustand + JWT + Resend API
 > **维护人**：待定
 
 ---
@@ -12,7 +12,7 @@
 
 ### 项目背景
 
-Gitd 已完成核心功能建设，包括：工具展示、论坛（帖子/评论/点赞）、用户注册登录、GitHub OAuth 登录、后台管理、邮件 SMTP 配置、用户协议管理、通知系统、用户个人中心、搜索功能。
+Gitd 已完成核心功能建设，包括：工具展示、论坛（帖子/评论/点赞）、用户注册登录、GitHub OAuth 登录、后台管理、邮件配置（Resend API）、用户协议管理、通知系统、用户个人中心、搜索功能。
 
 本文档为后续迭代开发清单，按模块组织，覆盖从**当前阶段（OAuth 授权服务）**到**中长期基础设施**的完整规划。
 
@@ -221,13 +221,13 @@ Gitd 已完成核心功能建设，包括：工具展示、论坛（帖子/评�
 
 **功能描述**
 
-对 OAuth `client_secret`、SMTP 密码、第三方凭据等敏感字段加密后入库，明文仅在内存中使用。
+对 OAuth `client_secret`、Resend API Key、第三方凭据等敏感字段加密后入库，明文仅在内存中使用。
 
 **技术要点**
 
 - 引入对称加密（`crypto` AES-256-GCM），密钥由环境变量 `ENCRYPTION_KEY` 注入，禁止硬编码。
 - 封装 `lib/crypto.ts`：`encrypt(plain)` / `decrypt(cipher)` 工具，统一带 IV 与认证标签。
-- 改造点：`OAuthApp.clientSecret`（联动 1.1）、`SystemSetting` 中的 SMTP 密码、后续接入的第三方密钥。
+- 改造点：`OAuthApp.clientSecret`（联动 1.1）、`SystemSetting` 中的 Resend API Key、后续接入的第三方密钥。
 - 加密字段在后台展示时做脱敏（如 `••••••`），仅支持「重新生成」而非「查看明文」。
 
 ### 2.5 操作审计日志增强
@@ -559,11 +559,11 @@ Gitd 已完成核心功能建设，包括：工具展示、论坛（帖子/评�
 
 **功能描述**
 
-基于现有 SMTP 能力扩展批量邮件与营销触达（ Newsletter、活动通知）。
+基于现有 Resend API 邮件能力扩展批量邮件与营销触达（ Newsletter、活动通知）。
 
 **技术要点**
 
-- 复用 `nodemailer` 与后台 SMTP 配置；新增 `Campaign` 模型（主题、正文 Markdown、收件人筛选、发送状态）。
+- 复用 Resend API 与后台邮件配置；新增 `Campaign` 模型（主题、正文 Markdown、收件人筛选、发送状态）。
 - 异步队列发送（简易库或 BullMQ），限速避免触发邮箱服务商频控；退信与开退订链接（CAN-SPAM 合规）。
 - 收件人筛选：按角色、活跃度、订阅偏好；用户个人中心提供「订阅设置」开关。
 - 复用现有「测试邮件」能力做营销邮件预览。
