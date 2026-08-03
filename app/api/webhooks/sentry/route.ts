@@ -210,6 +210,9 @@ async function shouldProcess(fingerprint: string): Promise<boolean> {
 
 /**
  * 记录到操作日志
+ *
+ * OperationLog.userId 有外键约束，必须使用数据库中存在的用户。
+ * 查找管理员用户来记录日志；找不到则跳过（不影响主流程）。
  */
 async function logSentryEvent(
   title: string,
@@ -217,25 +220,42 @@ async function logSentryEvent(
   issueNumber: number | null,
   executorResult: { ok: boolean; status: number } | null,
 ): Promise<void> {
-  const detail = [
-    `Sentry 错误: ${title.slice(0, 80)}`,
-    issueUrl ? `GitHub Issue: ${issueUrl}` : 'GitHub Issue 创建失败（未配置 Token）',
-    executorResult
-      ? executorResult.ok
-        ? 'AI 执行器已通知'
-        : `AI 执行器调用失败 (HTTP ${executorResult.status})`
-      : '未配置 AI 执行器',
-  ].join(' | ');
+  try {
+    // 查找一个管理员用户用于日志关联
+    const admin = await prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+      select: { id: true, username: true },
+    });
 
-  await prisma.operationLog.create({
-    data: {
-      userId: 'sentry-webhook',
-      username: 'Sentry',
-      action: 'sentry_error_auto_iterate',
-      target: 'SentryWebhook',
-      detail,
-    },
-  });
+    if (!admin) {
+      // 没有管理员用户，只输出到控制台
+      console.log('[SENTRY WEBHOOK LOG]', title, issueUrl);
+      return;
+    }
+
+    const detail = [
+      `Sentry 错误: ${title.slice(0, 80)}`,
+      issueUrl ? `GitHub Issue: ${issueUrl}` : 'GitHub Issue 创建失败（未配置 Token）',
+      executorResult
+        ? executorResult.ok
+          ? 'AI 执行器已通知'
+          : `AI 执行器调用失败 (HTTP ${executorResult.status})`
+        : '未配置 AI 执行器',
+    ].join(' | ');
+
+    await prisma.operationLog.create({
+      data: {
+        userId: admin.id,
+        username: 'Sentry',
+        action: 'sentry_error_auto_iterate',
+        target: 'SentryWebhook',
+        detail,
+      },
+    });
+  } catch (err) {
+    // 日志失败不影响主流程
+    console.error('[SENTRY WEBHOOK LOG ERROR]', err);
+  }
 }
 
 export async function POST(request: NextRequest) {
