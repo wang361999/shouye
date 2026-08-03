@@ -81,13 +81,32 @@ export async function GET(request: NextRequest) {
   }
 
   // ---- 模式 2：通过 Sentry SDK 触发真实错误 ----
-  const testError = new Error(
-    `[Sentry 测试] 这是手动触发的测试错误 ${new Date().toISOString()}`,
-  );
-  testError.name = 'SentryTestError';
+  // 每次生成不同的错误类型 + 唯一 fingerprint，确保 Sentry 创建全新 issue
+  const errorTypes = [
+    { name: 'DatabaseConnectionError', msg: '数据库连接超时' },
+    { name: 'NullReferenceError', msg: '无法读取 null 的属性' },
+    { name: 'ValidationError', msg: '输入参数验证失败' },
+    { name: 'TimeoutError', msg: '请求处理超时 (30s)' },
+    { name: 'MemoryExhaustedError', msg: '内存不足，无法分配资源' },
+    { name: 'PermissionDeniedError', msg: '用户无权限访问该资源' },
+    { name: 'ApiRateLimitError', msg: 'API 调用频率超限' },
+    { name: 'FileNotFoundError', msg: '配置文件未找到' },
+  ];
+  const pick = errorTypes[Math.floor(Math.random() * errorTypes.length)];
+  const errorId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-  // 主动捕获并发送到 Sentry
-  Sentry.captureException(testError);
+  // 使用 withScope 设置唯一 fingerprint，强制 Sentry 创建新 issue
+  Sentry.withScope((scope) => {
+    scope.setFingerprint([pick.name, errorId]);
+    scope.setTag('test_id', errorId);
+    scope.setLevel('error');
+
+    const testError = new Error(
+      `[${pick.name}] ${pick.msg} (ID: ${errorId})`,
+    );
+    testError.name = pick.name;
+    Sentry.captureException(testError);
+  });
 
   // 强制刷新（确保事件立即发送，不等待批处理）
   await Sentry.flush(5000);
@@ -96,11 +115,12 @@ export async function GET(request: NextRequest) {
     mode: 'sentry_sdk_test',
     message: '测试错误已通过 Sentry SDK 发送！',
     error: {
-      name: testError.name,
-      message: testError.message,
+      name: pick.name,
+      message: `[${pick.name}] ${pick.msg} (ID: ${errorId})`,
+      fingerprint: `${pick.name}-${errorId}`,
     },
     nextSteps: [
-      '1. 打开 Sentry Dashboard 查看是否收到这个错误',
+      '1. 打开 Sentry Dashboard 查看是否收到了这个新的错误',
       '2. 如果配置了告警规则，Sentry 会自动发送 Webhook',
       '3. 检查 GitHub 仓库是否自动创建了 Issue',
       '4. 如果想跳过 Sentry 直接测试 Webhook，访问 /api/test-sentry?direct=1',
