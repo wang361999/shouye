@@ -99,7 +99,9 @@ export async function sendEmailCode(email: string, purpose: EmailCodePurpose) {
     },
   });
 
-  const smtpConfig = await getSystemSettings([
+  const mailConfig = await getSystemSettings([
+    'resend_api_key',
+    'resend_from_email',
     'smtp_host',
     'smtp_port',
     'smtp_user',
@@ -107,7 +109,7 @@ export async function sendEmailCode(email: string, purpose: EmailCodePurpose) {
     'smtp_from_name',
     'smtp_secure',
   ]);
-  const fromName = smtpConfig.smtp_from_name || 'Gitd';
+  const fromName = mailConfig.smtp_from_name || 'Gitd';
   const subject = purpose === 'register' ? '[Gitd] 注册邮箱验证码' : '[Gitd] 找回密码验证码';
   const actionText = purpose === 'register' ? '注册账号' : '重置密码';
 
@@ -127,7 +129,7 @@ export async function sendEmailCode(email: string, purpose: EmailCodePurpose) {
       `,
       text: `你正在${actionText}，验证码为：${code}。验证码 ${CODE_TTL_MINUTES} 分钟内有效。`,
     },
-    smtpConfig,
+    mailConfig,
     fromName,
   );
 

@@ -8,7 +8,7 @@ import { sendEmail } from '@/lib/email';
  * 发送测试邮件（双平台兼容）
  *
  * 自动检测配置选择发送方式：
- *   - 配置了 RESEND_API_KEY → 用 Resend API（Vercel + Cloudflare 均可用）
+ *   - 数据库或环境变量配置了 Resend → 用 Resend API（Vercel + Cloudflare 均可用）
  *   - 配置了 SMTP → 用 nodemailer（仅 Vercel / Node.js 可用）
  */
 export async function POST(request: NextRequest) {
@@ -26,18 +26,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 从数据库读取 SMTP 配置和发件人名称
+    // 从数据库读取邮件配置和发件人名称
     const settings = await prisma.systemSetting.findMany({
       where: {
         key: {
-          in: ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from_name', 'smtp_secure'],
+          in: [
+            'resend_api_key',
+            'resend_from_email',
+            'smtp_host',
+            'smtp_port',
+            'smtp_user',
+            'smtp_pass',
+            'smtp_from_name',
+            'smtp_secure',
+          ],
         },
       },
     });
-    const smtpConfig: Record<string, string> = {};
-    for (const s of settings) smtpConfig[s.key] = s.value;
+    const mailConfig: Record<string, string> = {};
+    for (const s of settings) mailConfig[s.key] = s.value;
 
-    const fromName = smtpConfig.smtp_from_name || 'Gitd';
+    const fromName = mailConfig.smtp_from_name || 'Gitd';
 
     // 发送测试邮件
     const result = await sendEmail(
@@ -56,7 +65,7 @@ export async function POST(request: NextRequest) {
           </div>
         `,
       },
-      smtpConfig,
+      mailConfig,
       fromName,
     );
 

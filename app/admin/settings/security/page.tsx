@@ -28,6 +28,8 @@ export default function SecuritySettingsPage() {
     login_lock_minutes: "10",
     email_verify: false,
     captcha: false,
+    resend_api_key: "",
+    resend_from_email: "",
     smtp_host: "",
     smtp_port: "587",
     smtp_user: "",
@@ -89,6 +91,8 @@ export default function SecuritySettingsPage() {
         login_lock_minutes: data.login_lock_minutes || "10",
         email_verify: data.email_verify === "true",
         captcha: data.captcha === "true",
+        resend_api_key: data.resend_api_key || "",
+        resend_from_email: data.resend_from_email || "",
         smtp_host: data.smtp_host || "",
         smtp_port: data.smtp_port || "587",
         smtp_user: data.smtp_user || "",
@@ -328,8 +332,8 @@ export default function SecuritySettingsPage() {
       toast.error("请输入测试邮箱地址");
       return;
     }
-    if (!emailRuntime.resend_configured && (!form.smtp_host || !form.smtp_user)) {
-      toast.error("请先配置 Resend 环境变量，或填写并保存 SMTP 备用配置");
+    if (!emailRuntime.resend_configured && !form.resend_api_key && (!form.smtp_host || !form.smtp_user)) {
+      toast.error("请先填写并保存 Resend 配置，或填写并保存 SMTP 备用配置");
       return;
     }
     try {
@@ -526,6 +530,41 @@ export default function SecuritySettingsPage() {
               </div>
             </div>
 
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <p className="text-sm font-medium text-blue-800">Resend 配置（推荐，保存到数据库）</p>
+              <p className="mt-1 text-xs text-blue-700">
+                这里保存后会写入数据库，后台一键备份会一起导出，迁移到新 Vercel 账号后恢复数据库即可带走邮件配置。
+              </p>
+            </div>
+
+            <FormField
+              label="Resend API Key"
+              hint="保存到数据库，优先级高于 Vercel 环境变量。通常以 re_ 开头。"
+            >
+              <Input
+                type="password"
+                value={form.resend_api_key}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, resend_api_key: e.target.value }))
+                }
+                placeholder="re_xxxxxxxxxxxxxxxxx"
+              />
+            </FormField>
+
+            <FormField
+              label="Resend 发件邮箱"
+              hint="必须使用 Resend 已验证域名下的邮箱，例如 noreply@gitd.cn"
+            >
+              <Input
+                type="email"
+                value={form.resend_from_email}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, resend_from_email: e.target.value }))
+                }
+                placeholder="noreply@gitd.cn"
+              />
+            </FormField>
+
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
               <p className="text-sm font-medium text-gray-700">SMTP 备用配置</p>
               <p className="mt-1 text-xs text-gray-500">
@@ -613,7 +652,7 @@ export default function SecuritySettingsPage() {
             <div className="border-t border-gray-100 pt-4">
               <FormField
                 label="发送测试邮件"
-                hint={emailRuntime.resend_configured ? "当前会使用 Resend API 发送测试邮件" : "未配置 Resend 时，会使用已保存的 SMTP 备用配置"}
+                hint={(emailRuntime.resend_configured || form.resend_api_key) ? "当前会使用 Resend API 发送测试邮件" : "未配置 Resend 时，会使用已保存的 SMTP 备用配置"}
               >
                 <div className="flex items-center gap-2">
                   <Input
@@ -626,7 +665,7 @@ export default function SecuritySettingsPage() {
                     variant="primary"
                     onClick={handleTestEmail}
                     loading={testingEmail}
-                    disabled={!emailRuntime.resend_configured && !form.smtp_host}
+                    disabled={!emailRuntime.resend_configured && !form.resend_api_key && !form.smtp_host}
                   >
                     {testingEmail ? "发送中..." : "发送测试"}
                   </Button>

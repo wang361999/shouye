@@ -19,6 +19,8 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   login_lock_minutes: '10',
   email_verify: 'false',
   captcha: 'false',
+  resend_api_key: '',
+  resend_from_email: '',
   smtp_host: '',
   smtp_port: '587',
   smtp_user: '',
@@ -51,11 +53,14 @@ export async function GET(request: NextRequest) {
       settingsObj[item.key] = item.value;
     }
 
+    const resendConfigured = Boolean(settingsObj.resend_api_key || process.env.RESEND_API_KEY);
+    const resendFromEmail = settingsObj.resend_from_email || process.env.RESEND_FROM_EMAIL || '';
+
     return NextResponse.json({
       ...settingsObj,
-      resend_configured: process.env.RESEND_API_KEY ? 'true' : 'false',
-      resend_from_email: process.env.RESEND_FROM_EMAIL || '',
-      active_email_provider: process.env.RESEND_API_KEY ? 'resend' : (settingsObj.smtp_host && settingsObj.smtp_user ? 'smtp' : 'none'),
+      resend_configured: resendConfigured ? 'true' : 'false',
+      resend_from_email: resendFromEmail,
+      active_email_provider: resendConfigured ? 'resend' : (settingsObj.smtp_host && settingsObj.smtp_user ? 'smtp' : 'none'),
     });
   } catch (error) {
     console.error('[ADMIN SETTINGS GET ERROR]', error);
