@@ -77,6 +77,10 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         ref: 'main', // 触发 main 分支的工作流
+        inputs: {
+          force: 'true', // 手动触发时强制执行，跳过时间校验
+          post_topic: 'random',
+        },
       }),
       signal: controller.signal,
     });

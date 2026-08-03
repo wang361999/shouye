@@ -673,7 +673,68 @@ export default function FreeDashboardPage() {
                   {triggerLoading ? "触发中..." : "一键触发所有工作流"}
                 </button>
               </div>
-              <p className="text-sm text-purple-700 mb-4">设定自动巡检和自动发帖的执行时间（北京时间），或点击上方按钮立即触发所有自动化任务。</p>
+              <p className="text-sm text-purple-700 mb-4">设定自动巡检和自动发帖的执行时间（北京时间），或点击下方按钮分别单独触发各个自动化任务。</p>
+
+              {/* 单独触发各个工作流 */}
+              <div className="mb-4">
+                <p className="text-sm font-medium text-purple-950 mb-2">单独触发</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: "auto-content-creator.yml", name: "写博客" },
+                    { id: "auto-weekly-report.yml", name: "周报" },
+                    { id: "auto-forum-poster.yml", name: "自动发帖" },
+                    { id: "auto-forum-reply.yml", name: "自动回复" },
+                    { id: "auto-patrol.yml", name: "自动巡检" },
+                    { id: "auto-seo-optimizer.yml", name: "SEO优化" },
+                    { id: "auto-categorizer.yml", name: "自动分类" },
+                    { id: "auto-announcer.yml", name: "自动公告" },
+                    { id: "auto-link-checker.yml", name: "链接检查" },
+                    { id: "auto-stale-cleanup.yml", name: "过期清理" },
+                  ].map((wf) => (
+                    <button
+                      key={wf.id}
+                      onClick={async () => {
+                        if (!token) return;
+                        setActionLoading(wf.id);
+                        setActionMessage(null);
+                        try {
+                          const res = await fetch("/api/admin/trigger-workflow", {
+                            method: "POST",
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ workflow: wf.id }),
+                          });
+                          const result = await res.json();
+                          if (res.ok) {
+                            setActionMessage(`「${wf.name}」已成功触发`);
+                          } else {
+                            setActionMessage(result.error || `「${wf.name}」触发失败`);
+                          }
+                        } catch {
+                          setActionMessage(`「${wf.name}」网络请求失败`);
+                        } finally {
+                          setActionLoading(null);
+                        }
+                      }}
+                      disabled={actionLoading !== null}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-60 ${
+                        actionLoading === wf.id
+                          ? "bg-purple-400 text-white"
+                          : "bg-white text-purple-700 border border-purple-200 hover:bg-purple-100"
+                      }`}
+                    >
+                      {actionLoading === wf.id ? "触发中..." : wf.name}
+                    </button>
+                  ))}
+                </div>
+                {actionMessage && (
+                  <p className={`mt-2 text-xs ${actionMessage.includes("成功") ? "text-green-600" : "text-red-600"}`}>
+                    {actionMessage}
+                  </p>
+                )}
+              </div>
 
               {triggerResult && (
                 <div className="mb-4 rounded-xl border border-purple-100 bg-white p-4">
