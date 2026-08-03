@@ -58,11 +58,11 @@ const DDL_STATEMENTS = [
   // Badge（徽章）
   `CREATE TABLE IF NOT EXISTS Badge (
     id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     description TEXT,
     icon TEXT NOT NULL,
-    color TEXT DEFAULT 'blue',
-    requirement TEXT,
+    type TEXT DEFAULT 'manual',
+    condition TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   )`,
 

@@ -55,12 +55,17 @@ export async function GET() {
     );
     diagnostics.tables = (tables as Record<string, unknown>[]).map((r) => r.name);
 
-    // 测试查询 2: 各表数据量
+    // 测试查询 2: 各表数据量（注意：Order 是 SQL 保留字，需用双引号包裹）
+    const SQL_RESERVED = new Set([
+      'Order', 'Group', 'Select', 'Insert', 'Update', 'Delete', 'From',
+      'Where', 'Table', 'Index', 'View', 'Join', 'On', 'By', 'Set',
+    ]);
     const tableCounts: Record<string, number> = {};
     for (const table of diagnostics.tables as string[]) {
+      const quoted = SQL_RESERVED.has(table) ? `"${table}"` : table;
       const rows = await queryWithTimeout(
         db,
-        `SELECT COUNT(*) as count FROM ${table}`,
+        `SELECT COUNT(*) as count FROM ${quoted}`,
         [],
         TIMEOUT,
       );
