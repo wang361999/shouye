@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/", label: "首页", icon: "🏠" },
   { href: "/forum", label: "社区", icon: "💬" },
+  { href: "/tools", label: "工具", icon: "🛠️" },
   { href: "/search", label: "搜索", icon: "🔍" },
   { href: "/profile", label: "我的", icon: "👤" },
 ];

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import ThemeToggle from "./ThemeToggle";
 
 const toolLinks = [
-  { name: "浏览全部工具", href: "/#tools" },
+  { name: "工具库", href: "/tools" },
   { name: "开源项目", href: "/products" },
 ];
 

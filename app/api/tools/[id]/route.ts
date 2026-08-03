@@ -128,7 +128,7 @@ export async function PUT(
   }
 }
 
-// ============ DELETE /api/tools/[id] - 软删除工具（管理员） ============
+// ============ DELETE /api/tools/[id] - 删除工具（管理员） ============
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -156,11 +156,8 @@ export async function DELETE(
       );
     }
 
-    // 软删除（下线）
-    await prisma.tool.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    // 硬删除（从数据库中物理删除）
+    await prisma.tool.delete({ where: { id } });
 
     // 记录操作日志
     await logOperation(
