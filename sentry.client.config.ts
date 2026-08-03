@@ -14,8 +14,8 @@ Sentry.init({
   // 采样率：生产环境 10%，开发环境 100%
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 
-  // 生产环境才上报
-  enabled: process.env.NODE_ENV === 'production' && !!SENTRY_DSN,
+  // 有 DSN 就启用（开发环境也启用，方便测试）
+  enabled: !!SENTRY_DSN,
 
   // 发送前过滤敏感信息
   beforeSend(event) {

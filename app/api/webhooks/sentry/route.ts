@@ -58,17 +58,49 @@ interface SentryIssue {
   // Sentry Webhook payload 中 issue 嵌套在 data 字段
 }
 
+/**
+ * Sentry Webhook Payload — 支持多种格式
+ *
+ * 1. Internal Integration / Issue Alert: { action, data: { issue: {...} } }
+ * 2. Service Hook event.alert: { id, project, culprit, url, message, event: {...} }
+ * 3. Legacy Webhook: { message, url, culprit, event: {...} } 或直接平铺 issue
+ */
 interface SentryWebhookPayload {
+  // Internal Integration 格式
   action?: string;
   data?: {
     issue?: SentryIssue;
   };
   // 直接平铺的情况
   issue?: SentryIssue;
+  // Service Hook / Legacy 格式
+  id?: string;
+  project?: string;
+  project_name?: string;
+  culprit?: string;
+  url?: string;
+  message?: string;
+  triggering_rules?: string[];
+  level?: string;
+  event?: {
+    event_id?: string;
+    level?: string;
+    tags?: [string, string][];
+    platform?: string;
+    datetime?: string;
+    message?: string;
+    title?: string;
+    culprit?: string;
+  };
 }
 
 /**
  * 从 Sentry Webhook payload 中提取错误信息
+ *
+ * 兼容三种 Sentry Webhook 格式：
+ *   1. Internal Integration (issue.created): body.data.issue
+ *   2. Service Hook (event.alert): body.message + body.event
+ *   3. Legacy / 直接平铺: body.issue 或 body 本身
  */
 function parseSentryEvent(body: SentryWebhookPayload): {
   title: string;
@@ -81,22 +113,38 @@ function parseSentryEvent(body: SentryWebhookPayload): {
   errorValue: string;
   fingerprint: string;
 } | null {
-  // Sentry Issue Alert payload 格式：body.data.issue
-  // 也兼容直接 body.issue 的格式
+  // ---- 格式 1: Internal Integration (body.data.issue) ----
   const issue = body.data?.issue || body.issue;
-  if (!issue) return null;
+  if (issue) {
+    const title = issue.title || body.message || '未知错误';
+    const level = issue.level || body.level || body.event?.level || 'error';
+    const url = issue.permalink || issue.shortLink || body.url || '';
+    const count = issue.eventCount || 1;
+    const users = issue.userCount || 0;
+    const culprit = issue.culprit || body.culprit || issue.metadata?.filename || issue.metadata?.function || '未知位置';
+    const eventType = issue.metadata?.type || 'Error';
+    const errorValue = issue.metadata?.value || body.message || '';
+    const fingerprint = issue.id || body.id || title;
 
-  const title = issue.title || '未知错误';
-  const level = issue.level || 'error';
-  const url = issue.permalink || issue.shortLink || '';
-  const count = issue.eventCount || 1;
-  const users = issue.userCount || 0;
-  const culprit = issue.culprit || issue.metadata?.filename || issue.metadata?.function || '未知位置';
-  const eventType = issue.metadata?.type || 'Error';
-  const errorValue = issue.metadata?.value || '';
-  const fingerprint = issue.id || title;
+    return { title, level, url, count, users, culprit, eventType, errorValue, fingerprint };
+  }
 
-  return { title, level, url, count, users, culprit, eventType, errorValue, fingerprint };
+  // ---- 格式 2: Service Hook event.alert (body.event + body.message) ----
+  if (body.event || body.message) {
+    const title = body.message || body.event?.title || 'Sentry 告警';
+    const level = body.event?.level || body.level || 'error';
+    const url = body.url || '';
+    const count = 1;
+    const users = 0;
+    const culprit = body.culprit || body.event?.culprit || '未知位置';
+    const eventType = body.event?.platform || 'Error';
+    const errorValue = body.message || '';
+    const fingerprint = body.id || body.event?.event_id || title;
+
+    return { title, level, url, count, users, culprit, eventType, errorValue, fingerprint };
+  }
+
+  return null;
 }
 
 /**
