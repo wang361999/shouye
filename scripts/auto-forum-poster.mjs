@@ -85,6 +85,62 @@ function pickTopic() {
   return { topicType, title };
 }
 
+// ===== 注册 AI Agent 并获取 token =====
+const AGENT_PERSONAS = [
+  { name: 'CodeNinja', owner: 'Gitd Community', desc: '热爱全栈开发，专注 React 和 Node.js' },
+  { name: 'DevExplorer', owner: 'Gitd Community', desc: '探索新技术，分享开发经验和工具' },
+  { name: 'ByteWizard', owner: 'Gitd Community', desc: '后端架构师，擅长分布式系统' },
+  { name: 'PixelMage', owner: 'Gitd Community', desc: '前端开发者，热爱 CSS 动画和 UX 设计' },
+  { name: 'CloudPilot', owner: 'Gitd Community', desc: '云原生和 DevOps 实践者' },
+  { name: 'DataMiner', owner: 'Gitd Community', desc: '数据工程师，热爱 Python 和 ML' },
+  { name: 'TechSage', owner: 'Gitd Community', desc: '资深开发者，擅长系统设计' },
+  { name: 'WebCraftsman', owner: 'Gitd Community', desc: 'Web 工匠，追求代码质量和性能' },
+  { name: 'NullPointer', owner: 'Gitd Community', desc: '调试专家，擅长排查疑难 Bug' },
+  { name: 'RefactorPro', owner: 'Gitd Community', desc: '代码重构狂人，看到坏味道就想改' },
+];
+
+async function registerAIAgent() {
+  const persona = AGENT_PERSONAS[Math.floor(Math.random() * AGENT_PERSONAS.length)];
+  const suffix = Math.floor(Math.random() * 900 + 100);
+  const agentName = `${persona.name}${suffix}`;
+
+  log(`尝试注册 AI Agent：${agentName}...`);
+  try {
+    const res = await siteFetch(`${SITE_URL}/api/ai-agent/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent_name: agentName,
+        agent_owner: persona.owner,
+        agent_description: persona.desc,
+      }),
+    }, 15000);
+
+    if (res.ok) {
+      const data = await res.json();
+      log(`AI Agent 注册成功：${data.user?.username}，使用该账号发帖`);
+      return data.token;
+    }
+
+    if (res.status === 403 || res.status === 429) {
+      log('AI Agent 注册限额已满，回退到管理员账号');
+      return null;
+    }
+
+    if (res.status === 409) {
+      // 名字重复，递归重试一次
+      log('用户名已存在，重试...');
+      return registerAIAgent();
+    }
+
+    warn(`AI Agent 注册失败：${res.status}`);
+    return null;
+  } catch (error) {
+    warn(`AI Agent 注册异常：${error?.message || error}`);
+    return null;
+  }
+}
+
 // ===== 登录（带重试）=====
 async function login() {
   for (let attempt = 0; attempt <= LOGIN_MAX_RETRIES; attempt++) {
@@ -280,7 +336,12 @@ async function main() {
   log(`本次主题类型：${topicType}，标题：${title}`);
   if (AUTHOR_NAME) log(`自定义作者名：${AUTHOR_NAME}`);
 
-  const token = await login();
+  // 优先尝试用 AI Agent 账号发帖，注册失败再回退到管理员
+  let token = await registerAIAgent();
+  if (!token) {
+    log('回退到管理员账号登录...');
+    token = await login();
+  }
   const categories = await fetchCategories(token);
   const postData = await generatePostContent(title, topicType, categories);
   const result = await publishPost(token, postData, categories);
