@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // ============ 公开系统设置默认值 ============
 const DEFAULT_SETTINGS = {
   site_name: 'Gitd',
@@ -41,6 +44,9 @@ export async function GET() {
   } catch (error) {
     // 数据库不可用时降级返回默认值
     console.error('[PUBLIC SETTINGS GET ERROR]', error);
-    return NextResponse.json(DEFAULT_SETTINGS);
+    return NextResponse.json({
+      ...DEFAULT_SETTINGS,
+      email_verify: false,
+    });
   }
 }

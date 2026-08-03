@@ -7,6 +7,7 @@ export type EmailCodePurpose = 'register' | 'reset_password';
 const CODE_TTL_MINUTES = 10;
 const RESEND_INTERVAL_MS = 60_000;
 const MAX_VERIFY_ATTEMPTS = 5;
+let emailCodeTableEnsured = false;
 
 export function isValidEmail(email: string): boolean {
   return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
@@ -21,6 +22,31 @@ function hashCode(email: string, purpose: EmailCodePurpose, code: string): strin
 
 function generateCode(): string {
   return crypto.randomInt(100000, 1000000).toString();
+}
+
+async function ensureEmailCodeTable() {
+  if (emailCodeTableEnsured) return;
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "EmailVerificationCode" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "email" TEXT NOT NULL,
+      "purpose" TEXT NOT NULL,
+      "code_hash" TEXT NOT NULL,
+      "expires_at" DATETIME NOT NULL,
+      "used_at" DATETIME,
+      "attempts" INTEGER NOT NULL DEFAULT 0,
+      "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await prisma.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "EmailVerificationCode_email_purpose_idx" ON "EmailVerificationCode"("email", "purpose")',
+  );
+  await prisma.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "EmailVerificationCode_expires_at_idx" ON "EmailVerificationCode"("expires_at")',
+  );
+
+  emailCodeTableEnsured = true;
 }
 
 export async function getSystemSettings(keys: string[]) {
@@ -40,6 +66,8 @@ export async function isEmailVerifyEnabled(): Promise<boolean> {
 export async function sendEmailCode(email: string, purpose: EmailCodePurpose) {
   const normalizedEmail = email.trim().toLowerCase();
   const now = new Date();
+
+  await ensureEmailCodeTable();
 
   const latest = await prisma.emailVerificationCode.findFirst({
     where: {
@@ -118,6 +146,8 @@ export async function verifyEmailCode(
 ) {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedCode = code.trim();
+
+  await ensureEmailCodeTable();
 
   if (!/^\d{6}$/.test(normalizedCode)) {
     return { success: false, error: '请输入 6 位邮箱验证码' };

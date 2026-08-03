@@ -4,6 +4,9 @@ import { hashPassword } from '@/lib/auth';
 import { getClientIP, rateLimit } from '@/lib/rate-limit';
 import { isValidEmail, verifyEmailCode } from '@/lib/email-code';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /** POST /api/auth/password-reset - 通过邮箱验证码重置密码 */
 export async function POST(request: NextRequest) {
   const clientIP = getClientIP(request);

@@ -7,6 +7,9 @@ import { rateLimit, getClientIP } from '@/lib/rate-limit';
 import { sanitizeString } from '@/lib/security';
 import { isEmailVerifyEnabled, verifyEmailCode } from '@/lib/email-code';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /** 邮箱格式校验 */
 function isValidEmail(email: string): boolean {
   return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);

@@ -3,6 +3,9 @@ import prisma from '@/lib/prisma';
 import { getClientIP, rateLimit } from '@/lib/rate-limit';
 import { isEmailVerifyEnabled, isValidEmail, sendEmailCode } from '@/lib/email-code';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /** POST /api/auth/email-code - 发送注册或找回密码邮箱验证码 */
 export async function POST(request: NextRequest) {
   const clientIP = getClientIP(request);
