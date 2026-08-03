@@ -42,7 +42,6 @@ function getGithubRepoInfo() {
 // 支持单独触发的工作流白名单
 const WORKFLOW_MAP: Record<string, { name: string; needsForce?: boolean }> = {
   'auto-content-creator.yml': { name: '自动写博客', needsForce: true },
-  'auto-weekly-report.yml': { name: '周报生成' },
   'auto-patrol.yml': { name: '自动巡检', needsForce: true },
   'auto-forum-poster.yml': { name: '自动发帖', needsForce: true },
   'auto-forum-reply.yml': { name: '自动回复', needsForce: true },
