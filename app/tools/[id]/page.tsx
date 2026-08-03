@@ -21,6 +21,8 @@ interface ToolItem {
   status?: string;
   views?: number;
   usageCount?: number;
+  toolType?: string;
+  htmlContent?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -130,6 +132,7 @@ export default function ToolDetailPage({
   const isExternal =
     targetUrl &&
     (targetUrl.startsWith("http://") || targetUrl.startsWith("https://"));
+  const isEmbedded = tool.toolType === "embedded" && tool.htmlContent;
 
   // 格式化标签
   const tagList: string[] = Array.isArray(tool.tags)
@@ -203,8 +206,8 @@ export default function ToolDetailPage({
                 </div>
               </div>
 
-              {/* 使用按钮 */}
-              {targetUrl && (
+              {/* 使用按钮 - 内嵌工具不显示外链按钮 */}
+              {targetUrl && !isEmbedded && (
                 <div className="flex-shrink-0">
                   <a
                     href={targetUrl}
@@ -247,6 +250,24 @@ export default function ToolDetailPage({
             )}
           </div>
 
+          {/* 内嵌工具渲染区 */}
+          {isEmbedded ? (
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 shadow-sm space-y-4">
+              <h2 className="text-lg font-bold text-gray-900 pb-3 border-b border-gray-100">
+                在线使用
+              </h2>
+              <div className="rounded-xl overflow-hidden border border-gray-200">
+                <iframe
+                  srcDoc={tool.htmlContent}
+                  title={tool.name}
+                  className="w-full"
+                  style={{ minHeight: "500px", border: "none" }}
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+                />
+              </div>
+            </div>
+          ) : null}
+
           {/* 详细内容与说明 */}
           <div className="bg-white rounded-2xl border border-gray-200 p-6 md:p-8 shadow-sm space-y-4">
             <h2 className="text-lg font-bold text-gray-900 pb-3 border-b border-gray-100">
@@ -259,7 +280,9 @@ export default function ToolDetailPage({
               </div>
             ) : (
               <div className="py-6 text-center text-sm text-gray-400">
-                该工具暂无详细说明，点击右上角“在线使用工具”即可开始使用。
+                {isEmbedded
+                  ? "直接在上方使用工具，如有问题请参考工具说明。"
+                  : '该工具暂无详细说明，点击右上角"在线使用工具"即可开始使用。'}
               </div>
             )}
           </div>

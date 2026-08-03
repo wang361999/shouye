@@ -17,6 +17,7 @@ const WORKFLOWS = [
   { id: 'auto-link-checker.yml', name: '链接检查' },
   { id: 'auto-stale-cleanup.yml', name: '过期清理' },
   { id: 'auto-weekly-report.yml', name: '周报生成' },
+  { id: 'auto-tool-generator.yml', name: '工具生成' },
   { id: 'auto-seo-optimizer.yml', name: 'SEO优化' },
   { id: 'auto-content-creator.yml', name: '内容创作' },
 ];

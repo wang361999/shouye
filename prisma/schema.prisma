@@ -100,8 +100,10 @@ model Tool {
   name        String
   description String?
   url         String
-  icon        String?
-  category    String? // 工具分类标签（开发工具/AI工具/效率工具）
+  icon        String? // 工具分类标签（开发工具/AI工具/效率工具）
+  category    String?
+  toolType    String   @default("link") @map("tool_type") // link | embedded
+  htmlContent String?  @map("html_content") // 内嵌工具的 HTML/CSS/JS 代码
   isActive    Boolean  @default(true) @map("is_active")
   isFeatured  Boolean  @default(false) @map("is_featured") // 是否首页推荐
   needLogin   Boolean  @default(false) @map("need_login") // 是否需要登录

@@ -66,6 +66,8 @@ export async function POST(request: NextRequest) {
       url,
       icon,
       category,
+      toolType,
+      htmlContent,
       isActive,
       isFeatured,
       needLogin,
@@ -74,9 +76,23 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // ---- 输入校验 ----
-    if (!name || !description || !url) {
+    // embedded 类型不需要 url，但需要 htmlContent
+    if (!name || !description) {
       return NextResponse.json(
-        { error: '工具名称、描述和链接不能为空' },
+        { error: '工具名称和描述不能为空' },
+        { status: 400 }
+      );
+    }
+    const finalToolType = toolType || 'link';
+    if (finalToolType === 'link' && !url) {
+      return NextResponse.json(
+        { error: '链接型工具必须提供 URL' },
+        { status: 400 }
+      );
+    }
+    if (finalToolType === 'embedded' && !htmlContent) {
+      return NextResponse.json(
+        { error: '内嵌型工具必须提供 HTML 内容' },
         { status: 400 }
       );
     }
@@ -86,9 +102,11 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description,
-        url,
+        url: url || `#embedded-${Date.now()}`,
         icon: icon || null,
         category: category || null,
+        toolType: finalToolType,
+        htmlContent: htmlContent || null,
         isActive: isActive !== undefined ? !!isActive : true,
         isFeatured: !!isFeatured,
         needLogin: !!needLogin,
