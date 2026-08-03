@@ -1,4 +1,3 @@
-// Build trigger: 1785719973.6558409
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
