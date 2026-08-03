@@ -47,7 +47,7 @@ const R2_API_BASE = 'https://api.cloudflare.com/client/v4';
 
 // ============ 上传对象到 R2 ============
 async function uploadToR2(
-  jsonData: Buffer,
+  jsonData: string,
   key: string,
 ): Promise<{ ok: boolean; message: string; url?: string }> {
   const { accountId, apiToken, bucketName } = getR2Config();
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
     const key = `backups/db-backup-${timestamp}.json`;
 
     // ---- 上传到 R2 ----
-    const result = await uploadToR2(jsonBuffer, key);
+    const result = await uploadToR2(jsonStr, key);
 
     if (!result.ok) {
       return NextResponse.json({ error: result.message }, { status: 400 });
