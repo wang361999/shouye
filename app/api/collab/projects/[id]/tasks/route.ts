@@ -56,9 +56,17 @@ export async function GET(
       },
     });
 
-    // ---- 序列化 labels 字段 ----
+    // ---- 序列化 labels 字段 + 标准化 status ----
+    const normalizeStatus = (s: string) => {
+      const validStatuses = ['open', 'in_progress', 'review', 'completed', 'cancelled'];
+      if (validStatuses.includes(s)) return s;
+      if (s === 'active') return 'open';
+      return 'open';
+    };
+
     const data = tasks.map((task) => ({
       ...task,
+      status: normalizeStatus(task.status),
       labels: task.labels ? JSON.parse(task.labels) : [],
       contributionCount: task._count.contributions,
       _count: undefined,
