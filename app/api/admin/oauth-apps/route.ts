@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { logOperation } from '@/lib/admin-log';
 
 /** GET /api/admin/oauth-apps - 获取所有 OAuth 应用 */
 export async function GET(request: NextRequest) {
@@ -89,15 +90,13 @@ export async function POST(request: NextRequest) {
     });
 
     // 记录操作日志
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'create_oauth_app',
-        target: 'OAuthApp',
-        detail: `创建 OAuth 应用: ${name}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'create_oauth_app',
+      'OAuthApp',
+      `创建 OAuth 应用: ${name}`,
+    );
 
     // 创建时返回 clientSecret（仅此一次）
     return NextResponse.json({
@@ -139,15 +138,13 @@ export async function DELETE(request: NextRequest) {
     await prisma.oAuthApp.delete({ where: { id } });
 
     // 记录操作日志
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'delete_oauth_app',
-        target: 'OAuthApp',
-        detail: `删除 OAuth 应用: ${app.name}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'delete_oauth_app',
+      'OAuthApp',
+      `删除 OAuth 应用: ${app.name}`,
+    );
 
     return NextResponse.json({ message: '应用已删除' });
   } catch (error) {
@@ -190,15 +187,13 @@ export async function PATCH(request: NextRequest) {
     });
 
     // 记录操作日志
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'update_oauth_app',
-        target: 'OAuthApp',
-        detail: `更新 OAuth 应用: ${app.name}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'update_oauth_app',
+      'OAuthApp',
+      `更新 OAuth 应用: ${app.name}`,
+    );
 
     return NextResponse.json({ message: '应用已更新' });
   } catch (error) {

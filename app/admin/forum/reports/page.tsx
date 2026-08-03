@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/utils";
 import UserAvatar from "@/components/common/UserAvatar";
@@ -58,9 +59,7 @@ export default function AdminReportsPage() {
       if (statusFilter !== 'all') {
         params.set('status', statusFilter);
       }
-      const res = await fetch(`/api/forum/reports?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/forum/reports?${params}`);
       if (res.ok) {
         const data = await res.json();
         setReports(data.data || []);
@@ -81,12 +80,8 @@ export default function AdminReportsPage() {
   const handleUpdateStatus = async (reportId: string, status: 'resolved' | 'dismissed') => {
     setActionLoading(reportId);
     try {
-      const res = await fetch(`/api/forum/reports/${reportId}`, {
+      const res = await adminFetch(`/api/forum/reports/${reportId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ status }),
       });
       if (res.ok) {

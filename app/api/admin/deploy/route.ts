@@ -14,21 +14,25 @@ import { adminAuth } from '@/lib/auth';
 
 // ============ GET - 检查配置状态 ============
 export async function GET(request: NextRequest) {
-  const admin = adminAuth(request);
-  if (admin instanceof Response) return admin;
+  try {
+    const admin = adminAuth(request);
+    if (admin instanceof Response) return admin;
 
-  const cfHookUrl = process.env.CLOUDFLARE_DEPLOY_HOOK_URL;
-  const vercelHookUrl = process.env.VERCEL_DEPLOY_HOOK_URL;
-  const hookUrl = cfHookUrl || vercelHookUrl;
-  const platform = cfHookUrl ? 'Cloudflare' : vercelHookUrl ? 'Vercel' : null;
+    const cfHookUrl = process.env.CLOUDFLARE_DEPLOY_HOOK_URL;
+    const vercelHookUrl = process.env.VERCEL_DEPLOY_HOOK_URL;
+    const hookUrl = cfHookUrl || vercelHookUrl;
+    const platform = cfHookUrl ? 'Cloudflare' : vercelHookUrl ? 'Vercel' : null;
 
-  return NextResponse.json({
-    configured: Boolean(hookUrl),
-    platform,
-    message: hookUrl
-      ? `${platform} Deploy Hook 已配置，可以一键部署`
-      : '未配置 Deploy Hook URL，请在环境变量中设置 CLOUDFLARE_DEPLOY_HOOK_URL 或 VERCEL_DEPLOY_HOOK_URL',
-  });
+    return NextResponse.json({
+      configured: Boolean(hookUrl),
+      platform,
+      message: hookUrl
+        ? `${platform} Deploy Hook 已配置，可以一键部署`
+        : '未配置 Deploy Hook URL，请在环境变量中设置 CLOUDFLARE_DEPLOY_HOOK_URL 或 VERCEL_DEPLOY_HOOK_URL',
+    });
+  } catch (error) {
+    return NextResponse.json({ error: '获取部署配置失败' }, { status: 500 });
+  }
 }
 
 // ============ POST - 触发部署 ============

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { logOperation } from '@/lib/admin-log';
 
 // ============ OAuth 配置键 ============
 const OAUTH_KEYS = [
@@ -96,15 +97,13 @@ export async function POST(request: NextRequest) {
 
     // 记录操作日志
     const changedKeys = entries.map((e) => e.key).join(', ');
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'update_oauth_config',
-        target: 'SystemSetting',
-        detail: `更新第三方登录配置: ${changedKeys}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'update_oauth_config',
+      'SystemSetting',
+      `更新第三方登录配置: ${changedKeys}`,
+    );
 
     return NextResponse.json({ message: 'OAuth 配置已保存' });
   } catch (error) {
@@ -134,15 +133,13 @@ export async function DELETE(request: NextRequest) {
       where: { key: { in: [secretKey, idKey, enabledKey] } },
     });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'delete_oauth_config',
-        target: 'SystemSetting',
-        detail: `清除 ${provider} OAuth 配置`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'delete_oauth_config',
+      'SystemSetting',
+      `清除 ${provider} OAuth 配置`,
+    );
 
     return NextResponse.json({ message: `${provider} OAuth 配置已清除` });
   } catch (error) {

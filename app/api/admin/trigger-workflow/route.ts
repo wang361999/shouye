@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { logOperation } from '@/lib/admin-log';
 
 /**
  * 从环境变量或数据库获取 GitHub Token
@@ -142,15 +143,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. 记录操作日志
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'trigger_single_workflow',
-        target: 'Workflow',
-        detail: `手动触发工作流: ${wfInfo.name} (${workflowId})`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'trigger_single_workflow',
+      'Workflow',
+      `手动触发工作流: ${wfInfo.name} (${workflowId})`,
+    );
 
     return NextResponse.json({
       success: true,

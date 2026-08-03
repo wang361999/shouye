@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
 import { slugify } from '@/lib/utils';
+import { logOperation } from '@/lib/admin-log';
 
 /** GET /api/admin/products - 获取产品列表（含订单/授权码/版本数量） */
 export async function GET(request: NextRequest) {
@@ -127,15 +128,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'create_product',
-        target: 'Product',
-        detail: `创建产品: ${product.name} (${product.slug})`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'create_product',
+      'Product',
+      `创建产品: ${product.name} (${product.slug})`,
+    );
 
     return NextResponse.json({
       id: product.id,
@@ -213,15 +212,13 @@ export async function PATCH(request: NextRequest) {
 
     await prisma.product.update({ where: { id }, data: updateData });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'update_product',
-        target: 'Product',
-        detail: `更新产品: ${product.name} (${product.slug}) - ${JSON.stringify(updateData)}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'update_product',
+      'Product',
+      `更新产品: ${product.name} (${product.slug}) - ${JSON.stringify(updateData)}`,
+    );
 
     return NextResponse.json({ message: '产品已更新' });
   } catch (error) {
@@ -251,15 +248,13 @@ export async function DELETE(request: NextRequest) {
     // 删除产品：版本将级联删除；关联订单级联删除；授权码 productId 置空（由 schema onDelete 处理）
     await prisma.product.delete({ where: { id } });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'delete_product',
-        target: 'Product',
-        detail: `删除产品: ${product.name} (${product.slug})`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'delete_product',
+      'Product',
+      `删除产品: ${product.name} (${product.slug})`,
+    );
 
     return NextResponse.json({ message: '产品已删除' });
   } catch (error) {

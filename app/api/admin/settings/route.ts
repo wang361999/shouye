@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { logOperation } from '@/lib/admin-log';
 
 // ============ 默认系统设置 ============
 const DEFAULT_SETTINGS: Record<string, string> = {
@@ -31,19 +32,6 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   ai_agent_daily_limit: '10',
   ai_agent_inactive_days: '7',
 };
-
-// ============ 操作日志记录函数 ============
-async function logOperation(
-  userId: string,
-  username: string,
-  action: string,
-  target?: string,
-  detail?: string,
-) {
-  await prisma.operationLog.create({
-    data: { userId, username, action, target, detail },
-  });
-}
 
 // ============ GET /api/admin/settings - 获取所有系统设置 ============
 export async function GET(request: NextRequest) {

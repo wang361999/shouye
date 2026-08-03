@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 export default function ProfilePage() {
-  const { token } = useAppStore();
-
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,12 +32,8 @@ export default function ProfilePage() {
 
     try {
       setLoading(true);
-      const res = await fetch("/api/auth/password", {
+      const res = await adminFetch("/api/auth/password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           currentPassword,
           newPassword,

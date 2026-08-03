@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface FreeDashboardData {
   health: {
@@ -181,9 +182,7 @@ export default function FreeDashboardPage() {
   const fetchSchedule = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch("/api/admin/schedule", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/admin/schedule");
       if (res.ok) {
         setSchedule(await res.json());
       }
@@ -199,9 +198,7 @@ export default function FreeDashboardPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const res = await fetch("/api/admin/free-dashboard", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/admin/free-dashboard");
       if (res.ok) {
         setData(await res.json());
       } else {
@@ -233,12 +230,8 @@ export default function FreeDashboardPage() {
     setActionLoading(action);
     setActionMessage(null);
     try {
-      const res = await fetch("/api/admin/auto-iteration", {
+      const res = await adminFetch("/api/admin/auto-iteration", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action, ...payload }),
       });
       const result = await res.json();
@@ -641,9 +634,8 @@ export default function FreeDashboardPage() {
                     setTriggerLoading(true);
                     setTriggerResult(null);
                     try {
-                      const res = await fetch("/api/admin/trigger-all-workflows", {
+                      const res = await adminFetch("/api/admin/trigger-all-workflows", {
                         method: "POST",
-                        headers: { Authorization: `Bearer ${token}` },
                       });
                       const result = await res.json();
                       if (res.ok) {
@@ -698,12 +690,8 @@ export default function FreeDashboardPage() {
                         setActionLoading(wf.id);
                         setActionMessage(null);
                         try {
-                          const res = await fetch("/api/admin/trigger-workflow", {
+                          const res = await adminFetch("/api/admin/trigger-workflow", {
                             method: "POST",
-                            headers: {
-                              Authorization: `Bearer ${token}`,
-                              "Content-Type": "application/json",
-                            },
                             body: JSON.stringify({ workflow: wf.id }),
                           });
                           const result = await res.json();
@@ -887,12 +875,8 @@ export default function FreeDashboardPage() {
                   onClick={async () => {
                     setScheduleLoading(true);
                     try {
-                      const res = await fetch("/api/admin/schedule", {
+                      const res = await adminFetch("/api/admin/schedule", {
                         method: "POST",
-                        headers: {
-                          "Content-Type": "application/json",
-                          Authorization: `Bearer ${token}`,
-                        },
                         body: JSON.stringify(schedule),
                       });
                       const result = await res.json();

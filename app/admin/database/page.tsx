@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import ExternalDatabaseManager from "@/components/admin/ExternalDatabaseManager";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 interface TableStat {
@@ -91,9 +92,7 @@ export default function DatabasePage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/database", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/admin/database");
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -115,12 +114,8 @@ export default function DatabasePage() {
     setCleaning(tableName);
     setConfirmTable(null);
     try {
-      const res = await fetch("/api/admin/database", {
+      const res = await adminFetch("/api/admin/database", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action: "clean", tableName, days }),
       });
       const result = await res.json();
@@ -142,12 +137,8 @@ export default function DatabasePage() {
     if (!token) return;
     setCleaning("vacuum");
     try {
-      const res = await fetch("/api/admin/database", {
+      const res = await adminFetch("/api/admin/database", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action: "vacuum" }),
       });
       const result = await res.json();
@@ -168,12 +159,8 @@ export default function DatabasePage() {
     if (!token) return;
     setCleaning("reindex");
     try {
-      const res = await fetch("/api/admin/database", {
+      const res = await adminFetch("/api/admin/database", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action: "reindex" }),
       });
       const result = await res.json();
@@ -196,9 +183,7 @@ export default function DatabasePage() {
     try {
       const tablesParam =
         selectedTables.size > 0 ? `?tables=${Array.from(selectedTables).join(",")}` : "";
-      const res = await fetch(`/api/admin/database/backup${tablesParam}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/admin/database/backup${tablesParam}`);
 
       if (!res.ok) {
         const err = await res.json();
@@ -244,12 +229,8 @@ export default function DatabasePage() {
       const backupData = JSON.parse(text);
 
       // 预检
-      const res = await fetch("/api/admin/database/restore", {
+      const res = await adminFetch("/api/admin/database/restore", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ backupData }),
       });
 
@@ -274,12 +255,8 @@ export default function DatabasePage() {
       const text = await restoreFile.text();
       const backupData = JSON.parse(text);
 
-      const res = await fetch("/api/admin/database/restore", {
+      const res = await adminFetch("/api/admin/database/restore", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ backupData, mode: restoreMode }),
       });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { logOperation } from '@/lib/admin-log';
 
 // 默认不活跃天数（超过此天数无发帖、无评论的 AI Agent 将被清理）
 const DEFAULT_INACTIVE_DAYS = 7;
@@ -21,21 +22,6 @@ async function getInactiveDays(): Promise<number> {
     // 数据库不可用时使用默认值
   }
   return DEFAULT_INACTIVE_DAYS;
-}
-
-/**
- * 操作日志
- */
-async function logOperation(
-  userId: string,
-  username: string,
-  action: string,
-  target?: string,
-  detail?: string,
-) {
-  await prisma.operationLog.create({
-    data: { userId, username, action, target, detail },
-  });
 }
 
 /**

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 interface Tool {
@@ -50,9 +51,7 @@ export default function ToolsListPage() {
   const fetchTools = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/tools", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/tools");
       if (res.status === 401) {
         toast.error("登录已过期，请重新登录");
         return;
@@ -109,12 +108,8 @@ export default function ToolsListPage() {
   async function handleToggleActive(tool: Tool) {
     try {
       setTogglingId(tool.id);
-      const res = await fetch(`/api/tools/${tool.id}`, {
+      const res = await adminFetch(`/api/tools/${tool.id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ isActive: !tool.isActive }),
       });
       if (!res.ok) {
@@ -139,9 +134,8 @@ export default function ToolsListPage() {
     if (!deleteTarget) return;
     try {
       setDeleting(true);
-      const res = await fetch(`/api/tools/${deleteTarget.id}`, {
+      const res = await adminFetch(`/api/tools/${deleteTarget.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         const data = await res.json();

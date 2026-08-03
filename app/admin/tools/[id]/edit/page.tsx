@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 const CATEGORY_OPTIONS = ["开发工具", "AI工具", "效率工具"];
@@ -58,9 +59,7 @@ export default function EditToolPage() {
     async function fetchTool() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/tools/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await adminFetch(`/api/tools/${id}`);
 
         if (!res.ok) {
           const data = await res.json();
@@ -108,12 +107,8 @@ export default function EditToolPage() {
 
     try {
       setSubmitting(true);
-      const res = await fetch(`/api/tools/${id}`, {
+      const res = await adminFetch(`/api/tools/${id}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim(),

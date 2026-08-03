@@ -24,6 +24,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "dashboard", label: "仪表盘", href: "/admin", icon: "📊" },
       { key: "free-dashboard", label: "免费看板", href: "/admin/free-dashboard", icon: "🧭" },
+      { key: "auto-content", label: "自动内容", href: "/admin/auto-content", icon: "🤖" },
       { key: "monitoring", label: "用量监控", href: "/admin/monitoring", icon: "📈" },
       { key: "database", label: "数据库", href: "/admin/database", icon: "🗄️" },
     ],

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 interface Tool {
@@ -55,9 +56,7 @@ export default function ToolCategoriesPage() {
   const fetchTools = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/tools", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/tools");
       if (!res.ok) throw new Error("获取失败");
       const data = await res.json();
       setTools(data);

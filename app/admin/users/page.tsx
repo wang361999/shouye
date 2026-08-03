@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 // ============ 类型定义 ============
@@ -73,9 +74,7 @@ export default function UsersListPage() {
       if (roleFilter !== "all") params.set("role", roleFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
 
-      const res = await fetch(`/api/admin/users?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/admin/users?${params}`);
       if (res.status === 401) {
         toast.error("登录已过期，请重新登录");
         return;
@@ -116,12 +115,8 @@ export default function UsersListPage() {
     try {
       setActionLoading(true);
       const body: Record<string, unknown> = { action, userId, ...extra };
-      const res = await fetch("/api/admin/users", {
+      const res = await adminFetch("/api/admin/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

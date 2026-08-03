@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth, hashPassword } from '@/lib/auth';
-
-// ============ 操作日志记录函数 ============
-async function logOperation(
-  userId: string,
-  username: string,
-  action: string,
-  target?: string,
-  detail?: string,
-) {
-  await prisma.operationLog.create({
-    data: { userId, username, action, target, detail },
-  });
-}
+import { logOperation } from '@/lib/admin-log';
 
 // ============ GET /api/admin/users - 获取用户列表 / 操作日志 ============
 export async function GET(request: NextRequest) {

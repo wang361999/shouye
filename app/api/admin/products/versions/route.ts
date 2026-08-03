@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
+import { logOperation } from '@/lib/admin-log';
 
 /** GET /api/admin/products/versions - 获取产品版本列表 (?productId=xxx) */
 export async function GET(request: NextRequest) {
@@ -102,15 +103,13 @@ export async function POST(request: NextRequest) {
       });
     });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'create_version',
-        target: 'ProductVersion',
-        detail: `创建版本: ${product.name} ${version}${wantLatest ? ' (设为最新)' : ''}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'create_version',
+      'ProductVersion',
+      `创建版本: ${product.name} ${version}${wantLatest ? ' (设为最新)' : ''}`,
+    );
 
     // ---- 版本发布时自动在论坛公告分类创建更新帖 ----
     if (created.isPublished) {
@@ -203,15 +202,13 @@ export async function PATCH(request: NextRequest) {
 
     await prisma.productVersion.update({ where: { id }, data: updateData });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'update_version',
-        target: 'ProductVersion',
-        detail: `更新版本 ${existing.version}: ${JSON.stringify(updateData)}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'update_version',
+      'ProductVersion',
+      `更新版本 ${existing.version}: ${JSON.stringify(updateData)}`,
+    );
 
     return NextResponse.json({ message: '版本已更新' });
   } catch (error) {
@@ -240,15 +237,13 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.productVersion.delete({ where: { id } });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'delete_version',
-        target: 'ProductVersion',
-        detail: `删除版本 ${existing.version}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'delete_version',
+      'ProductVersion',
+      `删除版本 ${existing.version}`,
+    );
 
     return NextResponse.json({ message: '版本已删除' });
   } catch (error) {

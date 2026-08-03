@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface DashboardStats {
   toolTotal: number;
@@ -89,9 +90,7 @@ export default function AdminDashboardPage() {
   // 检查 Deploy Hook 是否配置
   useEffect(() => {
     if (!token) return;
-    fetch("/api/admin/deploy", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    adminFetch("/api/admin/deploy")
       .then((res) => res.json())
       .then((data) => setHookConfigured(data.configured))
       .catch(() => setHookConfigured(false));
@@ -108,9 +107,8 @@ export default function AdminDashboardPage() {
     setDeploying(true);
     setDeployResult(null);
     try {
-      const res = await fetch("/api/admin/deploy", {
+      const res = await adminFetch("/api/admin/deploy", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -136,15 +134,9 @@ export default function AdminDashboardPage() {
         // 并行获取各项统计
         const [toolsRes, postsRes, commentsRes, categoriesRes] =
           await Promise.all([
-            fetch("/api/tools", {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-            fetch("/api/forum/posts?admin=1&limit=200", {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
-            fetch("/api/forum/comments?approved=false&limit=1", {
-              headers: { Authorization: `Bearer ${token}` },
-            }),
+            adminFetch("/api/tools"),
+            adminFetch("/api/forum/posts?admin=1&limit=200"),
+            adminFetch("/api/forum/comments?approved=false&limit=1"),
             fetch("/api/forum/categories"),
           ]);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 interface Category {
@@ -32,8 +32,6 @@ const EMPTY_FORM: CategoryFormData = {
 };
 
 export default function ForumCategoriesPage() {
-  const { token } = useAppStore();
-
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -77,12 +75,8 @@ export default function ForumCategoriesPage() {
 
     try {
       setSubmitting(true);
-      const res = await fetch("/api/forum/categories", {
+      const res = await adminFetch("/api/forum/categories", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name: addForm.name.trim(),
           slug: addForm.slug.trim(),
@@ -128,12 +122,8 @@ export default function ForumCategoriesPage() {
 
     try {
       setSubmitting(true);
-      const res = await fetch("/api/forum/categories", {
+      const res = await adminFetch("/api/forum/categories", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           id: editingCategory.id,
           name: editForm.name.trim(),
@@ -164,9 +154,8 @@ export default function ForumCategoriesPage() {
     if (!deleteTarget) return;
     try {
       setDeleting(true);
-      const res = await fetch(`/api/forum/categories?id=${deleteTarget.id}`, {
+      const res = await adminFetch(`/api/forum/categories?id=${deleteTarget.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) {

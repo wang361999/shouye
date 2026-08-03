@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
+import { formatDateTime } from "@/lib/admin-utils";
 import toast from "react-hot-toast";
 
 interface Comment {
@@ -54,9 +56,7 @@ export default function ForumCommentsPage() {
       if (postFilter !== "all") {
         params.set("postId", postFilter);
       }
-      const res = await fetch(`/api/forum/comments?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/forum/comments?${params.toString()}`);
       if (!res.ok) throw new Error("获取失败");
       const data = await res.json();
       setComments(
@@ -121,12 +121,8 @@ export default function ForumCommentsPage() {
   async function handleApprove(comment: Comment) {
     try {
       setActionLoading(comment.id);
-      const res = await fetch("/api/forum/comments", {
+      const res = await adminFetch("/api/forum/comments", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ commentId: comment.id, action: "approve" }),
       });
       if (!res.ok) {
@@ -152,12 +148,8 @@ export default function ForumCommentsPage() {
     if (!deleteTarget) return;
     try {
       setDeleting(true);
-      const res = await fetch("/api/forum/comments", {
+      const res = await adminFetch("/api/forum/comments", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ commentId: deleteTarget.id }),
       });
       if (!res.ok) {
@@ -173,16 +165,6 @@ export default function ForumCommentsPage() {
     } finally {
       setDeleting(false);
     }
-  }
-
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   }
 
   return (
@@ -345,7 +327,7 @@ export default function ForumCommentsPage() {
                         {comment.author.username}
                       </td>
                       <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                        {formatDate(comment.createdAt)}
+                        {formatDateTime(comment.createdAt)}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
                         {comment.likeCount}

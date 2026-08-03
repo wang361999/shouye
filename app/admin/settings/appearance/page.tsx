@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 const PRESET_COLORS = [
@@ -29,9 +30,7 @@ export default function AppearanceSettingsPage() {
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/settings", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/admin/settings");
       if (!res.ok) throw new Error("获取失败");
       const data = await res.json();
       setForm({
@@ -55,12 +54,8 @@ export default function AppearanceSettingsPage() {
   async function handleSave() {
     try {
       setSaving(true);
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           settings: {
             ...form,

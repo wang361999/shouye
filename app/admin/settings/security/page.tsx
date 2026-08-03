@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 export default function SecuritySettingsPage() {
@@ -48,9 +49,7 @@ export default function SecuritySettingsPage() {
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/settings", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/admin/settings");
       if (!res.ok) throw new Error("获取失败");
       const data = await res.json();
       setForm({
@@ -86,9 +85,7 @@ export default function SecuritySettingsPage() {
 
   const fetchGithubConfig = async () => {
     try {
-      const res = await fetch("/api/admin/oauth-config", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/admin/oauth-config");
       if (!res.ok) return;
       const data = await res.json();
       setGithubForm({
@@ -113,12 +110,8 @@ export default function SecuritySettingsPage() {
       if (githubForm.github_client_secret) {
         body.github_client_secret = githubForm.github_client_secret;
       }
-      const res = await fetch("/api/admin/oauth-config", {
+      const res = await adminFetch("/api/admin/oauth-config", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -144,12 +137,8 @@ export default function SecuritySettingsPage() {
     }
     try {
       setSavingGithubToken(true);
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           settings: {
             github_token: githubApiToken.trim(),
@@ -178,12 +167,8 @@ export default function SecuritySettingsPage() {
     }
     try {
       setSavingGithubToken(true);
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           settings: {
             github_token: "",
@@ -209,9 +194,7 @@ export default function SecuritySettingsPage() {
     try {
       setCleanupLoading(true);
       setCleanupPreview(null);
-      const res = await fetch("/api/admin/ai-agent/cleanup", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/admin/ai-agent/cleanup");
       if (!res.ok) {
         const data = await res.json();
         toast.error(data.error || "获取预览失败");
@@ -237,12 +220,8 @@ export default function SecuritySettingsPage() {
     }
     try {
       setCleanupRunning(true);
-      const res = await fetch("/api/admin/ai-agent/cleanup", {
+      const res = await adminFetch("/api/admin/ai-agent/cleanup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({}),
       });
       if (!res.ok) {
@@ -265,12 +244,8 @@ export default function SecuritySettingsPage() {
   async function handleSave() {
     try {
       setSaving(true);
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           settings: {
             ...form,
@@ -304,12 +279,8 @@ export default function SecuritySettingsPage() {
     }
     try {
       setTestingEmail(true);
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           settings: {
             ...form,
@@ -325,12 +296,8 @@ export default function SecuritySettingsPage() {
         return;
       }
       // 调用测试发送 API
-      const testRes = await fetch("/api/admin/test-email", {
+      const testRes = await adminFetch("/api/admin/test-email", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ to: testEmailAddr.trim() }),
       });
       const testData = await testRes.json();

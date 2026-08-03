@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 interface Post {
@@ -72,11 +73,8 @@ export default function ForumPostsPage() {
         params.set("category", categoryFilter);
       }
 
-      const res = await fetch(
-        `/api/forum/posts?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const res = await adminFetch(
+        `/api/forum/posts?${params.toString()}`
       );
       if (!res.ok) throw new Error("获取失败");
       const data = await res.json();
@@ -135,12 +133,8 @@ export default function ForumPostsPage() {
   async function patchPost(post: Post, action: string) {
     try {
       setActionLoading(`${post.id}-${action}`);
-      const res = await fetch(`/api/forum/posts/${post.id}`, {
+      const res = await adminFetch(`/api/forum/posts/${post.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action }),
       });
       if (!res.ok) {
@@ -174,9 +168,8 @@ export default function ForumPostsPage() {
     if (!deleteTarget) return;
     try {
       setDeleting(true);
-      const res = await fetch(`/api/forum/posts/${deleteTarget.id}`, {
+      const res = await adminFetch(`/api/forum/posts/${deleteTarget.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         const data = await res.json();

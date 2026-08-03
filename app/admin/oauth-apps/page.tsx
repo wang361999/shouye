@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 // ============ 类型定义 ============
@@ -69,9 +70,7 @@ export default function OAuthAppsPage() {
     if (!token) return;
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/oauth-apps", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch("/api/admin/oauth-apps");
       if (res.status === 401) {
         toast.error("登录已过期，请重新登录");
         return;
@@ -149,12 +148,8 @@ export default function OAuthAppsPage() {
     }
     try {
       setSubmitting(true);
-      const res = await fetch("/api/admin/oauth-apps", {
+      const res = await adminFetch("/api/admin/oauth-apps", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name,
           redirectUris: uris,
@@ -189,12 +184,8 @@ export default function OAuthAppsPage() {
     const newStatus = app.status === "active" ? "disabled" : "active";
     try {
       setTogglingId(app.id);
-      const res = await fetch("/api/admin/oauth-apps", {
+      const res = await adminFetch("/api/admin/oauth-apps", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ id: app.id, status: newStatus }),
       });
       const data = await res.json();
@@ -218,9 +209,8 @@ export default function OAuthAppsPage() {
     if (!token || !deleteTarget) return;
     try {
       setDeleting(true);
-      const res = await fetch(`/api/admin/oauth-apps?id=${deleteTarget.id}`, {
+      const res = await adminFetch(`/api/admin/oauth-apps?id=${deleteTarget.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) {

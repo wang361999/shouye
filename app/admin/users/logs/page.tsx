@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
+import { formatDateTime } from "@/lib/admin-utils";
 import toast from "react-hot-toast";
 
 // ============ 类型定义 ============
@@ -57,17 +59,6 @@ const ACTION_OPTIONS: { value: string; label: string }[] = [
 
 const PAGE_SIZE = 20;
 
-// ============ 格式化日期 ============
-function formatDateTime(dateStr: string) {
-  const d = new Date(dateStr);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-}
-
 // ============ 页面组件 ============
 export default function OperationLogsPage() {
   const { token } = useAppStore();
@@ -96,9 +87,7 @@ export default function OperationLogsPage() {
       if (actionFilter !== "all") params.set("action", actionFilter);
       if (usernameKeyword.trim()) params.set("username", usernameKeyword.trim());
 
-      const res = await fetch(`/api/admin/users?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/admin/users?${params}`);
       if (res.status === 401) {
         toast.error("登录已过期，请重新登录");
         return;

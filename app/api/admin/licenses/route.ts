@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { logOperation } from '@/lib/admin-log';
 
 /** 生成授权码格式: ET-XXXXXXXX-XXXXXXXX-XXXXXXXX */
 function generateLicenseKey(): string {
@@ -134,15 +135,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'create_license',
-        target: 'License',
-        detail: `创建授权码: ${licenseKey} (${projectName})`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'create_license',
+      'License',
+      `创建授权码: ${licenseKey} (${projectName})`,
+    );
 
     return NextResponse.json({
       id: license.id,
@@ -215,15 +214,13 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
     });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'update_license',
-        target: 'License',
-        detail: `更新授权码: ${license.licenseKey} (${JSON.stringify(updateData)})`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'update_license',
+      'License',
+      `更新授权码: ${license.licenseKey} (${JSON.stringify(updateData)})`,
+    );
 
     return NextResponse.json({ message: '授权码已更新' });
   } catch (error) {
@@ -252,15 +249,13 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.license.delete({ where: { id } });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'delete_license',
-        target: 'License',
-        detail: `删除授权码: ${license.licenseKey}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'delete_license',
+      'License',
+      `删除授权码: ${license.licenseKey}`,
+    );
 
     return NextResponse.json({ message: '授权码已删除' });
   } catch (error) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 interface TriggerLog {
@@ -38,8 +39,7 @@ export default function AutoContentPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      const res = await fetch("/api/admin/auto-content-creator", {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await adminFetch("/api/admin/auto-content-creator", {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -70,12 +70,8 @@ export default function AutoContentPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      const res = await fetch("/api/admin/auto-content-creator", {
+      const res = await adminFetch("/api/admin/auto-content-creator", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

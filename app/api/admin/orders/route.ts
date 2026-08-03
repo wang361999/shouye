@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
 import { sendNotification } from '@/lib/notify';
+import { logOperation } from '@/lib/admin-log';
 
 /** 生成授权码格式: ET-XXXXXXXX-XXXXXXXX-XXXXXXXX */
 function generateLicenseKey(): string {
@@ -175,21 +176,19 @@ export async function PATCH(request: NextRequest) {
       await prisma.order.update({ where: { id }, data: updateData });
     }
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'update_order',
-        target: 'Order',
-        detail: `更新订单 ${order.orderNo}: ${JSON.stringify({
-          status,
-          payMethod,
-          payTxId,
-          remark,
-          ...(createdLicenseKey ? { generatedLicense: createdLicenseKey } : {}),
-        })}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'update_order',
+      'Order',
+      `更新订单 ${order.orderNo}: ${JSON.stringify({
+        status,
+        payMethod,
+        payTxId,
+        remark,
+        ...(createdLicenseKey ? { generatedLicense: createdLicenseKey } : {}),
+      })}`,
+    );
 
     // ---- 通知用户审核结果 ----
     if (isApproving) {
@@ -262,15 +261,13 @@ export async function DELETE(request: NextRequest) {
     // 删除订单
     await prisma.order.delete({ where: { id } });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'delete_order',
-        target: 'Order',
-        detail: `删除订单 ${order.orderNo}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'delete_order',
+      'Order',
+      `删除订单 ${order.orderNo}`,
+    );
 
     return NextResponse.json({ message: '订单已删除' });
   } catch (error) {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 const CATEGORY_OPTIONS = ["开发工具", "AI工具", "效率工具"];
@@ -18,7 +18,6 @@ const STATUS_OPTIONS: { value: StatusValue; label: string; desc: string }[] = [
 
 export default function NewToolPage() {
   const router = useRouter();
-  const { token } = useAppStore();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -53,12 +52,8 @@ export default function NewToolPage() {
 
     try {
       setSubmitting(true);
-      const res = await fetch("/api/tools", {
+      const res = await adminFetch("/api/tools", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim(),

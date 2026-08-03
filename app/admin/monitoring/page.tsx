@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface MonitoringData {
   limits: {
@@ -83,9 +84,7 @@ export default function MonitoringPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/monitoring?days=${days}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await adminFetch(`/api/admin/monitoring?days=${days}`);
       if (res.ok) {
         const json = await res.json();
         setData(json);

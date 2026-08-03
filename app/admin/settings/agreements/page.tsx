@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
+import { adminFetch } from "@/lib/admin-fetch";
 import { DEFAULT_TERMS, DEFAULT_PRIVACY } from "@/lib/default-agreements";
 import toast from "react-hot-toast";
 
@@ -52,12 +53,8 @@ export default function AgreementsSettingsPage() {
       setSaving(true);
       const content = activeTab === "terms" ? termsContent : privacyContent;
 
-      const res = await fetch("/api/agreements", {
+      const res = await adminFetch("/api/agreements", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ type: activeTab, content }),
       });
 

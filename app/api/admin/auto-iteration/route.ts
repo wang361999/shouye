@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
 import { getGithubToken } from '@/lib/collab';
+import { logOperation } from '@/lib/admin-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,23 +140,6 @@ async function saveSetting(key: string, value: string) {
   });
 }
 
-async function logOperation(
-  userId: string,
-  username: string,
-  action: string,
-  detail: string,
-) {
-  await prisma.operationLog.create({
-    data: {
-      userId,
-      username,
-      action,
-      target: 'AutoIteration',
-      detail,
-    },
-  });
-}
-
 export async function GET(request: NextRequest) {
   try {
     const admin = adminAuth(request);
@@ -203,6 +187,7 @@ export async function POST(request: NextRequest) {
         admin.userId,
         admin.username,
         'auto_iteration_config',
+        'AutoIteration',
         `更新自动迭代配置：开关=${enabled ? '开启' : '关闭'}，上线确认=${requireApproval ? '需要' : '不需要'}，安全模式=${safeMode ? '开启' : '关闭'}`,
       );
 
@@ -254,6 +239,7 @@ export async function POST(request: NextRequest) {
         admin.userId,
         admin.username,
         'auto_iteration_trigger',
+        'AutoIteration',
         `提交 AI 迭代请求：${requirement}。执行模式：${queueMode}。${hasExecutor ? '已尝试发送给 AI 执行器。' : '未配置 AI Webhook，已进入免费迭代队列。'}${issue?.url ? ` GitHub Issue：${issue.url}` : ''}`,
       );
 
@@ -298,6 +284,7 @@ export async function POST(request: NextRequest) {
         admin.userId,
         admin.username,
         'auto_iteration_deploy_approved',
+        'AutoIteration',
         `管理员确认上线：${deployHook ? '已触发 Vercel Deploy Hook' : '已记录确认，未配置 Deploy Hook'}`,
       );
 

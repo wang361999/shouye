@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { logOperation } from '@/lib/admin-log';
 
 /**
  * POST /api/admin/licenses/domains - 绑定域名到授权码
@@ -66,15 +67,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'bind_license_domain',
-        target: 'LicenseDomain',
-        detail: `绑定域名 ${normalizedDomain} 到授权码 ${license.licenseKey}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'bind_license_domain',
+      'LicenseDomain',
+      `绑定域名 ${normalizedDomain} 到授权码 ${license.licenseKey}`,
+    );
 
     return NextResponse.json({
       id: domainRecord.id,
@@ -118,15 +117,13 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.licenseDomain.delete({ where: { id: domainRecord.id } });
 
-    await prisma.operationLog.create({
-      data: {
-        userId: admin.userId,
-        username: admin.username,
-        action: 'unbind_license_domain',
-        target: 'LicenseDomain',
-        detail: `解绑域名 ${domainRecord.domain}`,
-      },
-    });
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'unbind_license_domain',
+      'LicenseDomain',
+      `解绑域名 ${domainRecord.domain}`,
+    );
 
     return NextResponse.json({ message: '域名已解绑' });
   } catch (error) {
