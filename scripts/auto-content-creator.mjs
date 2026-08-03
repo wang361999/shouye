@@ -15,7 +15,7 @@
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL, POST_TOPIC
  */
 
-import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
+import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -131,9 +131,38 @@ async function fetchCategories(token) {
   return categories;
 }
 
+// ===== 解析标签分隔格式 =====
+function parseTaggedOutput(text) {
+  const result = {};
+
+  // 提取单行字段：title, postType, categoryId, summary
+  const singleLineFields = ['title', 'postType', 'categoryId', 'summary'];
+  for (const field of singleLineFields) {
+    const re = new RegExp(`<${field}>\\s*([\\s\\S]*?)\\s*</${field}>`, 'i');
+    const m = text.match(re);
+    if (m) result[field] = m[1].trim();
+  }
+
+  // 提取多行字段：content（允许包含任意字符）
+  const contentMatch = text.match(/<content>\s*([\s\S]*?)<\/content>/i);
+  if (contentMatch) result.content = contentMatch[1].trim();
+
+  // 提取 tags：逗号分隔
+  const tagsMatch = text.match(/<tags>\s*([\s\S]*?)\s*<\/tags>/i);
+  if (tagsMatch) {
+    result.tags = tagsMatch[1]
+      .split(/[,，、]/)
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0 && t.length <= 20)
+      .slice(0, 5);
+  }
+
+  return result;
+}
+
 // ===== 调用 AI 生成高质量文章 =====
 async function generateArticle(postType, title, categories) {
-  const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
+  const categoryList = categories.map((c) => `${c.id}:${c.name}`).join('、') || '无';
 
   const prompt = `你是一位资深技术博主和全栈开发工程师。请生成一篇高质量的深度技术博客文章。
 
@@ -155,50 +184,54 @@ async function generateArticle(postType, title, categories) {
 
 ## 论坛分类
 
-现有分类：${categoryNames}
-如果分类里有合适的就推荐一个（放在 categoryId 字段，用分类的 id），没有合适的就留空。
+现有分类：${categoryList}
+如果分类里有合适的就推荐一个（放在 categoryId 标签中，填分类的 id），没有合适的就留空。
 
 ## 输出格式
 
-输出严格 JSON：
-{
-  "title": "文章标题",
-  "content": "Markdown 格式的完整文章正文",
-  "tags": ["标签1", "标签2", "标签3"],
-  "postType": "discussion",
-  "categoryId": "分类ID或空字符串",
-  "summary": "一句话总结这篇文章"
-}`;
+用以下标签格式输出，每个字段用对应标签包裹。content 标签内可以直接写 Markdown，不需要转义任何字符：
+
+<TITLE>文章标题</TITLE>
+
+<CONTENT>
+Markdown 格式的完整文章正文
+</CONTENT>
+
+<TAGS>标签1,标签2,标签3</TAGS>
+
+<POSTTYPE>discussion</POSTTYPE>
+
+<CATEGORYID>分类ID或留空</CATEGORYID>
+
+<SUMMARY>一句话总结这篇文章</SUMMARY>`;
 
   log(`调用 AI 生成文章...`);
   log(`类型：${postType.label}，标题：${title}`);
 
   const content = await callAI({
     prompt,
-    systemPrompt: '你是资深技术博主和全栈开发工程师，擅长写深度技术文章。你的文章结构清晰、代码规范、见解独到。只输出严格 JSON。',
+    systemPrompt: '你是资深技术博主和全栈开发工程师，擅长写深度技术文章。你的文章结构清晰、代码规范、见解独到。严格按照标签格式输出，不要输出任何额外内容。',
     maxTokens: 16384,
-    responseFormat: { type: 'json_object' },
     tag: TAG,
   });
 
-  let parsed;
-  try {
-    parsed = robustJSONParse(content);
-  } catch (err) {
-    log(`JSON 解析失败：${err.message}`);
-    log(`模型返回内容长度：${content.length}`);
-    log(`内容开头（前 500 字符）：${content.slice(0, 500)}`);
-    log(`内容结尾（后 300 字符）：${content.slice(-300)}`);
-    fail('AI 返回内容无法解析为 JSON');
-  }
+  let parsed = parseTaggedOutput(content);
 
   if (!parsed.title || !parsed.content) {
+    log(`解析失败，模型返回内容长度：${content.length}`);
+    log(`内容开头（前 500 字符）：${content.slice(0, 500)}`);
+    log(`内容结尾（后 300 字符）：${content.slice(-300)}`);
     fail('AI 返回内容缺少 title 或 content 字段');
   }
 
   if (parsed.title.length > 100) {
     parsed.title = parsed.title.slice(0, 97) + '...';
   }
+
+  if (!parsed.postType) parsed.postType = 'discussion';
+  if (!parsed.tags) parsed.tags = [];
+  if (!parsed.categoryId) parsed.categoryId = '';
+  if (!parsed.summary) parsed.summary = '';
 
   log(`文章生成完成，标题：${parsed.title}，内容长度：${parsed.content.length}`);
   return parsed;
