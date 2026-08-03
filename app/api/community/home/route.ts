@@ -63,6 +63,7 @@ export async function GET() {
   let hotRows: Record<string, unknown>[] = [];
   let memberRows: Record<string, unknown>[] = [];
   let collabRows: Record<string, unknown>[] = [];
+  let toolRows: Record<string, unknown>[] = [];
 
   if (needContent) {
     // 1. 最新帖子（6条）
@@ -149,6 +150,23 @@ export async function GET() {
       collabRows = rows as Record<string, unknown>[];
     } catch (err) {
       console.error('[HOME COLLAB PROJECTS ERROR]', err instanceof Error ? err.message : err);
+    }
+
+    // 5. 精选工具（8条：优先 is_featured，其次 click_count）
+    try {
+      const rows = await queryWithTimeout(
+        db,
+        `SELECT id, name, description, icon, category, tool_type, click_count
+         FROM Tool
+         WHERE is_active = 1
+         ORDER BY is_featured DESC, click_count DESC, created_at DESC
+         LIMIT 8`,
+        [],
+        QUERY_TIMEOUT,
+      );
+      toolRows = rows as Record<string, unknown>[];
+    } catch (err) {
+      console.error('[HOME TOOLS ERROR]', err instanceof Error ? err.message : err);
     }
   }
 
@@ -250,6 +268,16 @@ export async function GET() {
     },
   }));
 
+  const formattedTools = toolRows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    description: (t.description as string) || '',
+    icon: t.icon || '',
+    category: t.category || '实用工具',
+    toolType: t.tool_type || 'link',
+    clickCount: Number(t.click_count) || 0,
+  }));
+
   // 只在有帖子数据时才缓存
   if (formattedLatest.length > 0) {
     contentCache = {
@@ -257,6 +285,7 @@ export async function GET() {
       hotPosts: formattedHot,
       activeMembers: formattedMembers,
       collabProjects: formattedCollab,
+      featuredTools: formattedTools,
     };
     contentCacheExpiry = now + CONTENT_TTL;
   }

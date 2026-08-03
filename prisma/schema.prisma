@@ -72,6 +72,9 @@ model User {
   // 社区扩展 - 徽章
   userBadges    UserBadge[]
 
+  // 社区扩展 - 每日签到
+  checkIns      CheckIn[]
+
   // 社区首页查询优化索引
   @@index([status, postCount, commentCount]) // 活跃成员：WHERE status + ORDER BY post_count, comment_count
   @@map("User")
@@ -799,4 +802,21 @@ model UserBadge {
   @@index([userId])
   @@index([badgeId])
   @@map("UserBadge")
+}
+
+// ============ 社区扩展 - 每日签到 ============
+model CheckIn {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  checkInDate   DateTime @map("check_in_date") // 签到日期（当天 00:00:00）
+  continuousDays Int     @default(1) @map("continuous_days") // 连续签到天数
+  expReward     Int      @default(10) @map("exp_reward") // 获得经验值
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, checkInDate]) // 每天只能签到一次
+  @@index([userId])
+  @@index([checkInDate])
+  @@map("CheckIn")
 }

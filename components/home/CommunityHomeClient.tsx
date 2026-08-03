@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Container } from "@/components/common/Container";
 import { cn } from "@/lib/utils";
 import UserAvatar from "@/components/common/UserAvatar";
+import CheckInLeaderboard from "./CheckInLeaderboard";
 
 interface CommunityPost {
   id: string;
@@ -52,12 +53,23 @@ interface CommunityData {
   hotPosts: CommunityPost[];
   activeMembers: ActiveMember[];
   collabProjects: CollabProject[];
+  featuredTools: FeaturedTool[];
   stats: {
     userCount: number;
     postCount: number;
     commentCount: number;
     todayPostCount: number;
   };
+}
+
+interface FeaturedTool {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  toolType: string;
+  clickCount: number;
 }
 
 interface CommunityHomeProps {
@@ -547,6 +559,9 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
         </section>
       )}
 
+      {/* ============ 4.5 签到 & 排行榜 ============ */}
+      <CheckInLeaderboard />
+
       {/* ============ 5. 入口引导区 ============ */}
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 py-16 text-white md:py-24">
         <div className="absolute -left-20 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-blue-500/20 blur-3xl" />
@@ -620,7 +635,7 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
         </Container>
       </section>
 
-      {/* ============ 6. 工具展示区（降为次要位置） ============ */}
+      {/* ============ 6. 工具展示区 ============ */}
       <section id="tools" className="bg-white py-16 md:py-20 border-t border-gray-100">
         <Container>
           <div className="mb-4 flex items-center justify-center gap-2">
@@ -632,17 +647,64 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
             开发者工具
           </h2>
           <p className="mb-10 text-center text-gray-500">
-            社区推荐的实用工具，也欢迎在论坛分享使用心得
+            精选实用在线工具，即开即用
           </p>
 
-          <div className="flex justify-center">
-            <Link
-              href="/forum"
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors"
-            >
-              💬 在社区讨论工具
-            </Link>
-          </div>
+          {(data?.featuredTools ?? []).length > 0 ? (
+            <>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                {(data?.featuredTools ?? []).slice(0, 8).map((tool) => (
+                  <Link
+                    key={tool.id}
+                    href={`/tools/${tool.id}`}
+                    className="group bg-white rounded-xl border border-gray-200 p-4 transition-all duration-200 hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5"
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform">
+                        {tool.icon ? (
+                          <span>{tool.icon}</span>
+                        ) : (
+                          <span>🔧</span>
+                        )}
+                      </div>
+                      <h3 className="font-semibold text-sm text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+                        {tool.name}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed min-h-[2rem]">
+                      {tool.description || '实用在线工具'}
+                    </p>
+                    <div className="mt-3 pt-2 border-t border-gray-50 flex items-center justify-between text-xs">
+                      <span className="text-blue-600 font-medium">{tool.category}</span>
+                      <span className="text-gray-400">
+                        {tool.toolType === 'embedded' ? '🛠️ 在线' : '🔗 链接'}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <div className="flex justify-center mt-8">
+                <Link
+                  href="/tools"
+                  className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors"
+                >
+                  查看全部工具
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-center">
+              <Link
+                href="/tools"
+                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                🔧 浏览工具库
+              </Link>
+            </div>
+          )}
         </Container>
       </section>
     </div>
