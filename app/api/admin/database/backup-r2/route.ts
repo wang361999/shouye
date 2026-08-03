@@ -156,7 +156,7 @@ async function listR2Backups(): Promise<{
 // ============ 从 R2 下载备份 ============
 async function downloadFromR2(
   key: string,
-): Promise<{ ok: boolean; data?: Buffer; message?: string }> {
+): Promise<{ ok: boolean; data?: string; message?: string }> {
   const { accountId, apiToken, bucketName } = getR2Config();
 
   if (!accountId || !apiToken) {
@@ -176,8 +176,8 @@ async function downloadFromR2(
     return { ok: false, message: `R2 下载失败 (${res.status}): ${errText}` };
   }
 
-  const arrayBuffer = await res.arrayBuffer();
-  return { ok: true, data: Buffer.from(arrayBuffer) };
+  const text = await res.text();
+  return { ok: true, data: text };
 }
 
 // ============ 删除 R2 中的对象 ============
