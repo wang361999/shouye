@@ -16,7 +16,7 @@
     "vercel-build": "next build",
     "cf:build": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs",
     "cf:preview": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && opennextjs-cloudflare preview",
-    "cf:deploy": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && opennextjs-cloudflare deploy",
+    "cf:deploy": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && wrangler deploy",
     "cf:upload": "node scripts/check-env.mjs && node scripts/patch-libsql-exports.mjs && opennextjs-cloudflare build && node scripts/swap-prisma-wasm.mjs && node scripts/patch-wasm-imports.mjs && opennextjs-cloudflare upload",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
