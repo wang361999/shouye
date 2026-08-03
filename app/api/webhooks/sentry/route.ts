@@ -352,14 +352,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // ---- 4.5 判断是否为专门测试 Sentry 链路的错误 ----
+    const isTestError =
+      info.culprit.toLowerCase().includes('test-sentry') ||
+      info.title.toLowerCase().includes('test-sentry') ||
+      info.errorValue.toLowerCase().includes('test-sentry');
+
     // ---- 5. 创建 GitHub Issue ----
-    const issueTitle = `[Sentry 自动修复] ${info.title.slice(0, 60)}`;
+    const issuePrefix = isTestError ? '[Sentry 测试告警]' : '[Sentry 自动修复]';
+    const issueTitle = `${issuePrefix} ${info.title.slice(0, 60)}`;
     const issueBody = buildIssueBody(info);
     const issue = await createGitHubIssue(issueTitle, issueBody);
 
-    // ---- 6. 触发 AI 执行器 ----
-    const requirement = `Sentry 检测到错误：${info.title}。位置：${info.culprit}。请分析并修复。`;
-    const executor = await triggerAiExecutor(requirement, issue?.url);
+    // ---- 6. 触发 AI 执行器 (测试错误不触发自动迭代，避免不必要的 CI 运行) ----
+    let executor = null;
+    if (!isTestError) {
+      const requirement = `Sentry 检测到错误：${info.title}。位置：${info.culprit}。请分析并修复。`;
+      executor = await triggerAiExecutor(requirement, issue?.url);
+    }
 
     // ---- 7. 记录操作日志 ----
     await logSentryEvent(info.title, issue?.url || '', issue?.number || null, executor);
@@ -367,7 +377,9 @@ export async function POST(request: NextRequest) {
     // ---- 8. 返回结果 ----
     return NextResponse.json({
       success: true,
-      message: 'Sentry 错误已接收并触发自动迭代',
+      message: isTestError
+        ? 'Sentry 测试错误已接收并记录（不触发自动迭代）'
+        : 'Sentry 错误已接收并触发自动迭代',
       error: {
         title: info.title,
         level: info.level,
@@ -379,7 +391,7 @@ export async function POST(request: NextRequest) {
         : null,
       aiExecutor: executor
         ? { triggered: true, ok: executor.ok }
-        : { triggered: false, reason: 'AI_ITERATION_WEBHOOK_URL 未配置' },
+        : { triggered: false, reason: isTestError ? '测试错误已忽略自动迭代' : 'AI_ITERATION_WEBHOOK_URL 未配置' },
     });
   } catch (error) {
     console.error('[SENTRY WEBHOOK ERROR]', error);
