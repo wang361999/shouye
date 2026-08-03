@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260730.1",
-    "@opennextjs/cloudflare": "1.15.0",
+    "@opennextjs/cloudflare": "1.20.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^20.11.0",
