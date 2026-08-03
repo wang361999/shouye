@@ -297,6 +297,18 @@ export default function Sidebar({ stats, hotPosts }: SidebarProps) {
             💬 我的评论
           </Link>
           <Link
+            href="/forum/my/favorites"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors"
+          >
+            ⭐ 我的收藏
+          </Link>
+          <Link
+            href="/messages"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors"
+          >
+            ✉️ 私信
+          </Link>
+          <Link
             href="/tools"
             className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 rounded-lg border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors"
           >

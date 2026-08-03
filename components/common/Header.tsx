@@ -18,6 +18,8 @@ const forumLinks = [
   { name: "📖 使用教程", href: "/forum/category/tutorial", icon: "📖" },
   { name: "🗣️ 闲聊", href: "/forum/category/chat", icon: "🗣️" },
   { name: "✏️ 发布新帖", href: "/forum/new", icon: "✏️" },
+  { name: "⭐ 我的收藏", href: "/forum/my/favorites", icon: "⭐" },
+  { name: "✉️ 私信", href: "/messages", icon: "✉️" },
 ];
 
 /**
@@ -319,6 +321,26 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
             <ThemeToggle />
             {user ? (
               <div className="flex items-center space-x-3">
+                {/* 私信图标 */}
+                <Link
+                  href="/messages"
+                  className="relative p-1.5 text-gray-600 hover:text-blue-600 transition-colors"
+                  aria-label="私信"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  </svg>
+                </Link>
                 {/* 通知铃铛 */}
                 <Link
                   href="/notifications"

@@ -49,13 +49,15 @@ interface MyComment {
   createdAt: string;
 }
 
-type TabKey = 'profile' | 'posts' | 'comments' | 'likes';
+type TabKey = 'profile' | 'posts' | 'comments' | 'likes' | 'favorites' | 'badges';
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'profile', label: '个人资料', icon: '👤' },
   { key: 'posts', label: '我的帖子', icon: '📝' },
   { key: 'comments', label: '我的评论', icon: '💬' },
   { key: 'likes', label: '我的点赞', icon: '❤️' },
+  { key: 'favorites', label: '我的收藏', icon: '⭐' },
+  { key: 'badges', label: '我的徽章', icon: '🏅' },
 ];
 
 export default function ProfilePage() {
@@ -1131,6 +1133,179 @@ export default function ProfilePage() {
           )}
         </div>
       )}
+
+      {activeTab === 'favorites' && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">我的收藏夹</h2>
+            <Link
+              href="/forum/my/favorites"
+              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              管理收藏夹 →
+            </Link>
+          </div>
+          <FavoritesTab token={token} user={user} />
+        </div>
+      )}
+
+      {activeTab === 'badges' && (
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">我的徽章</h2>
+          <BadgesTab token={token} user={user} />
+        </div>
+      )}
     </Container>
+  );
+}
+
+// ============ 收藏夹 Tab 组件 ============
+function FavoritesTab({ token, user }: { token: string | null; user: any }) {
+  const [collections, setCollections] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCollections = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/user/collections', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCollections(data);
+      }
+    } catch {
+      // 静默降级
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (user) fetchCollections();
+  }, [user, fetchCollections]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="bg-white rounded-lg border border-gray-200 p-5 animate-pulse">
+            <div className="h-5 bg-gray-200 rounded w-1/2 mb-3" />
+            <div className="h-3 bg-gray-100 rounded w-1/4" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (collections.length === 0) {
+    return (
+      <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+        <p className="text-4xl mb-3">⭐</p>
+        <p className="text-gray-400 mb-4">还没有创建收藏夹</p>
+        <Link
+          href="/forum/my/favorites"
+          className="inline-block px-4 py-2 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+        >
+          创建收藏夹
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {collections.map((col: any) => (
+        <Link
+          key={col.id}
+          href={`/forum/my/favorites?col=${col.id}`}
+          className="block bg-white rounded-lg border border-gray-200 p-5 hover:shadow-sm transition-shadow"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-gray-900">{col.name}</h3>
+            <span className="text-xs text-gray-400">
+              {col.isPublic ? '🌐 公开' : '🔒 私有'}
+            </span>
+          </div>
+          {col.description && (
+            <p className="text-sm text-gray-500 mb-2">{col.description}</p>
+          )}
+          <div className="flex items-center gap-3 text-xs text-gray-400">
+            <span>📄 {col.itemCount || 0} 篇帖子</span>
+            {col.recentPosts && col.recentPosts.length > 0 && (
+              <span className="truncate">
+                最近: {col.recentPosts[0].post?.title || '未知'}
+              </span>
+            )}
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+// ============ 徽章 Tab 组件 ============
+function BadgesTab({ token, user }: { token: string | null; user: any }) {
+  const [badges, setBadges] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token || !user) return;
+    fetch(`/api/badges/user?userId=${user.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        setBadges(Array.isArray(data) ? data : data.badges || []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token, user]);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-white rounded-lg border border-gray-200 p-5 animate-pulse">
+            <div className="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-3" />
+            <div className="h-4 bg-gray-200 rounded w-2/3 mx-auto" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (badges.length === 0) {
+    return (
+      <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+        <p className="text-4xl mb-3">🏅</p>
+        <p className="text-gray-400 mb-2">还没有获得徽章</p>
+        <p className="text-sm text-gray-400">
+          多发帖、多评论、多互动即可自动获得徽章
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      {badges.map((ub: any) => (
+        <div
+          key={ub.id}
+          className="bg-white rounded-xl border border-gray-200 p-5 text-center hover:shadow-sm transition-shadow"
+        >
+          <div className="text-4xl mb-2">{ub.badge?.icon || '🏅'}</div>
+          <h3 className="font-semibold text-gray-900 text-sm mb-1">
+            {ub.badge?.name}
+          </h3>
+          <p className="text-xs text-gray-400 line-clamp-2">
+            {ub.badge?.description}
+          </p>
+          <p className="text-xs text-gray-300 mt-2">
+            {formatDate(ub.awardedAt)}
+          </p>
+        </div>
+      ))}
+    </div>
   );
 }

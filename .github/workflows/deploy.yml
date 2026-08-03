@@ -39,6 +39,19 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
+      - name: Push database schema
+        run: npx prisma db push --accept-data-loss
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
+
+      - name: Seed badges
+        run: node scripts/seed-badges.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
+        continue-on-error: true
+
       - name: Build and deploy to Cloudflare Workers
         run: npm run cf:deploy
         env:
