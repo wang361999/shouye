@@ -75,7 +75,7 @@ jobs:
     needs: check
     if: needs.check.outputs.should_run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       SITE_URL: ${{ secrets.SITE_URL }}
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}

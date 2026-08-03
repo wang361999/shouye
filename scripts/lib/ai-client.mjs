@@ -17,10 +17,10 @@ const {
   AI_MODEL = 'gemini-3.6-flash',
 } = process.env;
 
-// AI 调用默认超时（30 秒），大 prompt 会自动延长
-const AI_TIMEOUT_MS = 30_000;
-// AI 调用最大超时（120 秒，用于超大 prompt）
-const AI_MAX_TIMEOUT_MS = 120_000;
+// AI 调用默认超时（60 秒），大 prompt 或大 maxTokens 会自动延长
+const AI_TIMEOUT_MS = 60_000;
+// AI 调用最大超时（180 秒，用于超大 prompt + 长文生成）
+const AI_MAX_TIMEOUT_MS = 180_000;
 // 站点 API 超时（10 秒）
 const SITE_TIMEOUT_MS = 10_000;
 // 最大重试次数
@@ -41,13 +41,14 @@ const FALLBACK_MODELS = [
 const UNIQUE_MODELS = [...new Set(FALLBACK_MODELS)];
 
 /**
- * 根据prompt长度动态计算超时时间
- * 基础30秒，每1万字符增加10秒，上限120秒
+ * 根据prompt长度和maxTokens动态计算超时时间
+ * 基础60秒，每1万字符增加10秒，每4096 maxTokens增加10秒，上限180秒
  */
-function calcTimeout(promptLength) {
+function calcTimeout(promptLength, maxTokens = 2048) {
   const base = AI_TIMEOUT_MS;
-  const extra = Math.floor(promptLength / 10_000) * 10_000;
-  return Math.min(base + extra, AI_MAX_TIMEOUT_MS);
+  const promptExtra = Math.floor(promptLength / 10_000) * 10_000;
+  const tokenExtra = Math.floor(maxTokens / 4096) * 10_000;
+  return Math.min(base + promptExtra + tokenExtra, AI_MAX_TIMEOUT_MS);
 }
 
 function sleep(ms) {
@@ -147,12 +148,12 @@ export async function checkAIHealth(tag = '[ai-client]') {
 export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseFormat, tag = '[ai-client]' }) {
   let lastError = null;
 
-  // 根据prompt长度动态计算超时
+  // 根据prompt长度和maxTokens动态计算超时
   const promptLength = (prompt?.length || 0) + (systemPrompt?.length || 0);
-  const timeoutMs = calcTimeout(promptLength);
+  const timeoutMs = calcTimeout(promptLength, maxTokens);
   if (timeoutMs > AI_TIMEOUT_MS) {
-    console.warn(`${tag} prompt 较长（${promptLength} 字符），超时调整为 ${timeoutMs / 1000} 秒`);
-  }
+      console.warn(`${tag} prompt 较长（${promptLength} 字符，maxTokens=${maxTokens}），超时调整为 ${timeoutMs / 1000} 秒`);
+    }
 
   for (const model of UNIQUE_MODELS) {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -250,15 +251,16 @@ export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseF
 }
 
 /**
- * 健壮 JSON 解析：处理 AI 返回中可能含有的控制字符
+ * 健壮 JSON 解析：处理 AI 返回中可能含有的控制字符和截断
  *
  * AI 模型偶尔会在 JSON 字符串值中输出裸换行符、制表符等控制字符，
- * 导致标准 JSON.parse 抛出 "Bad control character in string literal" 错误。
+ * 或因 max_tokens 限制导致输出被截断（JSON 不完整）。
  * 此函数会：
  *   1. 从 ```json ... ``` 代码块中提取 JSON
  *   2. 定位第一个 { 和最后一个 } 之间的内容
  *   3. 先尝试直接解析
  *   4. 失败则转义所有字符串值中的裸控制字符后重试
+ *   5. 仍然失败则尝试自动补全截断的 JSON（补齐引号、括号、大括号）
  *
  * @param {string} text - AI 返回的原始文本
  * @returns {object} 解析后的 JSON 对象
@@ -272,9 +274,16 @@ export function robustJSONParse(text) {
   // 找到第一个 { 和最后一个 }
   const start = candidate.indexOf('{');
   const end = candidate.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('未找到 JSON 对象边界');
+  if (start === -1) {
+    throw new Error('未找到 JSON 对象边界（缺少 "{"）');
   }
+
+  // 如果找不到 }，说明 JSON 被截断了，尝试自动补全
+  if (end === -1 || end <= start) {
+    console.warn('[robustJSONParse] JSON 可能被截断，尝试自动补全...');
+    return repairAndParse(candidate.slice(start));
+  }
+
   let jsonStr = candidate.slice(start, end + 1);
   try {
     return JSON.parse(jsonStr);
@@ -289,7 +298,69 @@ export function robustJSONParse(text) {
         return '\\u' + code.toString(16).padStart(4, '0');
       });
     });
-    return JSON.parse(jsonStr);
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      // 仍然失败，尝试自动补全截断的 JSON
+      console.warn('[robustJSONParse] 标准解析失败，尝试自动补全...');
+      return repairAndParse(candidate.slice(start));
+    }
+  }
+}
+
+/**
+ * 尝试修复并解析截断的 JSON
+ * 策略：从后往前扫描，补齐未闭合的引号、方括号、大括号
+ */
+function repairAndParse(jsonStr) {
+  // 先转义字符串值中的裸控制字符
+  jsonStr = jsonStr.replace(/"(?:\\.|[^"\\])*"/g, (match) => {
+    return match.replace(/[\x00-\x1f]/g, (ch) => {
+      const code = ch.charCodeAt(0);
+      if (code === 10) return '\\n';
+      if (code === 13) return '\\r';
+      if (code === 9) return '\\t';
+      return '\\u' + code.toString(16).padStart(4, '0');
+    });
+  });
+
+  // 统计未闭合的符号
+  let inString = false;
+  let escape = false;
+  const stack = []; // 跟踪 { 和 [
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    const ch = jsonStr[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\') { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{' || ch === '[') stack.push(ch);
+    if (ch === '}' || ch === ']') stack.pop();
+  }
+
+  // 如果在字符串中间被截断，先闭合引号
+  let repaired = jsonStr;
+  if (inString) {
+    repaired += '"';
+  }
+
+  // 去掉末尾可能的不完整键值（如 "key": 或 "key": val 不完整）
+  // 尝试截掉最后一个不完整的逗号或冒号
+  repaired = repaired.replace(/[\s,:]+$/, '');
+
+  // 按入栈顺序的逆序补全
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i] === '{') repaired += '}';
+    if (stack[i] === '[') repaired += ']';
+  }
+
+  try {
+    const result = JSON.parse(repaired);
+    console.warn('[robustJSONParse] ✅ 自动补全成功，已解析截断的 JSON');
+    return result;
+  } catch (err) {
+    throw new Error(`JSON 解析失败（含自动补全）：${err.message}`);
   }
 }
 
