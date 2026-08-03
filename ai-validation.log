@@ -9,6 +9,10 @@ You can learn more, including how to opt-out if you'd not like to participate in
 https://nextjs.org/telemetry
 
 
+./app/admin/auto-content/page.tsx
+52:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+92:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
 ./app/admin/oauth-apps/page.tsx
 363:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 663:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
@@ -22,13 +26,18 @@ https://nextjs.org/telemetry
 167:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
 ./app/admin/settings/security/page.tsx
-77:6  Warning: React Hook useEffect has a missing dependency: 'fetchGithubConfig'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+32:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+85:6  Warning: React Hook useEffect has a missing dependency: 'fetchGithubConfig'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+531:73  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
 ./app/admin/settings/sponsor/page.tsx
 167:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
 ./app/agreements/[type]/page.tsx
 7:8  Warning: 'toast' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/auto-content-creator/route.ts
+112:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
 ./app/api/admin/database/backup/route.ts
 74:74  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
@@ -37,10 +46,11 @@ https://nextjs.org/telemetry
 7:3  Warning: 'testConnection' is defined but never used.  @typescript-eslint/no-unused-vars
 
 ./app/api/admin/database/restore/route.ts
-55:7  Warning: 'BIGINT_FIELDS' is assigned a value but never used.  @typescript-eslint/no-unused-vars
-157:42  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-182:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-202:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+151:42  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+153:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+176:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+196:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+198:18  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
 ./app/api/admin/database/route.ts
 138:9  Warning: 'dbInfo' is never reassigned. Use 'const' instead.  prefer-const
@@ -49,16 +59,24 @@ https://nextjs.org/telemetry
 91:9  Warning: 'finalSlug' is never reassigned. Use 'const' instead.  prefer-const
 
 ./app/api/admin/test-email/route.ts
-85:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+75:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
 ./app/api/admin/trigger-all-workflows/route.ts
-67:17  Warning: 'errorText' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+69:17  Warning: 'errorText' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/ai-agent/register/route.ts
+135:11  Warning: 'agentUrl' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 
 ./app/api/collab/github/merge-pr/route.ts
 81:7  Warning: Unexpected console statement.  no-console
 
+./app/api/collab/projects/[id]/route.ts
+106:9  Warning: 'taskSummary' is never reassigned. Use 'const' instead.  prefer-const
+129:9  Warning: 'contributionSummary' is never reassigned. Use 'const' instead.  prefer-const
+152:9  Warning: 'viewCount' is never reassigned. Use 'const' instead.  prefer-const
+
 ./app/api/forum/posts/route.ts
-195:9  Warning: 'tagEntries' is never reassigned. Use 'const' instead.  prefer-const
+262:9  Warning: 'tagEntries' is never reassigned. Use 'const' instead.  prefer-const
 
 ./app/api/github/search/route.ts
 160:51  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
@@ -70,15 +88,15 @@ https://nextjs.org/telemetry
 4:10  Warning: 'generateToken' is defined but never used.  @typescript-eslint/no-unused-vars
 
 ./app/collab/[id]/page.tsx
-233:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-342:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-362:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-789:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-813:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-1051:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-1235:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-1464:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-1986:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+237:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+346:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+366:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+793:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+817:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1057:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1241:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1470:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1992:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
 ./app/collab/new/page.tsx
 179:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
@@ -110,7 +128,7 @@ https://nextjs.org/telemetry
 ./app/forum/page.tsx
 78:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 151:69  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
-195:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+207:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
 ./app/forum/post/[id]/edit/page.tsx
 82:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
@@ -129,7 +147,7 @@ https://nextjs.org/telemetry
 377:59  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
 ./app/layout.tsx
-76:21  Warning: 'siteDescription' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+123:21  Warning: 'siteDescription' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 
 ./app/notifications/page.tsx
 83:64  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
@@ -223,8 +241,21 @@ https://nextjs.org/telemetry
 854:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 952:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
+./lib/email.ts
+92:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+94:91  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+165:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
 ./lib/env.ts
-322:3  Warning: Unexpected console statement.  no-console
+321:3  Warning: Unexpected console statement.  no-console
+
+./lib/external-db.ts
+5:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+15:91  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+24:10  Warning: 'pgNotAvailableError' is defined but never used.  @typescript-eslint/no-unused-vars
+196:49  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+245:52  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+288:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
 
 ./lib/github-url.ts
 42:13  Warning: 'source' is assigned a value but never used.  @typescript-eslint/no-unused-vars
@@ -236,70 +267,64 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
 > ethhy-website@1.0.0 build
 > next build
 
+ ⚠ Invalid next.config.js options detected: 
+ ⚠     Unrecognized key(s) in object: 'serverExternalPackages'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
   ▲ Next.js 14.2.35
+  - Environments: .env
 
    Creating an optimized production build ...
+ ⚠ Found lockfile missing swc dependencies, run next locally to automatically patch
+ ⚠ Found lockfile missing swc dependencies, run next locally to automatically patch
+ ⚠ Found lockfile missing swc dependencies, run next locally to automatically patch
  ✓ Compiled successfully
    Skipping linting
    Checking validity of types ...
    Collecting page data ...
+ ⚠ Found lockfile missing swc dependencies, run next locally to automatically patch
 ━━━━━━━━━━━━━━ 环境变量配置摘要 ━━━━━━━━━━━━━━
   运行环境       : production
   DATABASE_URL   : postgresql://user:****@localhost:5432/ethhy?schema=public
   JWT_SECRET     : ci-o...cret（长度 18） [来源: env]
   APP_URL        : http://localhost:3000 [来源: env]
-  ADMIN_USERNAME : admin (默认)
-  ADMIN_PASSWORD : (默认)
-  ADMIN_EMAIL    : admin@ethhy.com (默认)
+  ADMIN_USERNAME : admin
+  ADMIN_PASSWORD : **** (已配置)
+  ADMIN_EMAIL    : admin@ethhy.com
   GITHUB OAuth   : (未配置)
   GITHUB_TOKEN   : 已配置 (只读, 提高API限速)
-  Vercel KV 限流 : (未启用，使用内存限流)
+  RESEND_API_KEY : (未配置, 邮件功能不可用)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ━━━━━━━━━━━━━━ 环境变量配置摘要 ━━━━━━━━━━━━━━
   运行环境       : production
   DATABASE_URL   : postgresql://user:****@localhost:5432/ethhy?schema=public
   JWT_SECRET     : ci-o...cret（长度 18） [来源: env]
   APP_URL        : http://localhost:3000 [来源: env]
-  ADMIN_USERNAME : admin (默认)
-  ADMIN_PASSWORD : (默认)
-  ADMIN_EMAIL    : admin@ethhy.com (默认)
+  ADMIN_USERNAME : admin
+  ADMIN_PASSWORD : **** (已配置)
+  ADMIN_EMAIL    : admin@ethhy.com
   GITHUB OAuth   : (未配置)
   GITHUB_TOKEN   : 已配置 (只读, 提高API限速)
-  Vercel KV 限流 : (未启用，使用内存限流)
+  RESEND_API_KEY : (未配置, 邮件功能不可用)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ━━━━━━━━━━━━━━ 环境变量配置摘要 ━━━━━━━━━━━━━━
   运行环境       : production
   DATABASE_URL   : postgresql://user:****@localhost:5432/ethhy?schema=public
   JWT_SECRET     : ci-o...cret（长度 18） [来源: env]
   APP_URL        : http://localhost:3000 [来源: env]
-  ADMIN_USERNAME : admin (默认)
-  ADMIN_PASSWORD : (默认)
-  ADMIN_EMAIL    : admin@ethhy.com (默认)
+  ADMIN_USERNAME : admin
+  ADMIN_PASSWORD : **** (已配置)
+  ADMIN_EMAIL    : admin@ethhy.com
   GITHUB OAuth   : (未配置)
   GITHUB_TOKEN   : 已配置 (只读, 提高API限速)
-  Vercel KV 限流 : (未启用，使用内存限流)
+  RESEND_API_KEY : (未配置, 邮件功能不可用)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Generating static pages (0/114) ...
-[BACKUP ERROR] B [Error]: Dynamic server usage: Route /api/admin/database/backup couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
-    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
-    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3468)
-    at h (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3773)
-    at d (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:1502)
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
-    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
-    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
-    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093) {
-  description: "Route /api/admin/database/backup couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
-  digest: 'DYNAMIC_SERVER_USAGE'
-}
+   Generating static pages (0/126) ...
 [LICENSE LOGS GET ERROR] B [Error]: Dynamic server usage: Route /api/admin/licenses/logs couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3468)
-    at h (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3773)
-    at l (/home/runner/work/shouye/shouye/.next/server/app/api/admin/licenses/logs/route.js:1:755)
+    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:1:4279)
+    at d (/home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:1:4584)
+    at u (/home/runner/work/shouye/shouye/.next/server/app/api/admin/licenses/logs/route.js:1:1451)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -311,9 +336,9 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
 [ADMIN MONITORING ERROR] B [Error]: Dynamic server usage: Route /api/admin/monitoring couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at E (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:491)
-    at p (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:796)
-    at l (/home/runner/work/shouye/shouye/.next/server/app/api/admin/monitoring/route.js:1:869)
+    at d (/home/runner/work/shouye/shouye/.next/server/app/api/admin/ai-agent/cleanup/route.js:1:5097)
+    at h (/home/runner/work/shouye/shouye/.next/server/app/api/admin/ai-agent/cleanup/route.js:1:5402)
+    at u (/home/runner/work/shouye/shouye/.next/server/app/api/admin/monitoring/route.js:1:1578)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -325,9 +350,9 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
 [ADMIN REPORTS LIST ERROR] B [Error]: Dynamic server usage: Route /api/admin/reports couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3468)
-    at h (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3773)
-    at p (/home/runner/work/shouye/shouye/.next/server/app/api/admin/reports/route.js:1:753)
+    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3698)
+    at h (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:4003)
+    at u (/home/runner/work/shouye/shouye/.next/server/app/api/admin/reports/route.js:1:1419)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -339,9 +364,9 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
 [ADMIN STATS ERROR] B [Error]: Dynamic server usage: Route /api/admin/stats couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at E (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:491)
-    at p (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:796)
-    at d (/home/runner/work/shouye/shouye/.next/server/app/api/admin/stats/route.js:1:755)
+    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3698)
+    at h (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:4003)
+    at u (/home/runner/work/shouye/shouye/.next/server/app/api/admin/stats/route.js:1:1411)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -350,12 +375,26 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
   description: "Route /api/admin/stats couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
-   Generating static pages (28/114) 
+[BACKUP ERROR] B [Error]: Dynamic server usage: Route /api/admin/database/backup couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:1:4279)
+    at d (/home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:1:4584)
+    at c (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:2236)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093) {
+  description: "Route /api/admin/database/backup couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages (31/126) 
 [FEED ERROR] B [Error]: Dynamic server usage: Route /api/forum/feed couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at E (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:491)
-    at c (/home/runner/work/shouye/shouye/.next/server/app/api/forum/feed/route.js:1:755)
+    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:1:4279)
+    at i (/home/runner/work/shouye/shouye/.next/server/app/api/forum/feed/route.js:1:1406)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -368,7 +407,7 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
 [REPUTATION ERROR] B [Error]: Dynamic server usage: Route /api/forum/reputation couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at p (/home/runner/work/shouye/shouye/.next/server/app/api/forum/reputation/route.js:1:777)
+    at i (/home/runner/work/shouye/shouye/.next/server/app/api/forum/reputation/route.js:1:1457)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -379,24 +418,10 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
   description: "Route /api/forum/reputation couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
-[FORUM SEARCH ERROR] B [Error]: Dynamic server usage: Route /api/forum/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
-    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
-    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at d (/home/runner/work/shouye/shouye/.next/server/app/api/forum/search/route.js:1:1059)
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
-    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
-    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
-    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
-    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
-  description: "Route /api/forum/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
-  digest: 'DYNAMIC_SERVER_USAGE'
-}
 [RSS ERROR] B [Error]: Dynamic server usage: Route /api/forum/rss couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at p (/home/runner/work/shouye/shouye/.next/server/app/api/forum/rss/route.js:1:739)
+    at u (/home/runner/work/shouye/shouye/.next/server/app/api/forum/rss/route.js:1:1385)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -407,10 +432,24 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
   description: "Route /api/forum/rss couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
+[FORUM SEARCH ERROR] B [Error]: Dynamic server usage: Route /api/forum/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at c (/home/runner/work/shouye/shouye/.next/server/app/api/forum/search/route.js:1:1698)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/forum/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
 [GITHUB FILE ERROR] B [Error]: Dynamic server usage: Route /api/github/file couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at l (/home/runner/work/shouye/shouye/.next/server/app/api/github/file/route.js:1:801)
+    at u (/home/runner/work/shouye/shouye/.next/server/app/api/github/file/route.js:1:1457)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -424,7 +463,7 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
 [GITHUB SEARCH ERROR] B [Error]: Dynamic server usage: Route /api/github/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at p (/home/runner/work/shouye/shouye/.next/server/app/api/github/search/route.js:1:801)
+    at u (/home/runner/work/shouye/shouye/.next/server/app/api/github/search/route.js:1:1467)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -435,24 +474,10 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
   description: "Route /api/github/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
-[OAUTH APP-INFO ERROR] B [Error]: Dynamic server usage: Route /api/oauth/app-info couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
-    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
-    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at u (/home/runner/work/shouye/shouye/.next/server/app/api/oauth/app-info/route.js:1:605)
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
-    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
-    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
-    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
-    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
-  description: "Route /api/oauth/app-info couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
-  digest: 'DYNAMIC_SERVER_USAGE'
-}
 [OAUTH USERINFO ERROR] B [Error]: Dynamic server usage: Route /api/oauth/userinfo couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at p (/home/runner/work/shouye/shouye/.next/server/app/api/oauth/userinfo/route.js:1:584)
+    at a (/home/runner/work/shouye/shouye/.next/server/app/api/oauth/userinfo/route.js:1:1255)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -463,10 +488,24 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
   description: "Route /api/oauth/userinfo couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
+[OAUTH APP-INFO ERROR] B [Error]: Dynamic server usage: Route /api/oauth/app-info couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at i (/home/runner/work/shouye/shouye/.next/server/app/api/oauth/app-info/route.js:1:1277)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103 {
+  description: "Route /api/oauth/app-info couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
 [SEARCH ERROR] B [Error]: Dynamic server usage: Route /api/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at l (/home/runner/work/shouye/shouye/.next/server/app/api/search/route.js:1:605)
+    at i (/home/runner/work/shouye/shouye/.next/server/app/api/search/route.js:1:1237)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -477,71 +516,36 @@ info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/d
   description: "Route /api/search couldn't be rendered statically because it used `request.url`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
-[PUBLIC SETTINGS GET ERROR] PrismaClientInitializationError: 
-Invalid `prisma.systemSetting.findMany()` invocation:
-
-
-Can't reach database server at `localhost:5432`
-
-Please make sure your database server is running at `localhost:5432`.
-    at $n.handleRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:7615)
-    at $n.handleAndLogRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6623)
-    at $n.request (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6307)
-    at async l (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async l (/home/runner/work/shouye/shouye/.next/server/app/api/settings/route.js:1:663)
-    at async /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
-    at async e_.execute (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
-    at async e_.handle (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
-    at async exportAppRoute (/home/runner/work/shouye/shouye/node_modules/next/dist/export/routes/app-route.js:77:26)
-    at async exportPageImpl (/home/runner/work/shouye/shouye/node_modules/next/dist/export/worker.js:175:20) {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
-[SPONSOR SETTINGS GET ERROR] PrismaClientInitializationError: 
-Invalid `prisma.systemSetting.findMany()` invocation:
-
-
-Can't reach database server at `localhost:5432`
-
-Please make sure your database server is running at `localhost:5432`.
-    at $n.handleRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:7615)
-    at $n.handleAndLogRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6623)
-    at $n.request (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6307)
-    at async l (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async l (/home/runner/work/shouye/shouye/.next/server/app/api/settings/sponsor/route.js:1:668)
-    at async /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
-    at async e_.execute (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
-    at async e_.handle (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
-    at async exportAppRoute (/home/runner/work/shouye/shouye/node_modules/next/dist/export/routes/app-route.js:77:26)
-    at async exportPageImpl (/home/runner/work/shouye/shouye/node_modules/next/dist/export/worker.js:175:20) {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
-[PUBLIC STATS ERROR] PrismaClientInitializationError: 
-Invalid `prisma.tool.count()` invocation:
-
-
-Can't reach database server at `localhost:5432`
-
-Please make sure your database server is running at `localhost:5432`.
-    at $n.handleRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:7615)
-    at $n.handleAndLogRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6623)
-    at $n.request (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6307)
-    at async l (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async Promise.all (index 0)
-    at async p (/home/runner/work/shouye/shouye/.next/server/app/api/stats/route.js:1:588)
-    at async /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
-    at async e_.execute (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
-    at async e_.handle (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
-    at async exportAppRoute (/home/runner/work/shouye/shouye/node_modules/next/dist/export/routes/app-route.js:77:26) {
-  clientVersion: '5.22.0',
-  errorCode: undefined
-}
+[PUBLIC SETTINGS GET ERROR] Error: DATABASE_URL 未配置。请在环境变量中设置 Turso 数据库连接地址。
+格式：libsql://your-db.turso.io
+    at /home/runner/work/shouye/shouye/.next/server/app/api/admin/ai-agent/cleanup/route.js:12:581
+    at Object.get (/home/runner/work/shouye/shouye/.next/server/app/api/admin/ai-agent/cleanup/route.js:12:662)
+    at a (/home/runner/work/shouye/shouye/.next/server/app/api/settings/route.js:1:1342)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103
+[SPONSOR SETTINGS GET ERROR] Error: DATABASE_URL 未配置。请在环境变量中设置 Turso 数据库连接地址。
+格式：libsql://your-db.turso.io
+    at /home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:12:581
+    at Object.get (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:12:662)
+    at i (/home/runner/work/shouye/shouye/.next/server/app/api/settings/sponsor/route.js:1:1388)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103
+   Generating static pages (62/126) 
 [AUTHORIZE STATUS ERROR] B [Error]: Dynamic server usage: Route /api/user/authorize-status couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3468)
-    at l (/home/runner/work/shouye/shouye/.next/server/app/api/user/authorize-status/route.js:1:755)
+    at d (/home/runner/work/shouye/shouye/.next/server/app/api/admin/ai-agent/cleanup/route.js:1:5097)
+    at i (/home/runner/work/shouye/shouye/.next/server/app/api/user/authorize-status/route.js:1:1461)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -551,26 +555,11 @@ Please make sure your database server is running at `localhost:5432`.
   description: "Route /api/user/authorize-status couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
-   Generating static pages (56/114) 
-[USER LIKES ERROR] B [Error]: Dynamic server usage: Route /api/user/likes couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
-    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
-    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at E (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:491)
-    at l (/home/runner/work/shouye/shouye/.next/server/app/api/user/likes/route.js:1:755)
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
-    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
-    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
-    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
-    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
-    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854) {
-  description: "Route /api/user/likes couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
-  digest: 'DYNAMIC_SERVER_USAGE'
-}
 [USER LICENSE LOGS ERROR] B [Error]: Dynamic server usage: Route /api/user/licenses/logs couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at E (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:491)
-    at l (/home/runner/work/shouye/shouye/.next/server/app/api/user/licenses/logs/route.js:1:755)
+    at d (/home/runner/work/shouye/shouye/.next/server/app/api/admin/ai-agent/cleanup/route.js:1:5097)
+    at u (/home/runner/work/shouye/shouye/.next/server/app/api/user/licenses/logs/route.js:1:1445)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -580,25 +569,25 @@ Please make sure your database server is running at `localhost:5432`.
   description: "Route /api/user/licenses/logs couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
-[USER PROFILE GET ERROR] B [Error]: Dynamic server usage: Route /api/user/profile couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+[USER LIKES ERROR] B [Error]: Dynamic server usage: Route /api/user/likes couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at E (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:491)
-    at v (/home/runner/work/shouye/shouye/.next/server/app/api/user/profile/route.js:1:1285)
+    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:1:4279)
+    at i (/home/runner/work/shouye/shouye/.next/server/app/api/user/likes/route.js:1:1406)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
     at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
     at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
     at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854) {
-  description: "Route /api/user/profile couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  description: "Route /api/user/likes couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
 [USER ORDERS LIST ERROR] B [Error]: Dynamic server usage: Route /api/user/orders couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
     at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
     at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
-    at E (/home/runner/work/shouye/shouye/.next/server/chunks/9689.js:1:491)
-    at p (/home/runner/work/shouye/shouye/.next/server/app/api/user/orders/route.js:1:755)
+    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:1:4279)
+    at i (/home/runner/work/shouye/shouye/.next/server/app/api/user/orders/route.js:1:1411)
     at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
     at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
     at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
@@ -608,35 +597,42 @@ Please make sure your database server is running at `localhost:5432`.
   description: "Route /api/user/orders couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
   digest: 'DYNAMIC_SERVER_USAGE'
 }
-   Generating static pages (85/114) 
-[PRODUCTS LIST ERROR] PrismaClientInitializationError: 
-Invalid `prisma.product.findMany()` invocation:
-
-
-Can't reach database server at `localhost:5432`
-
-Please make sure your database server is running at `localhost:5432`.
-    at $n.handleRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:7615)
-    at $n.handleAndLogRequestError (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6623)
-    at $n.request (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:121:6307)
-    at async l (/home/runner/work/shouye/shouye/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async u (/home/runner/work/shouye/shouye/.next/server/app/api/products/route.js:1:610)
-    at async /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
-    at async e_.execute (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
-    at async e_.handle (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
-    at async exportAppRoute (/home/runner/work/shouye/shouye/node_modules/next/dist/export/routes/app-route.js:77:26)
-    at async exportPageImpl (/home/runner/work/shouye/shouye/node_modules/next/dist/export/worker.js:175:20) {
-  clientVersion: '5.22.0',
-  errorCode: undefined
+[USER PROFILE GET ERROR] B [Error]: Dynamic server usage: Route /api/user/profile couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at V (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:21778)
+    at Object.get (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:29465)
+    at A (/home/runner/work/shouye/shouye/.next/server/app/api/admin/database/backup/route.js:1:3698)
+    at l (/home/runner/work/shouye/shouye/.next/server/app/api/user/profile/route.js:1:1437)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854) {
+  description: "Route /api/user/profile couldn't be rendered statically because it used `request.headers`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
 }
- ✓ Generating static pages (114/114)
+   Generating static pages (94/126) 
+[PRODUCTS LIST ERROR] Error: DATABASE_URL 未配置。请在环境变量中设置 Turso 数据库连接地址。
+格式：libsql://your-db.turso.io
+    at /home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:12:581
+    at Object.get (/home/runner/work/shouye/shouye/.next/server/app/api/admin/auto-content-creator/route.js:12:662)
+    at o (/home/runner/work/shouye/shouye/.next/server/app/api/products/route.js:1:1289)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:7062)
+    at ContextAPI.with (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:518)
+    at NoopTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18093)
+    at ProxyTracer.startActiveSpan (/home/runner/work/shouye/shouye/node_modules/next/dist/compiled/@opentelemetry/api/index.js:1:18854)
+    at /home/runner/work/shouye/shouye/node_modules/next/dist/server/lib/trace/tracer.js:122:103
+ ✓ Generating static pages (126/126)
    Finalizing page optimization ...
    Collecting build traces ...
 
 Route (app)                                              Size     First Load JS
 ┌ ○ /                                                    6.67 kB         111 kB
 ├ ○ /_not-found                                          883 B          96.8 kB
-├ ○ /admin                                               2.08 kB         116 kB
+├ ○ /admin                                               2.89 kB         117 kB
+├ ○ /admin/auto-content                                  3.14 kB         117 kB
 ├ ○ /admin/database                                      11.8 kB         125 kB
 ├ ○ /admin/forum/categories                              2.92 kB         117 kB
 ├ ○ /admin/forum/comments                                3.51 kB         117 kB
@@ -653,7 +649,7 @@ Route (app)                                              Size     First Load JS
 ├ ○ /admin/settings/agreements                           5.36 kB         119 kB
 ├ ○ /admin/settings/appearance                           2 kB            116 kB
 ├ ○ /admin/settings/general                              1.52 kB         115 kB
-├ ○ /admin/settings/security                             4.68 kB         118 kB
+├ ○ /admin/settings/security                             5.74 kB         119 kB
 ├ ○ /admin/settings/seo                                  1.51 kB         115 kB
 ├ ○ /admin/settings/sponsor                              2.58 kB         116 kB
 ├ ○ /admin/tools                                         3.53 kB         117 kB
@@ -663,6 +659,9 @@ Route (app)                                              Size     First Load JS
 ├ ○ /admin/users                                         4.37 kB         118 kB
 ├ ○ /admin/users/logs                                    3 kB            117 kB
 ├ ƒ /agreements/[type]                                   4.45 kB         144 kB
+├ ○ /ai-agents                                           0 B                0 B
+├ ƒ /api/admin/ai-agent/cleanup                          0 B                0 B
+├ ƒ /api/admin/auto-content-creator                      0 B                0 B
 ├ ƒ /api/admin/auto-iteration                            0 B                0 B
 ├ ƒ /api/admin/database                                  0 B                0 B
 ├ ƒ /api/admin/database/backup                           0 B                0 B
@@ -671,6 +670,7 @@ Route (app)                                              Size     First Load JS
 ├ ƒ /api/admin/database/external/[id]/query              0 B                0 B
 ├ ƒ /api/admin/database/external/[id]/tables             0 B                0 B
 ├ ƒ /api/admin/database/restore                          0 B                0 B
+├ ƒ /api/admin/deploy                                    0 B                0 B
 ├ ƒ /api/admin/free-dashboard                            0 B                0 B
 ├ ƒ /api/admin/licenses                                  0 B                0 B
 ├ ƒ /api/admin/licenses/domains                          0 B                0 B
@@ -692,6 +692,8 @@ Route (app)                                              Size     First Load JS
 ├ ƒ /api/admin/upload                                    0 B                0 B
 ├ ƒ /api/admin/users                                     0 B                0 B
 ├ ƒ /api/agreements                                      0 B                0 B
+├ ƒ /api/ai-agent/register                               0 B                0 B
+├ ○ /api/ai-welcome                                      0 B                0 B
 ├ ƒ /api/auth                                            0 B                0 B
 ├ ƒ /api/auth/github                                     0 B                0 B
 ├ ƒ /api/auth/github/callback                            0 B                0 B
@@ -714,7 +716,9 @@ Route (app)                                              Size     First Load JS
 ├ ƒ /api/collab/projects/[id]/leave                      0 B                0 B
 ├ ƒ /api/collab/projects/[id]/tasks                      0 B                0 B
 ├ ƒ /api/collab/projects/[id]/tasks/[taskId]             0 B                0 B
-├ ƒ /api/community/home                                  0 B                0 B
+├ ○ /api/community/debug                                 0 B                0 B
+├ ○ /api/community/home                                  0 B                0 B
+├ ƒ /api/debug/db-check                                  0 B                0 B
 ├ ƒ /api/download                                        0 B                0 B
 ├ ƒ /api/forum/categories                                0 B                0 B
 ├ ƒ /api/forum/comments                                  0 B                0 B
@@ -741,7 +745,7 @@ Route (app)                                              Size     First Load JS
 ├ ƒ /api/products                                        0 B                0 B
 ├ ƒ /api/products/[slug]                                 0 B                0 B
 ├ ƒ /api/products/[slug]/discussions                     0 B                0 B
-├ ƒ /api/schedule-config                                 0 B                0 B
+├ ○ /api/schedule-config                                 0 B                0 B
 ├ ƒ /api/search                                          0 B                0 B
 ├ ○ /api/settings                                        0 B                0 B
 ├ ○ /api/settings/sponsor                                0 B                0 B
@@ -758,12 +762,12 @@ Route (app)                                              Size     First Load JS
 ├ ƒ /api/user/orders/create                              0 B                0 B
 ├ ƒ /api/user/profile                                    0 B                0 B
 ├ ○ /collab                                              6.78 kB         116 kB
-├ ƒ /collab/[id]                                         24.4 kB         192 kB
+├ ƒ /collab/[id]                                         24.5 kB         192 kB
 ├ ○ /collab/guide                                        10.5 kB         115 kB
 ├ ○ /collab/new                                          7.98 kB         118 kB
 ├ ○ /docs                                                6.45 kB         111 kB
-├ ○ /forum                                               4 kB            119 kB
-├ ƒ /forum/category/[slug]                               3.13 kB         119 kB
+├ ○ /forum                                               2.9 kB          121 kB
+├ ƒ /forum/category/[slug]                               1.87 kB         120 kB
 ├ ○ /forum/my/comments                                   3.66 kB         113 kB
 ├ ○ /forum/my/posts                                      1.45 kB         117 kB
 ├ ○ /forum/new                                           1.35 kB         176 kB
@@ -791,7 +795,7 @@ Route (app)                                              Size     First Load JS
   └ other shared chunks (total)                          225 B
 
 
-ƒ Middleware                                             26.9 kB
+ƒ Middleware                                             26.8 kB
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
