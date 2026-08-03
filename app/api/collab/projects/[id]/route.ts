@@ -72,19 +72,29 @@ export async function GET(
       );
     }
 
-    // ---- 统计：任务数、已完成任务数、贡献数 ----
-    const [taskStats, contributionStats] = await Promise.all([
-      prisma.collabTask.groupBy({
+    // ---- 统计：任务数、已完成任务数、贡献数（顺序执行，避免并发连接失败） ----
+    let taskStats: { status: string; _count: { status: number } }[] = [];
+    let contributionStats: { status: string; _count: { status: number } }[] = [];
+
+    try {
+      taskStats = await prisma.collabTask.groupBy({
         by: ['status'],
         where: { projectId: id },
         _count: { status: true },
-      }),
-      prisma.collabContribution.groupBy({
+      });
+    } catch (err) {
+      console.error('[COLLAB TASK STATS ERROR]', err);
+    }
+
+    try {
+      contributionStats = await prisma.collabContribution.groupBy({
         by: ['status'],
         where: { projectId: id },
         _count: { status: true },
-      }),
-    ]);
+      });
+    } catch (err) {
+      console.error('[COLLAB CONTRIBUTION STATS ERROR]', err);
+    }
 
     // 任务统计聚合
     const taskSummary = {
@@ -212,10 +222,22 @@ export async function GET(
       joinedAt: m.joinedAt,
     }));
 
+    // 解析 JSON 数组或逗号分隔字符串
+    const parseListValue = (value: string | null | undefined): string[] => {
+      if (!value || typeof value !== 'string') return [];
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch { /* not JSON, fall through */ }
+      return trimmed.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+    };
+
     return NextResponse.json({
       ...project,
-      techStack: project.techStack ? JSON.parse(project.techStack) : [],
-      tags: project.tags ? JSON.parse(project.tags) : [],
+      techStack: parseListValue(project.techStack),
+      tags: parseListValue(project.tags),
       viewCount: updated.viewCount,
       // 关联字段（前端 ProjectDetail 期望的扁平结构）
       owner,
@@ -374,8 +396,8 @@ export async function PATCH(
 
     return NextResponse.json({
       ...project,
-      techStack: project.techStack ? JSON.parse(project.techStack) : [],
-      tags: project.tags ? JSON.parse(project.tags) : [],
+      techStack: project.techStack ? (() => { try { const p = JSON.parse(project.techStack); return Array.isArray(p) ? p : project.techStack.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean); } catch { return project.techStack.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean); } })() : [],
+      tags: project.tags ? (() => { try { const p = JSON.parse(project.tags); return Array.isArray(p) ? p : project.tags.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean); } catch { return project.tags.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean); } })() : [],
     });
   } catch (error) {
     console.error('[COLLAB PROJECT UPDATE ERROR]', error);
