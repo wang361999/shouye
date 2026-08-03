@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
-import { Prisma } from '@prisma/client';
 
 // ============ 所有数据表配置 ============
 interface TableConfig {
-  name: string;           // Prisma 模型名
-  displayName: string;   // 显示名
-  canClean: boolean;      // 是否可清理
-  cleanDescription?: string; // 清理说明
-  timeField?: string;    // 时间字段（按时间清理）
+  name: string;
+  displayName: string;
+  canClean: boolean;
+  cleanDescription?: string;
+  timeField?: string;
 }
 
 const TABLES: TableConfig[] = [
@@ -42,9 +41,8 @@ export async function GET(request: NextRequest) {
     if (admin instanceof Response) return admin;
 
     const { searchParams } = new URL(request.url);
-    const detail = searchParams.get('detail'); // ?detail=tablename 查看单表详情
+    const detail = searchParams.get('detail');
 
-    // ---- 单表详情 ----
     if (detail) {
       return await getTableDetail(detail);
     }
@@ -57,7 +55,7 @@ export async function GET(request: NextRequest) {
           // @ts-expect-error - 动态模型名
           count = await prisma[table.name].count();
         } catch {
-          count = -1; // 表不存在或查询失败
+          count = -1;
         }
         const config = TABLES.find((t) => t.name === table.name)!;
         return {
@@ -70,63 +68,63 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // ---- 数据库大小（PostgreSQL） ----
-    let dbSize = null;
-    let dbSizeDetail = null;
+    // ---- 数据库大小（LibSQL/SQLite）----
+    let dbSize: number | null = null;
+    let dbSizeDetail: { dataBytes: number; indexBytes: number; totalBytes: number } | null = null;
     try {
-      const sizeResult = await prisma.$queryRaw<Array<{ size: bigint }>>`
-        SELECT pg_database_size(current_database()) as size
+      const pageResult = await prisma.$queryRaw<Array<{ page_size: number; page_count: number }>>`
+        SELECT 
+          (SELECT page_size FROM pragma_page_size()) as page_size,
+          (SELECT page_count FROM pragma_page_count()) as page_count
       `;
-      dbSize = Number(sizeResult[0].size);
-
-      // 获取数据库大小明细：数据部分 vs 索引部分 vs TOAST
-      const detailResult = await prisma.$queryRaw<
-        Array<{ heap: bigint; indexes: bigint; toast: bigint; total: bigint }>
-      >`
-        SELECT
-          COALESCE(SUM(pg_relation_size(c.oid, 'main')), 0)::bigint as heap,
-          COALESCE(SUM(pg_relation_size(c.oid, 'fsm') + pg_relation_size(c.oid, 'vm') + pg_relation_size(c.oid, 'init')), 0)::bigint as "fsmVm",
-          COALESCE(SUM(pg_total_relation_size(c.oid) - pg_relation_size(c.oid) - COALESCE(pg_relation_size(reltoastrelid), 0)), 0)::bigint as indexes,
-          COALESCE(SUM(COALESCE(pg_total_relation_size(c.reltoastrelid), 0)), 0)::bigint as toast,
-          pg_database_size(current_database())::bigint as total
-        FROM pg_class c
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname = 'public' AND c.relkind = 'r'
-      `;
-      if (detailResult.length > 0) {
-        const d = detailResult[0];
+      if (pageResult.length > 0) {
+        const p = pageResult[0];
+        const totalBytes = Number(p.page_size) * Number(p.page_count);
+        dbSize = totalBytes;
         dbSizeDetail = {
-          dataBytes: Number(d.heap),       // 数据本体
-          indexBytes: Number(d.indexes),    // 索引
-          toastBytes: Number(d.toast),      // TOAST（大字段存储）
-          totalBytes: Number(d.total),       // 总计
+          dataBytes: totalBytes,
+          indexBytes: 0,
+          totalBytes,
         };
       }
     } catch {
-      // 忽略
+      // PRAGMA 可能在某些 Turso 版本不可用
     }
 
-    // ---- 各表大小（PostgreSQL） ----
+    // ---- 各表大小（LibSQL/SQLite）----
     let tableSizes: Array<{ tableName: string; sizeBytes: number; rowCount: number }> = [];
     try {
       const sizes = await prisma.$queryRaw<
-        Array<{ relname: string; size: bigint; rowEstimate: bigint }>
+        Array<{ name: string; pages: number; rowCount: number }>
       >`
-        SELECT
-          c.relname,
-          pg_total_relation_size(c.oid) as size,
-          c.reltuples::bigint as "rowEstimate"
-        FROM pg_class c
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname = 'public'
-          AND c.relkind = 'r'
-        ORDER BY size DESC
+        SELECT 
+          name,
+          0 as pages,
+          0 as rowCount
+        FROM sqlite_master 
+        WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_prisma%'
+        ORDER BY name
       `;
-      tableSizes = sizes.map((s) => ({
-        tableName: s.relname,
-        sizeBytes: Number(s.size),
-        rowCount: Number(s.rowEstimate),
-      }));
+      // 用实际行数替代大小估算
+      tableSizes = await Promise.all(
+        sizes.map(async (s) => {
+          let rowCount = 0;
+          try {
+            const config = TABLES.find((t) => t.name === s.name);
+            if (config) {
+              // @ts-expect-error - 动态模型名
+              rowCount = await prisma[s.name].count();
+            }
+          } catch {
+            // 忽略
+          }
+          return {
+            tableName: s.name,
+            sizeBytes: 0,
+            rowCount,
+          };
+        })
+      );
     } catch {
       // 忽略
     }
@@ -135,30 +133,22 @@ export async function GET(request: NextRequest) {
     const cleanableEstimates = await getCleanableEstimates();
 
     // ---- 数据库连接信息 ----
-    let dbInfo = { host: 'unknown', database: 'unknown', maxConnections: 0 };
-    try {
-      const settings = await prisma.$queryRaw<
-        Array<{ name: string; setting: string }>
-      >`
-        SELECT name, setting FROM pg_settings
-        WHERE name IN ('max_connections', 'shared_buffers')
-      `;
-      const maxConn = settings.find((s) => s.name === 'max_connections');
-      if (maxConn) dbInfo.maxConnections = parseInt(maxConn.setting, 10);
-    } catch {
-      // 忽略
-    }
+    const dbInfo = {
+      host: process.env.DATABASE_URL?.split('@')?.pop()?.split('/')?.[0] || 'turso',
+      database: process.env.DATABASE_URL?.split('/')?.pop()?.split('?')?.[0] || 'unknown',
+      maxConnections: 0,
+    };
 
     return NextResponse.json({
       tables: tableStats,
       dbSize,
       dbSizeDetail,
-      // Vercel 免费版 PostgreSQL 限额 256MB
-      dbLimitBytes: 256 * 1024 * 1024,
+      dbLimitBytes: 9 * 1024 * 1024 * 1024, // Turso 免费版 9GB
       tableSizes,
       cleanableEstimates,
       dbInfo,
       totalTables: TABLES.length,
+      dbEngine: 'libsql',
     });
   } catch (error) {
     console.error('[DATABASE STATS ERROR]', error);
@@ -169,7 +159,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ============ POST /api/admin/database - 清理数据 ============
+// ============ POST /api/admin/database - 清理/维护 ============
 export async function POST(request: NextRequest) {
   try {
     const admin = adminAuth(request);
@@ -187,13 +177,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'vacuum') {
-      // VACUUM 不能在事务中运行，用 $executeRaw
       try {
-        await prisma.$executeRaw`VACUUM ANALYZE`;
-        return NextResponse.json({ message: 'VACUUM ANALYZE 执行成功' });
+        await prisma.$executeRaw`VACUUM`;
+        return NextResponse.json({ message: 'VACUUM 执行成功，数据库已优化' });
       } catch (error) {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        if (msg.includes('not supported') || msg.includes('syntax error')) {
+          return NextResponse.json(
+            { error: 'Turso/LibSQL HTTP 模式不支持 VACUUM 操作，数据清理功能仍可正常使用' },
+            { status: 400 }
+          );
+        }
         return NextResponse.json(
-          { error: `VACUUM 失败: ${error instanceof Error ? error.message : '未知错误'}` },
+          { error: `VACUUM 失败: ${msg}` },
           { status: 500 }
         );
       }
@@ -202,14 +198,26 @@ export async function POST(request: NextRequest) {
     if (action === 'reindex') {
       try {
         if (tableName) {
-          await prisma.$executeRaw`REINDEX TABLE ${Prisma.raw(tableName)}`;
+          // 白名单校验
+          const config = TABLES.find((t) => t.name === tableName);
+          if (!config) {
+            return NextResponse.json({ error: '无效的表名' }, { status: 400 });
+          }
+          await prisma.$executeRawUnsafe(`REINDEX "${tableName}"`);
           return NextResponse.json({ message: `表 ${tableName} 索引重建成功` });
         }
-        await prisma.$executeRaw`REINDEX DATABASE ${Prisma.raw('CURRENT_DATABASE()')}`;
+        await prisma.$executeRaw`REINDEX`;
         return NextResponse.json({ message: '数据库索引重建成功' });
       } catch (error) {
+        const msg = error instanceof Error ? error.message : '未知错误';
+        if (msg.includes('not supported') || msg.includes('syntax error')) {
+          return NextResponse.json(
+            { error: 'Turso/LibSQL HTTP 模式不支持 REINDEX 操作' },
+            { status: 400 }
+          );
+        }
         return NextResponse.json(
-          { error: `REINDEX 失败: ${error instanceof Error ? error.message : '未知错误'}` },
+          { error: `REINDEX 失败: ${msg}` },
           { status: 500 }
         );
       }
@@ -236,7 +244,6 @@ async function getTableDetail(tableName: string) {
     // @ts-expect-error - 动态模型名
     const total = await prisma[tableName].count();
 
-    // 获取最近10条记录的创建时间
     let recentDates: string[] = [];
     if (config.timeField) {
       try {
@@ -253,7 +260,6 @@ async function getTableDetail(tableName: string) {
       }
     }
 
-    // 各表特殊统计
     let extraStats: Record<string, number> = {};
     if (tableName === 'post') {
       const [published, draft, deleted] = await Promise.all([
@@ -322,59 +328,34 @@ async function getCleanableEstimates() {
   const estimates: Array<{ table: string; label: string; count: number; description: string }> = [];
 
   try {
-    // 已删除帖子
     const deletedPosts = await prisma.post.count({ where: { deletedAt: { not: null } } });
     if (deletedPosts > 0) estimates.push({ table: 'post', label: '已删除帖子', count: deletedPosts, description: '软删除标记的帖子' });
 
-    // 已删除评论
     const deletedComments = await prisma.comment.count({ where: { deletedAt: { not: null } } });
     if (deletedComments > 0) estimates.push({ table: 'comment', label: '已删除评论', count: deletedComments, description: '软删除标记的评论' });
 
-    // 30天前通知
-    const oldNotifications = await prisma.notification.count({
-      where: { createdAt: { lt: days30 } },
-    });
+    const oldNotifications = await prisma.notification.count({ where: { createdAt: { lt: days30 } } });
     if (oldNotifications > 0) estimates.push({ table: 'notification', label: '旧通知', count: oldNotifications, description: '30天前的通知' });
 
-    // 90天前操作日志
-    const oldLogs = await prisma.operationLog.count({
-      where: { createdAt: { lt: days90 } },
-    });
+    const oldLogs = await prisma.operationLog.count({ where: { createdAt: { lt: days90 } } });
     if (oldLogs > 0) estimates.push({ table: 'operationLog', label: '旧操作日志', count: oldLogs, description: '90天前的操作日志' });
 
-    // 过期OAuth授权码
-    const expiredCodes = await prisma.oAuthAuthorizationCode.count({
-      where: { expiresAt: { lt: pastDate } },
-    });
+    const expiredCodes = await prisma.oAuthAuthorizationCode.count({ where: { expiresAt: { lt: pastDate } } });
     if (expiredCodes > 0) estimates.push({ table: 'oAuthAuthorizationCode', label: '过期授权码', count: expiredCodes, description: '已过期的OAuth授权码' });
 
-    // 过期OAuth令牌
-    const expiredTokens = await prisma.oAuthAccessToken.count({
-      where: { expiresAt: { lt: pastDate } },
-    });
+    const expiredTokens = await prisma.oAuthAccessToken.count({ where: { expiresAt: { lt: pastDate } } });
     if (expiredTokens > 0) estimates.push({ table: 'oAuthAccessToken', label: '过期令牌', count: expiredTokens, description: '已过期的访问令牌' });
 
-    // 30天前授权日志
-    const oldLicenseLogs = await prisma.licenseLog.count({
-      where: { createdAt: { lt: days30 } },
-    });
+    const oldLicenseLogs = await prisma.licenseLog.count({ where: { createdAt: { lt: days30 } } });
     if (oldLicenseLogs > 0) estimates.push({ table: 'licenseLog', label: '旧验证日志', count: oldLicenseLogs, description: '30天前的授权验证日志' });
 
-    // 90天前监控数据
-    const oldMonitoringDaily = await prisma.monitoringDaily.count({
-      where: { date: { lt: days90 } },
-    });
+    const oldMonitoringDaily = await prisma.monitoringDaily.count({ where: { date: { lt: days90 } } });
     if (oldMonitoringDaily > 0) estimates.push({ table: 'monitoringDaily', label: '旧监控(日)', count: oldMonitoringDaily, description: '90天前的每日监控数据' });
 
-    const oldMonitoringRoute = await prisma.monitoringRoute.count({
-      where: { date: { lt: days90 } },
-    });
+    const oldMonitoringRoute = await prisma.monitoringRoute.count({ where: { date: { lt: days90 } } });
     if (oldMonitoringRoute > 0) estimates.push({ table: 'monitoringRoute', label: '旧监控(路由)', count: oldMonitoringRoute, description: '90天前的路由监控数据' });
 
-    // 30天前点赞
-    const oldLikes = await prisma.like.count({
-      where: { createdAt: { lt: days30 } },
-    });
+    const oldLikes = await prisma.like.count({ where: { createdAt: { lt: days30 } } });
     if (oldLikes > 0) estimates.push({ table: 'like', label: '旧点赞记录', count: oldLikes, description: '30天前的点赞记录' });
   } catch (error) {
     console.error('[CLEANABLE ESTIMATE ERROR]', error);
@@ -400,87 +381,60 @@ async function cleanTable(tableName: string | undefined, days: number) {
 
   try {
     switch (tableName) {
-      case 'post':
-        // 硬删除已软删除的帖子
-        const deletedPosts = await prisma.post.deleteMany({
-          where: { deletedAt: { not: null } },
-        });
-        deletedCount = deletedPosts.count;
+      case 'post': {
+        const r = await prisma.post.deleteMany({ where: { deletedAt: { not: null } } });
+        deletedCount = r.count;
         break;
-
-      case 'comment':
-        const deletedComments = await prisma.comment.deleteMany({
-          where: { deletedAt: { not: null } },
-        });
-        deletedCount = deletedComments.count;
+      }
+      case 'comment': {
+        const r = await prisma.comment.deleteMany({ where: { deletedAt: { not: null } } });
+        deletedCount = r.count;
         break;
-
-      case 'like':
-        const oldLikes = await prisma.like.deleteMany({
-          where: { createdAt: { lt: cutoff } },
-        });
-        deletedCount = oldLikes.count;
+      }
+      case 'like': {
+        const r = await prisma.like.deleteMany({ where: { createdAt: { lt: cutoff } } });
+        deletedCount = r.count;
         break;
-
-      case 'notification':
-        const oldNotifs = await prisma.notification.deleteMany({
-          where: {
-            OR: [
-              { isRead: true },
-              { createdAt: { lt: cutoff } },
-            ],
-          },
+      }
+      case 'notification': {
+        const r = await prisma.notification.deleteMany({
+          where: { OR: [{ isRead: true }, { createdAt: { lt: cutoff } }] },
         });
-        deletedCount = oldNotifs.count;
+        deletedCount = r.count;
         break;
-
-      case 'operationLog':
-        const oldLogs = await prisma.operationLog.deleteMany({
-          where: { createdAt: { lt: cutoff } },
+      }
+      case 'operationLog': {
+        const r = await prisma.operationLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
+        deletedCount = r.count;
+        break;
+      }
+      case 'oAuthAuthorizationCode': {
+        const r = await prisma.oAuthAuthorizationCode.deleteMany({
+          where: { OR: [{ expiresAt: { lt: now } }, { used: true }] },
         });
-        deletedCount = oldLogs.count;
+        deletedCount = r.count;
         break;
-
-      case 'oAuthAuthorizationCode':
-        const expiredCodes = await prisma.oAuthAuthorizationCode.deleteMany({
-          where: {
-            OR: [
-              { expiresAt: { lt: now } },
-              { used: true },
-            ],
-          },
-        });
-        deletedCount = expiredCodes.count;
+      }
+      case 'oAuthAccessToken': {
+        const r = await prisma.oAuthAccessToken.deleteMany({ where: { expiresAt: { lt: now } } });
+        deletedCount = r.count;
         break;
-
-      case 'oAuthAccessToken':
-        const expiredTokens = await prisma.oAuthAccessToken.deleteMany({
-          where: { expiresAt: { lt: now } },
-        });
-        deletedCount = expiredTokens.count;
+      }
+      case 'licenseLog': {
+        const r = await prisma.licenseLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
+        deletedCount = r.count;
         break;
-
-      case 'licenseLog':
-        const oldLicenseLogs = await prisma.licenseLog.deleteMany({
-          where: { createdAt: { lt: cutoff } },
-        });
-        deletedCount = oldLicenseLogs.count;
+      }
+      case 'monitoringDaily': {
+        const r = await prisma.monitoringDaily.deleteMany({ where: { date: { lt: cutoff } } });
+        deletedCount = r.count;
         break;
-
-      case 'monitoringDaily':
-        const oldDaily = await prisma.monitoringDaily.deleteMany({
-          where: { date: { lt: cutoff } },
-        });
-        deletedCount = oldDaily.count;
+      }
+      case 'monitoringRoute': {
+        const r = await prisma.monitoringRoute.deleteMany({ where: { date: { lt: cutoff } } });
+        deletedCount = r.count;
         break;
-
-      case 'monitoringRoute':
-        const oldRoute = await prisma.monitoringRoute.deleteMany({
-          where: { date: { lt: cutoff } },
-        });
-        deletedCount = oldRoute.count;
-        break;
-
+      }
       default:
         return NextResponse.json({ error: '未实现的清理操作' }, { status: 400 });
     }

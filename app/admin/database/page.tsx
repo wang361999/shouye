@@ -31,7 +31,6 @@ interface CleanableEstimate {
 interface DbSizeDetail {
   dataBytes: number;
   indexBytes: number;
-  toastBytes: number;
   totalBytes: number;
 }
 
@@ -44,6 +43,7 @@ interface DatabaseData {
   cleanableEstimates: CleanableEstimate[];
   dbInfo: { host: string; database: string; maxConnections: number };
   totalTables: number;
+  dbEngine?: string;
 }
 
 // ============ 备份恢复相关类型 ============
@@ -87,6 +87,13 @@ export default function DatabasePage() {
   const [restoring, setRestoring] = useState(false);
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const [confirmRestore, setConfirmRestore] = useState(false);
+
+  // R2 备份状态
+  const [r2BackingUp, setR2BackingUp] = useState(false);
+  const [r2Backups, setR2Backups] = useState<Array<{ key: string; size: number; lastModified: string }>>([]);
+  const [r2Loading, setR2Loading] = useState(false);
+  const [r2Configured, setR2Configured] = useState(false);
+  const [r2DeleteKey, setR2DeleteKey] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!token) return;
@@ -299,6 +306,79 @@ export default function DatabasePage() {
     }
   };
 
+  // ============ R2 备份操作 ============
+  const fetchR2Backups = useCallback(async () => {
+    if (!token) return;
+    setR2Loading(true);
+    try {
+      const res = await adminFetch("/api/admin/database/backup-r2");
+      const json = await res.json();
+      if (res.ok) {
+        setR2Backups(json.backups || []);
+        setR2Configured(json.configured ?? false);
+      } else {
+        setR2Configured(false);
+      }
+    } catch {
+      // 静默处理
+    } finally {
+      setR2Loading(false);
+    }
+  }, [token]);
+
+  const handleR2Backup = async () => {
+    if (!token) return;
+    setR2BackingUp(true);
+    try {
+      const body =
+        selectedTables.size > 0
+          ? { tables: Array.from(selectedTables) }
+          : {};
+      const res = await adminFetch("/api/admin/database/backup-r2", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        toast.success(result.message || "备份已上传到 Cloudflare R2");
+        fetchR2Backups();
+      } else {
+        toast.error(result.error || "R2 备份失败");
+      }
+    } catch {
+      toast.error("网络错误，R2 备份失败");
+    } finally {
+      setR2BackingUp(false);
+    }
+  };
+
+  const handleR2Delete = async (key: string) => {
+    if (!token) return;
+    try {
+      const res = await adminFetch(
+        `/api/admin/database/backup-r2?key=${encodeURIComponent(key)}`,
+        { method: "DELETE" },
+      );
+      const result = await res.json();
+      if (res.ok && result.success) {
+        toast.success("备份已删除");
+        fetchR2Backups();
+      } else {
+        toast.error(result.error || "删除失败");
+      }
+    } catch {
+      toast.error("网络错误");
+    }
+    setR2DeleteKey(null);
+  };
+
+  // 切换到备份 Tab 时加载 R2 备份列表
+  useEffect(() => {
+    if (activeTab === "backup" && token) {
+      fetchR2Backups();
+    }
+  }, [activeTab, token, fetchR2Backups]);
+
   // 格式化文件大小
   function formatBytes(bytes: number): string {
     if (bytes === 0) return "0 B";
@@ -390,7 +470,7 @@ export default function DatabasePage() {
                         💾 数据库空间使用
                       </h2>
                       <span className="text-xs text-gray-400">
-                        Vercel 免费版限制
+                        Turso 免费版限制
                       </span>
                     </div>
 
@@ -477,9 +557,9 @@ export default function DatabasePage() {
                               </div>
                               <div className="text-center">
                                 <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-1" />
-                                <div className="text-xs text-gray-400">TOAST</div>
+                                <div className="text-xs text-gray-400">总计</div>
                                 <div className="text-sm font-semibold text-gray-700">
-                                  {formatBytes(data.dbSizeDetail.toastBytes)}
+                                  {formatBytes(data.dbSizeDetail.totalBytes)}
                                 </div>
                               </div>
                             </div>
@@ -509,9 +589,9 @@ export default function DatabasePage() {
                     highlight={data.cleanableEstimates.length > 0}
                   />
                   <OverviewCard
-                    label="最大连接数"
-                    value={data.dbInfo.maxConnections > 0 ? `${data.dbInfo.maxConnections}` : "未知"}
-                    icon="🔌"
+                    label="数据库引擎"
+                    value={data.dbEngine ? data.dbEngine.toUpperCase() : "LibSQL"}
+                    icon="⚙️"
                   />
                 </div>
 
@@ -778,10 +858,10 @@ export default function DatabasePage() {
                   <div className="bg-white rounded-xl border border-gray-200 p-6">
                     <div className="flex items-center gap-3 mb-3">
                       <span className="text-2xl">🧽</span>
-                      <h3 className="text-sm font-semibold text-gray-800">VACUUM ANALYZE</h3>
+                      <h3 className="text-sm font-semibold text-gray-800">VACUUM</h3>
                     </div>
                     <p className="text-sm text-gray-500 mb-4">
-                      回收已删除数据的空间，更新查询优化器统计信息。建议在大量清理后执行。
+                      回收已删除数据的空间，优化数据库存储。Turso/LibSQL HTTP 模式可能不支持此操作。
                     </p>
                     <button
                       onClick={handleVacuum}
@@ -799,7 +879,7 @@ export default function DatabasePage() {
                       <h3 className="text-sm font-semibold text-gray-800">REINDEX</h3>
                     </div>
                     <p className="text-sm text-gray-500 mb-4">
-                      重建数据库索引，提升查询性能。适用于索引碎片化严重的情况。
+                      重建数据库索引，提升查询性能。Turso/LibSQL HTTP 模式可能不支持此操作。
                     </p>
                     <button
                       onClick={handleReindex}
@@ -817,13 +897,13 @@ export default function DatabasePage() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                     <InfoItem label="数据库总大小" value={data.dbSize ? formatBytes(data.dbSize) : "未知"} />
                     <InfoItem label="数据表数量" value={`${data.totalTables}`} />
-                    <InfoItem label="最大连接数" value={data.dbInfo.maxConnections > 0 ? `${data.dbInfo.maxConnections}` : "未知"} />
+                    <InfoItem label="数据库引擎" value={data.dbEngine ? data.dbEngine.toUpperCase() : "LibSQL"} />
                   </div>
                   {data.dbSizeDetail && (
                     <div className="grid grid-cols-3 gap-4 text-sm mt-4 pt-4 border-t border-gray-100">
                       <InfoItem label="数据本体" value={formatBytes(data.dbSizeDetail.dataBytes)} />
                       <InfoItem label="索引大小" value={formatBytes(data.dbSizeDetail.indexBytes)} />
-                      <InfoItem label="TOAST 大字段" value={formatBytes(data.dbSizeDetail.toastBytes)} />
+                      <InfoItem label="总计大小" value={formatBytes(data.dbSizeDetail.totalBytes)} />
                     </div>
                   )}
                 </div>
@@ -831,8 +911,8 @@ export default function DatabasePage() {
                 {/* 危险说明 */}
                 <div className="px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700">
                   <p className="mb-1">⚠️ 注意事项：</p>
-                  <p>• VACUUM 和 REINDEX 会在数据库上创建锁，执行期间可能影响性能</p>
-                  <p>• 建议在低峰期执行维护操作</p>
+                  <p>• 当前数据库引擎为 Turso/LibSQL，VACUUM 和 REINDEX 可能在 HTTP 模式下不可用</p>
+                  <p>• 数据清理功能可正常使用，不受影响</p>
                   <p>• 清理操作不可恢复，请确认后再执行</p>
                   <p>• 核心数据表（用户、产品、订单等）不支持直接清理</p>
                 </div>
@@ -919,6 +999,126 @@ export default function DatabasePage() {
                     <p>• 备份文件可用于跨环境迁移数据</p>
                     <p>• BigInt 和日期字段已特殊编码，可直接用于恢复</p>
                   </div>
+                </div>
+
+                {/* ---- Cloudflare R2 备份区域 ---- */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">☁️</span>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-800">Cloudflare R2 云备份</h3>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          直接备份到 Cloudflare R2 对象存储，安全可靠
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={fetchR2Backups}
+                      disabled={r2Loading}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      {r2Loading ? "加载中..." : "🔄 刷新"}
+                    </button>
+                  </div>
+
+                  {!r2Configured ? (
+                    <div className="px-4 py-6 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+                      <p className="text-sm text-yellow-700 mb-2">⚠️ R2 未配置</p>
+                      <p className="text-xs text-yellow-600">
+                        请在环境变量中设置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* R2 备份按钮 */}
+                      <button
+                        onClick={handleR2Backup}
+                        disabled={r2BackingUp}
+                        className="w-full px-4 py-3 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 mb-4"
+                      >
+                        {r2BackingUp ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            正在上传到 R2...
+                          </>
+                        ) : (
+                          <>
+                            ☁️ 备份到 Cloudflare R2
+                          </>
+                        )}
+                      </button>
+
+                      {/* R2 备份列表 */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-600 mb-2">
+                          📦 R2 中的备份文件 ({r2Backups.length})
+                        </h4>
+                        {r2Loading ? (
+                          <div className="flex items-center justify-center py-6">
+                            <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+                          </div>
+                        ) : r2Backups.length === 0 ? (
+                          <p className="text-center py-6 text-gray-400 text-sm">
+                            R2 中暂无备份文件
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {r2Backups.map((backup) => (
+                              <div
+                                key={backup.key}
+                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-mono text-gray-700 truncate">
+                                    {backup.key}
+                                  </p>
+                                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                                    <span>{formatBytes(backup.size)}</span>
+                                    {backup.lastModified && (
+                                      <span>
+                                        {new Date(backup.lastModified).toLocaleString("zh-CN")}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {r2DeleteKey === backup.key ? (
+                                  <div className="flex items-center gap-2 ml-2">
+                                    <button
+                                      onClick={() => handleR2Delete(backup.key)}
+                                      className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700"
+                                    >
+                                      确认
+                                    </button>
+                                    <button
+                                      onClick={() => setR2DeleteKey(null)}
+                                      className="px-2 py-1 text-xs text-gray-500 border border-gray-300 rounded hover:bg-gray-50"
+                                    >
+                                      取消
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setR2DeleteKey(backup.key)}
+                                    className="px-2 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 ml-2"
+                                  >
+                                    删除
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4 px-4 py-3 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-700">
+                        <p className="mb-1">☁️ R2 备份说明：</p>
+                        <p>• 备份直接上传到 Cloudflare R2 对象存储</p>
+                        <p>• 备份文件保存在 backups/ 目录下，按时间命名</p>
+                        <p>• R2 免费版提供 10GB 存储空间和免出口流量</p>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* ---- 恢复区域 ---- */}

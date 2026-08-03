@@ -12,8 +12,6 @@ import {
   CardBody,
   Button,
   Textarea,
-  Select,
-  Switch,
   Spinner,
   Badge,
   Icons,
@@ -33,31 +31,11 @@ const WORKFLOWS = [
   { id: "auto-stale-cleanup.yml", name: "过期清理", desc: "清理过期数据", icon: "🧹" },
 ];
 
-// ============ 定时任务定义 ============
-interface ScheduleTask {
-  key: string;
-  hourKey: string;
-  name: string;
-  desc: string;
-  hasTimeSelector: boolean;
-  sharedToggle?: string;
-}
-
-const SCHEDULE_TASKS: ScheduleTask[] = [
-  { key: "patrolEnabled", hourKey: "patrolHour", name: "自动巡检", desc: "每天自动检查并改进网站", hasTimeSelector: true },
-  { key: "posterEnabled", hourKey: "posterHour1", name: "自动发帖 (第一篇)", desc: "开发教程或开源项目推荐", hasTimeSelector: true },
-  { key: "posterEnabled2", hourKey: "posterHour2", name: "自动发帖 (第二篇)", desc: "第二篇帖子发送时间", hasTimeSelector: true, sharedToggle: "posterEnabled" },
-  { key: "seoEnabled", hourKey: "seoHour", name: "自动 SEO 优化", desc: "自动补充页面 meta 标签", hasTimeSelector: true },
-  { key: "creatorEnabled", hourKey: "creatorHour", name: "自动写博客", desc: "自动生成深度技术文章", hasTimeSelector: true },
-  { key: "replyEnabled", hourKey: "", name: "自动回复论坛", desc: "每 2 小时检查并回复", hasTimeSelector: false },
-];
-
 export default function OperationsPage() {
   const { token } = useAppStore();
 
   // ---- AI 迭代 ----
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
   const [iterationRequirement, setIterationRequirement] = useState("");
   const [aiActionLoading, setAiActionLoading] = useState<string | null>(null);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
@@ -72,21 +50,6 @@ export default function OperationsPage() {
   } | null>(null);
   const [workflowMessages, setWorkflowMessages] = useState<Record<string, string>>({});
 
-  // ---- 定时任务 ----
-  const [schedule, setSchedule] = useState({
-    patrolEnabled: true,
-    patrolHour: 10,
-    posterEnabled: true,
-    posterHour1: 9,
-    posterHour2: 15,
-    seoEnabled: true,
-    seoHour: 14,
-    creatorEnabled: true,
-    creatorHour: 16,
-    replyEnabled: true,
-  });
-  const [scheduleLoading, setScheduleLoading] = useState(false);
-
   // ---- 通用加载 ----
   const [initLoading, setInitLoading] = useState(true);
 
@@ -94,22 +57,13 @@ export default function OperationsPage() {
   const fetchAll = useCallback(async () => {
     if (!token) return;
     try {
-      const [dashRes, schedRes] = await Promise.all([
-        adminFetch("/api/admin/free-dashboard"),
-        adminFetch("/api/admin/schedule"),
-      ]);
-
+      const dashRes = await adminFetch("/api/admin/free-dashboard");
       if (dashRes.ok) {
         const dash = await dashRes.json();
         setAiEnabled(dash.autoIteration?.enabled ?? false);
       }
-
-      if (schedRes.ok) {
-        const sched = await schedRes.json();
-        setSchedule(sched);
-      }
     } catch {
-      // 静默处理，不显示错误
+      // 静默处理
     } finally {
       setInitLoading(false);
     }
@@ -174,7 +128,6 @@ export default function OperationsPage() {
       toast.error(`「${wfName}」网络请求失败`);
     } finally {
       setWorkflowLoading(null);
-      // 3秒后清除消息
       setTimeout(() => {
         setWorkflowMessages((prev) => {
           const next = { ...prev };
@@ -210,31 +163,6 @@ export default function OperationsPage() {
     }
   }
 
-  // ============ 保存定时设置 ============
-  async function saveSchedule() {
-    if (!token) return;
-    setScheduleLoading(true);
-    try {
-      const res = await adminFetch("/api/admin/schedule", {
-        method: "POST",
-        body: JSON.stringify(schedule),
-      });
-      const result = await res.json();
-      if (res.ok) {
-        toast.success("定时配置已保存");
-      } else {
-        toast.error(result.error || "保存失败");
-      }
-    } catch {
-      toast.error("保存失败");
-    } finally {
-      setScheduleLoading(false);
-    }
-  }
-
-  // ============ 小时选项 ============
-  const hourOptions = Array.from({ length: 24 }, (_, i) => i);
-
   if (initLoading) {
     return (
       <AdminLayout activeKey="operations">
@@ -250,7 +178,7 @@ export default function OperationsPage() {
       <div className="space-y-6">
         <PageHeader
           title="运营中心"
-          subtitle="AI 迭代、工作流触发、定时任务调度"
+          subtitle="AI 迭代与工作流触发"
           actions={
             <Button variant="secondary" onClick={fetchAll}>
               <Icons.Chart className="w-4 h-4" />
@@ -269,17 +197,18 @@ export default function OperationsPage() {
                 <Badge color={aiEnabled ? "green" : "gray"}>
                   {aiEnabled ? "运行中" : "已关闭"}
                 </Badge>
-                <Switch
-                  checked={aiEnabled}
-                  onChange={(v) => runAiAction("update_config", { enabled: v, requireApproval: true, safeMode: true })}
+                <button
+                  onClick={() => runAiAction("update_config", { enabled: !aiEnabled, requireApproval: true, safeMode: true })}
                   disabled={aiActionLoading === "update_config"}
-                />
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${aiEnabled ? "bg-brand-600" : "bg-gray-300"}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${aiEnabled ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
               </div>
             }
           />
           <CardBody>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* 左侧：需求输入 */}
               <div className="lg:col-span-2 space-y-3">
                 <label className="text-sm font-medium text-gray-700">迭代需求</label>
                 <Textarea
@@ -312,7 +241,6 @@ export default function OperationsPage() {
                 </div>
               </div>
 
-              {/* 右侧：确认上线 */}
               <div className="space-y-3">
                 <div className="rounded-lg border border-green-200 bg-green-50 p-4">
                   <p className="text-sm font-medium text-green-800">自动闭环流程</p>
@@ -361,7 +289,6 @@ export default function OperationsPage() {
             }
           />
           <CardBody>
-            {/* 一键触发结果 */}
             {triggerResults && (
               <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <div className="flex items-center gap-4 mb-3">
@@ -389,7 +316,6 @@ export default function OperationsPage() {
               </div>
             )}
 
-            {/* 工作流网格 */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {WORKFLOWS.map((wf) => {
                 const isLoading = workflowLoading === wf.id;
@@ -434,74 +360,6 @@ export default function OperationsPage() {
                         "触发"
                       )}
                     </button>
-                  </div>
-                );
-              })}
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* ==================== 定时任务调度 ==================== */}
-        <Card>
-          <CardHeader
-            title="定时任务调度"
-            subtitle="配置自动化任务的执行时间（北京时间）"
-            action={
-              <Button onClick={saveSchedule} loading={scheduleLoading}>
-                <Icons.Check className="w-4 h-4" />
-                保存设置
-              </Button>
-            }
-          />
-          <CardBody>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {SCHEDULE_TASKS.map((task) => {
-                const toggleKey = "sharedToggle" in task ? task.sharedToggle : task.key;
-                const isEnabled = schedule[toggleKey as keyof typeof schedule] as boolean;
-                const hourValue = task.hourKey
-                  ? (schedule[task.hourKey as keyof typeof schedule] as number)
-                  : 0;
-
-                return (
-                  <div
-                    key={task.key}
-                    className={`rounded-xl border p-4 transition-colors ${
-                      isEnabled ? "border-brand-200 bg-brand-50/30" : "border-gray-200 bg-gray-50/50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-800">{task.name}</span>
-                      <Switch
-                        checked={isEnabled}
-                        onChange={(v) => {
-                          if (toggleKey) {
-                            setSchedule((prev) => ({ ...prev, [toggleKey]: v }));
-                          }
-                        }}
-                        disabled={!!task.sharedToggle}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500 mb-3">{task.desc}</p>
-                    {task.hasTimeSelector ? (
-                      <Select
-                        value={hourValue}
-                        onChange={(e) => {
-                          if (task.hourKey) {
-                            setSchedule((prev) => ({ ...prev, [task.hourKey]: Number(e.target.value) }));
-                          }
-                        }}
-                        disabled={!isEnabled}
-                        className="text-sm"
-                      >
-                        {hourOptions.map((h) => (
-                          <option key={h} value={h}>
-                            {String(h).padStart(2, "0")}:00
-                          </option>
-                        ))}
-                      </Select>
-                    ) : (
-                      <div className="text-sm text-gray-400 py-2">自动运行，无需设定时间</div>
-                    )}
                   </div>
                 );
               })}
