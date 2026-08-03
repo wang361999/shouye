@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -427,24 +426,6 @@ export default function SecuritySettingsPage() {
               />
             </div>
 
-            {/* 操作日志 */}
-            <div className="flex items-center justify-between py-2 border-t border-gray-100">
-              <div>
-                <span className="text-sm font-medium text-gray-700">
-                  操作日志
-                </span>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  查看系统操作日志记录
-                </p>
-              </div>
-              <Link
-                href="/admin/users/logs"
-                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                查看全部日志
-                <Icons.ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
           </CardBody>
         </Card>
 

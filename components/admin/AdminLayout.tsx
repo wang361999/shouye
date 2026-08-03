@@ -26,9 +26,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "概览",
     items: [
       { key: "dashboard", label: "仪表盘", href: "/admin", icon: Icons.Dashboard },
-      { key: "free-dashboard", label: "运营看板", href: "/admin/free-dashboard", icon: Icons.Chart },
-      { key: "auto-content", label: "AI 自动内容", href: "/admin/auto-content", icon: Icons.Robot },
-      { key: "monitoring", label: "用量监控", href: "/admin/monitoring", icon: Icons.Chart },
+      { key: "operations", label: "运营中心", href: "/admin/operations", icon: Icons.Robot },
       { key: "database", label: "数据库", href: "/admin/database", icon: Icons.Database },
     ],
   },
@@ -54,8 +52,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "users", label: "用户列表", href: "/admin/users", icon: Icons.Users },
       { key: "badges", label: "徽章管理", href: "/admin/badges", icon: Icons.Scroll },
-      { key: "users-logs", label: "操作日志", href: "/admin/users/logs", icon: Icons.Clipboard },
-      { key: "profile", label: "个人中心", href: "/admin/profile", icon: Icons.User },
     ],
   },
   {
@@ -69,12 +65,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "系统设置",
     items: [
-      { key: "settings-general", label: "基本信息", href: "/admin/settings/general", icon: Icons.Settings },
-      { key: "settings-sponsor", label: "赞助设置", href: "/admin/settings/sponsor", icon: Icons.Heart },
-      { key: "settings-appearance", label: "外观定制", href: "/admin/settings/appearance", icon: Icons.Paint },
+      { key: "settings-site", label: "站点设置", href: "/admin/settings", icon: Icons.Settings },
       { key: "settings-security", label: "安全设置", href: "/admin/settings/security", icon: Icons.Lock },
       { key: "settings-oauth-apps", label: "OAuth 应用", href: "/admin/oauth-apps", icon: Icons.Key },
-      { key: "settings-seo", label: "SEO 设置", href: "/admin/settings/seo", icon: Icons.Globe },
       { key: "settings-agreements", label: "协议文档", href: "/admin/settings/agreements", icon: Icons.Doc },
     ],
   },
