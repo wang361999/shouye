@@ -13,8 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:setup": "node scripts/db-setup.mjs",
     "gen:env": "node scripts/generate-env.mjs",
-    "vercel-build": "next build",
-    "cf:deploy": "wrangler deploy"
+    "vercel-build": "next build"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -52,7 +51,6 @@
     "prisma": "^7.9.1",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0",
-    "wrangler": "^4.59.2"
+    "typescript": "^5.3.0"
   }
 }
