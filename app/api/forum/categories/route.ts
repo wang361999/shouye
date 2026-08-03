@@ -4,22 +4,11 @@ import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
 import { adminAuth } from '@/lib/auth';
 
-// GET 请求缓存 1 小时（分类数据不频繁变化）
-// POST/PUT/DELETE 仍为动态请求，不受影响
-export const revalidate = 3600;
-
-// 模块级缓存
-let cachedCategories: object | null = null;
-let cacheExpiry = 0;
-const CACHE_TTL = 3_600_000;
+// 分类数据需要即时可见（创建后立即显示），禁用 ISR 缓存
+export const dynamic = 'force-dynamic';
 
 // ============ GET /api/forum/categories - 获取分类列表 ============
 export async function GET() {
-  const now = Date.now();
-  if (cachedCategories && now < cacheExpiry) {
-    return NextResponse.json(cachedCategories);
-  }
-
   let db;
   const dbError = checkDbOr503();
   if (dbError) return dbError;
@@ -50,9 +39,6 @@ export async function GET() {
     sortOrder: Number(cat.sort_order) || 0,
     postCount: Number(cat.post_count) || 0,
   }));
-
-  cachedCategories = result;
-  cacheExpiry = now + CACHE_TTL;
 
   return NextResponse.json(result);
 }
@@ -90,9 +76,6 @@ export async function POST(request: NextRequest) {
         sortOrder: typeof sortOrder === 'number' ? sortOrder : 0,
       },
     });
-
-    // 清除缓存
-    cachedCategories = null;
 
     return NextResponse.json(category, { status: 201 });
   } catch (error) {
@@ -151,9 +134,6 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    // 清除缓存
-    cachedCategories = null;
-
     return NextResponse.json(category);
   } catch (error) {
     console.error('[CATEGORY UPDATE ERROR]', error);
@@ -200,9 +180,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     await prisma.category.delete({ where: { id } });
-
-    // 清除缓存
-    cachedCategories = null;
 
     return NextResponse.json({ message: '分类已删除' });
   } catch (error) {
