@@ -62,6 +62,16 @@ export default function SecuritySettingsPage() {
   const [confirmDeleteToken, setConfirmDeleteToken] = useState(false);
   const [confirmCleanup, setConfirmCleanup] = useState(false);
 
+  const [activeSection, setActiveSection] = useState("security");
+
+  const SECTIONS = [
+    { id: "security", label: "安全防护", icon: "🔒" },
+    { id: "smtp", label: "邮箱配置", icon: "📧" },
+    { id: "ai-agent", label: "AI Agent", icon: "🤖" },
+    { id: "github-token", label: "GitHub Token", icon: "🔑" },
+    { id: "github-oauth", label: "GitHub OAuth", icon: "🐙" },
+  ];
+
   const fetchSettings = useCallback(async () => {
     try {
       setLoading(true);
@@ -98,6 +108,21 @@ export default function SecuritySettingsPage() {
       fetchGithubConfig();
     }
   }, [token, fetchSettings]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const offsets = SECTIONS.map((s) => {
+        const el = document.getElementById(s.id);
+        return { id: s.id, top: el ? el.getBoundingClientRect().top : Infinity };
+      });
+      const current = offsets.reduce((closest, curr) =>
+        curr.top < 120 && curr.top > closest.top ? curr : closest
+      , { id: "security", top: -Infinity });
+      if (current.top > -Infinity) setActiveSection(current.id);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const fetchGithubConfig = async () => {
     try {
@@ -350,7 +375,32 @@ export default function SecuritySettingsPage() {
           <Icons.Lock className="w-6 h-6 text-gray-400" />
         } />
 
+        <div className="flex gap-6">
+        {/* 左侧导航 */}
+        <aside className="hidden lg:block w-48 flex-shrink-0">
+          <nav className="sticky top-6 space-y-1">
+            {SECTIONS.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                onClick={() => setActiveSection(section.id)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeSection === section.id
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-50 border border-transparent"
+                }`}
+              >
+                <span>{section.icon}</span>
+                {section.label}
+              </a>
+            ))}
+          </nav>
+        </aside>
+
+        {/* 右侧内容 */}
+        <div className="flex-1 min-w-0 space-y-6">
         {/* ========== 安全防护设置 ========== */}
+        <div id="security" className="scroll-mt-6">
         <Card>
           <CardHeader title="安全防护" subtitle="后台路径、登录限制与验证策略" />
           <CardBody className="space-y-6">
@@ -428,8 +478,10 @@ export default function SecuritySettingsPage() {
 
           </CardBody>
         </Card>
+        </div>
 
         {/* ========== 邮箱 SMTP 配置 ========== */}
+        <div id="smtp" className="scroll-mt-6">
         <Card>
           <CardHeader
             title="邮箱服务配置 (SMTP)"
@@ -535,8 +587,10 @@ export default function SecuritySettingsPage() {
             </div>
           </CardBody>
         </Card>
+        </div>
 
         {/* ========== AI Agent 清理 ========== */}
+        <div id="ai-agent" className="scroll-mt-6">
         <Card>
           <CardHeader
             title="AI Agent 管理"
@@ -667,6 +721,7 @@ export default function SecuritySettingsPage() {
             </div>
           </CardBody>
         </Card>
+        </div>
 
         {/* 保存按钮 */}
         <div className="flex justify-end">
@@ -676,6 +731,7 @@ export default function SecuritySettingsPage() {
         </div>
 
         {/* ========== GitHub API Token 配置 ========== */}
+        <div id="github-token" className="scroll-mt-6">
         <Card>
           <CardHeader
             title="GitHub API Token"
@@ -743,8 +799,10 @@ export default function SecuritySettingsPage() {
             </div>
           </CardBody>
         </Card>
+        </div>
 
         {/* ========== GitHub OAuth 配置 ========== */}
+        <div id="github-oauth" className="scroll-mt-6">
         <Card>
           <CardHeader
             title="第三方登录配置 (GitHub OAuth)"
@@ -811,6 +869,9 @@ export default function SecuritySettingsPage() {
             </div>
           </CardBody>
         </Card>
+        </div>
+        </div>
+        </div>
       </div>
 
       {/* ============ ConfirmDialog: 删除 GitHub Token ============ */}

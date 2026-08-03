@@ -10,7 +10,6 @@ import {
   Card,
   CardHeader,
   CardBody,
-  Button,
   StatCard,
   Icons,
 } from "@/components/admin/ui";
@@ -88,52 +87,6 @@ export default function AdminDashboardPage() {
     categoryTotal: 0,
   });
   const [loading, setLoading] = useState(true);
-
-  // ============ 一键部署状态 ============
-  const [hookConfigured, setHookConfigured] = useState<boolean | null>(null);
-  const [deploying, setDeploying] = useState(false);
-  const [deployResult, setDeployResult] = useState<
-    { type: "success" | "error"; message: string } | null
-  >(null);
-
-  // 检查 Deploy Hook 是否配置
-  useEffect(() => {
-    if (!token) return;
-    adminFetch("/api/admin/deploy")
-      .then((res) => res.json())
-      .then((data) => setHookConfigured(data.configured))
-      .catch(() => setHookConfigured(false));
-  }, [token]);
-
-  // 触发部署
-  async function handleDeploy() {
-    if (!token) return;
-    const confirmed = window.confirm(
-      "确认触发重新部署？\n\n部署期间站点会短暂不可用（约 1-2 分钟），请确保当前是维护时段。",
-    );
-    if (!confirmed) return;
-
-    setDeploying(true);
-    setDeployResult(null);
-    try {
-      const res = await adminFetch("/api/admin/deploy", {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setDeployResult({ type: "success", message: data.message });
-      } else {
-        setDeployResult({
-          type: "error",
-          message: data.error || "部署触发失败",
-        });
-      }
-    } catch {
-      setDeployResult({ type: "error", message: "网络错误，请稍后重试" });
-    } finally {
-      setDeploying(false);
-    }
-  }
 
   useEffect(() => {
     if (!token) return;
@@ -227,47 +180,6 @@ export default function AdminDashboardPage() {
             icon={<Icons.Tag />}
             color="indigo"
           />
-        </div>
-
-        {/* 一键部署 */}
-        <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600 flex-shrink-0 text-xl">
-                🚀
-              </span>
-              <div>
-                <div className="font-semibold text-gray-900">一键部署</div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  {hookConfigured === null
-                    ? "检查配置中..."
-                    : hookConfigured
-                      ? "Deploy Hook 已就绪，点击触发当前账号重新部署"
-                      : "未配置 VERCEL_DEPLOY_HOOK_URL，请在 Vercel 后台创建 Deploy Hook"}
-                </div>
-              </div>
-            </div>
-            <Button
-              onClick={handleDeploy}
-              disabled={!hookConfigured}
-              loading={deploying}
-              className="flex-shrink-0"
-            >
-              {deploying ? "部署中..." : "立即部署"}
-            </Button>
-          </div>
-          {deployResult && (
-            <div
-              className={`mt-3 px-4 py-2.5 rounded-lg text-sm ${
-                deployResult.type === "success"
-                  ? "bg-green-50 text-green-700 border border-green-200"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-            >
-              {deployResult.type === "success" ? "✅ " : "❌ "}
-              {deployResult.message}
-            </div>
-          )}
         </div>
 
         {/* 快捷入口 */}
