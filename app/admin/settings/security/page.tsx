@@ -375,53 +375,30 @@ export default function SecuritySettingsPage() {
           <Icons.Lock className="w-6 h-6 text-gray-400" />
         } />
 
-        {/* 移动端横向导航 */}
-        <div className="lg:hidden -mx-4 px-4 mb-4 overflow-x-auto">
-          <div className="flex gap-2 pb-2">
-            {SECTIONS.map((section) => (
-              <a
-                key={section.id}
-                href={`#${section.id}`}
-                onClick={() => setActiveSection(section.id)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                  activeSection === section.id
-                    ? "bg-blue-50 text-blue-700 border border-blue-200"
-                    : "text-gray-600 bg-gray-50 border border-transparent"
-                }`}
-              >
-                <span className="mr-1">{section.icon}</span>
-                {section.label}
-              </a>
-            ))}
-          </div>
+        {/* Tab 栏 */}
+        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 overflow-x-auto sticky top-0 z-10">
+          {SECTIONS.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => {
+                setActiveSection(section.id);
+                document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
+                activeSection === section.id
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              {section.icon} {section.label}
+            </button>
+          ))}
         </div>
 
-        <div className="flex gap-6">
-        {/* 桌面端左侧导航 */}
-        <aside className="hidden lg:block w-48 flex-shrink-0">
-          <nav className="sticky top-6 space-y-1">
-            {SECTIONS.map((section) => (
-              <a
-                key={section.id}
-                href={`#${section.id}`}
-                onClick={() => setActiveSection(section.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeSection === section.id
-                    ? "bg-blue-50 text-blue-700 border border-blue-200"
-                    : "text-gray-600 hover:bg-gray-50 border border-transparent"
-                }`}
-              >
-                <span>{section.icon}</span>
-                {section.label}
-              </a>
-            ))}
-          </nav>
-        </aside>
-
-        {/* 右侧内容 */}
-        <div className="flex-1 min-w-0 space-y-6">
+        {/* 内容区域 */}
+        <div className="space-y-6">
         {/* ========== 安全防护设置 ========== */}
-        <div id="security" className="scroll-mt-6">
+        <div id="security" className="scroll-mt-20">
         <Card>
           <CardHeader title="安全防护" subtitle="后台路径、登录限制与验证策略" />
           <CardBody className="space-y-6">
@@ -502,7 +479,7 @@ export default function SecuritySettingsPage() {
         </div>
 
         {/* ========== 邮箱 SMTP 配置 ========== */}
-        <div id="smtp" className="scroll-mt-6">
+        <div id="smtp" className="scroll-mt-20">
         <Card>
           <CardHeader
             title="邮箱服务配置 (SMTP)"
@@ -611,7 +588,7 @@ export default function SecuritySettingsPage() {
         </div>
 
         {/* ========== AI Agent 清理 ========== */}
-        <div id="ai-agent" className="scroll-mt-6">
+        <div id="ai-agent" className="scroll-mt-20">
         <Card>
           <CardHeader
             title="AI Agent 管理"
@@ -752,7 +729,7 @@ export default function SecuritySettingsPage() {
         </div>
 
         {/* ========== GitHub API Token 配置 ========== */}
-        <div id="github-token" className="scroll-mt-6">
+        <div id="github-token" className="scroll-mt-20">
         <Card>
           <CardHeader
             title="GitHub API Token"
@@ -823,7 +800,7 @@ export default function SecuritySettingsPage() {
         </div>
 
         {/* ========== GitHub OAuth 配置 ========== */}
-        <div id="github-oauth" className="scroll-mt-6">
+        <div id="github-oauth" className="scroll-mt-20">
         <Card>
           <CardHeader
             title="第三方登录配置 (GitHub OAuth)"
@@ -890,7 +867,6 @@ export default function SecuritySettingsPage() {
             </div>
           </CardBody>
         </Card>
-        </div>
         </div>
         </div>
       </div>
