@@ -281,52 +281,76 @@ export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseF
 export function robustJSONParse(text) {
   const trimmed = String(text).trim();
 
-  // 提取 ```json ... ``` 代码块
-  // 注意：不能使用非贪婪匹配 .*?，因为 JSON 内容字段中可能包含嵌套的 ``` 代码块
-  // 正确做法：找到第一个 ``` 和最后一个 ``` 之间的内容
-  let candidate = trimmed;
-  const firstFence = trimmed.indexOf('```');
-  if (firstFence !== -1) {
+  // 策略1：直接从原始文本中提取 JSON（优先尝试）
+  // AI 返回的 JSON 可能直接以 { 开头，也可能前面有说明文字
+  const result = tryParseJSON(trimmed);
+  if (result) return result;
+
+  // 策略2：从 ```json ... ``` 代码块中提取
+  // 仅当原始文本解析失败时才尝试，避免误提取 JSON 内容字段中的代码块
+  // 判断条件：文本以 ``` 开头（说明整个输出被代码块包裹）
+  if (trimmed.startsWith('```')) {
     const lastFence = trimmed.lastIndexOf('```');
+    const firstFence = trimmed.indexOf('```');
     if (lastFence > firstFence) {
-      // 取第一个 ``` 之后到最后一个 ``` 之前的内容
       let inner = trimmed.slice(firstFence + 3, lastFence);
-      // 去掉开头的 json 标记
-      inner = inner.replace(/^(json|JSON)?\s*/i, '');
-      candidate = inner.trim();
+      // 去掉开头的 json/JSON 标记
+      inner = inner.replace(/^(json|JSON)?\s*/i, '').trim();
+      const fencedResult = tryParseJSON(inner);
+      if (fencedResult) return fencedResult;
     }
   }
 
-  // 找到第一个 { 和最后一个 }
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start === -1) {
-    // 没有 {，输出前500字符帮助调试
-    console.error('[robustJSONParse] 未找到 JSON 对象边界（缺少 "{"）');
-    console.error('[robustJSONParse] AI 返回内容前500字符：', candidate.slice(0, 500));
-    throw new Error('未找到 JSON 对象边界（缺少 "{"）');
-  }
+  // 所有策略都失败
+  console.error('[robustJSONParse] 所有解析策略均失败');
+  console.error('[robustJSONParse] AI 返回内容前500字符：', trimmed.slice(0, 500));
+  throw new Error('JSON 解析失败：无法从 AI 返回内容中提取有效 JSON');
+}
 
-  // 如果找不到 }，说明 JSON 被截断了，尝试自动补全
+/**
+ * 尝试从文本中提取并解析 JSON 对象
+ * 定位第一个 { 和最后一个 }，尝试直接解析，失败则转义控制字符后重试，再失败则尝试自动补全
+ * @returns {object|null} 解析成功返回对象，失败返回 null
+ */
+function tryParseJSON(text) {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  const end = text.lastIndexOf('}');
   if (end === -1 || end <= start) {
+    // JSON 可能被截断，尝试自动补全
     console.warn('[robustJSONParse] JSON 可能被截断，尝试自动补全...');
-    return repairAndParse(candidate.slice(start));
+    try {
+      return repairAndParse(text.slice(start));
+    } catch {
+      return null;
+    }
   }
 
-  let jsonStr = candidate.slice(start, end + 1);
+  let jsonStr = text.slice(start, end + 1);
+
+  // 尝试1：直接解析
   try {
     return JSON.parse(jsonStr);
   } catch {
-    // 尝试修复：转义字符串值中的裸控制字符（换行、回车、制表符等）
-    jsonStr = escapeControlCharsInStrings(jsonStr);
-    try {
-      return JSON.parse(jsonStr);
-    } catch {
-      // 仍然失败，尝试自动补全截断的 JSON
-      console.warn('[robustJSONParse] 标准解析失败，尝试自动补全...');
-      console.warn('[robustJSONParse] JSON 前200字符：', jsonStr.slice(0, 200));
-      return repairAndParse(candidate.slice(start));
-    }
+    // 继续
+  }
+
+  // 尝试2：转义字符串值中的裸控制字符后重试
+  jsonStr = escapeControlCharsInStrings(jsonStr);
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    // 继续
+  }
+
+  // 尝试3：自动补全截断的 JSON
+  console.warn('[robustJSONParse] 标准解析失败，尝试自动补全...');
+  console.warn('[robustJSONParse] JSON 前200字符：', jsonStr.slice(0, 200));
+  try {
+    return repairAndParse(text.slice(start));
+  } catch {
+    return null;
   }
 }
 
