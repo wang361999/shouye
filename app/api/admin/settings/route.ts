@@ -21,12 +21,6 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   captcha: 'false',
   resend_api_key: '',
   resend_from_email: '',
-  smtp_host: '',
-  smtp_port: '587',
-  smtp_user: '',
-  smtp_pass: '',
-  smtp_from_name: 'Gitd',
-  smtp_secure: 'false',
   seo_title: 'Gitd - 开发者工具集',
   seo_keywords: '开发者,工具,GitHub,AI',
   seo_description: '汇聚实用开发者工具',
@@ -60,7 +54,7 @@ export async function GET(request: NextRequest) {
       ...settingsObj,
       resend_configured: resendConfigured ? 'true' : 'false',
       resend_from_email: resendFromEmail,
-      active_email_provider: resendConfigured ? 'resend' : (settingsObj.smtp_host && settingsObj.smtp_user ? 'smtp' : 'none'),
+      active_email_provider: resendConfigured ? 'resend' : 'none',
     });
   } catch (error) {
     console.error('[ADMIN SETTINGS GET ERROR]', error);

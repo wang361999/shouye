@@ -102,14 +102,8 @@ export async function sendEmailCode(email: string, purpose: EmailCodePurpose) {
   const mailConfig = await getSystemSettings([
     'resend_api_key',
     'resend_from_email',
-    'smtp_host',
-    'smtp_port',
-    'smtp_user',
-    'smtp_pass',
-    'smtp_from_name',
-    'smtp_secure',
   ]);
-  const fromName = mailConfig.smtp_from_name || 'Gitd';
+  const fromName = 'Gitd';
   const subject = purpose === 'register' ? '[Gitd] 注册邮箱验证码' : '[Gitd] 找回密码验证码';
   const actionText = purpose === 'register' ? '注册账号' : '重置密码';
 
