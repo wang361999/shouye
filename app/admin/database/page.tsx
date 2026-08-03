@@ -1029,7 +1029,7 @@ export default function DatabasePage() {
                     <div className="px-4 py-6 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
                       <p className="text-sm text-yellow-700 mb-2">⚠️ R2 未配置</p>
                       <p className="text-xs text-yellow-600">
-                        请在环境变量中设置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY
+                        请在环境变量中设置 R2_ACCOUNT_ID 和 R2_API_TOKEN
                       </p>
                     </div>
                   ) : (

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash, createHmac } from 'crypto';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
 
@@ -28,111 +27,60 @@ function jsonReplacer(_key: string, value: unknown): unknown {
   return value;
 }
 
-// ============ AWS SigV4 签名（用于 R2 S3 兼容 API） ============
-function sigV4Sign(
-  method: string,
-  url: URL,
-  headers: Record<string, string>,
-  body: Buffer,
-  accessKeyId: string,
-  secretAccessKey: string,
-  region: string,
-  service: string,
-): Record<string, string> {
-  const datetime = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
-  const date = datetime.slice(0, 8);
-
-  const host = url.hostname;
-  const canonicalUri = url.pathname;
-  const canonicalQueryString = url.search ? url.search.slice(1) : '';
-
-  // Canonical headers
-  const signedHeaderKeys = ['host', 'x-amz-content-sha256', 'x-amz-date'];
-  const allHeaders: Record<string, string> = {
-    host,
-    'x-amz-content-sha256': createHash('sha256').update(body).digest('hex'),
-    'x-amz-date': datetime,
-    ...headers,
-  };
-
-  const canonicalHeaders = signedHeaderKeys
-    .map((k) => `${k}:${allHeaders[k].trim()}\n`)
-    .join('');
-  const signedHeaders = signedHeaderKeys.join(';');
-
-  // Canonical request
-  const canonicalRequest = [
-    method,
-    canonicalUri,
-    canonicalQueryString,
-    canonicalHeaders,
-    signedHeaders,
-    allHeaders['x-amz-content-sha256'],
-  ].join('\n');
-
-  // String to sign
-  const scope = `${date}/${region}/${service}/aws4_request`;
-  const stringToSign = [
-    'AWS4-HMAC-SHA256',
-    datetime,
-    scope,
-    createHash('sha256').update(canonicalRequest).digest('hex'),
-  ].join('\n');
-
-  // Signing key
-  const kDate = createHmac('sha256', `AWS4${secretAccessKey}`).update(date).digest();
-  const kRegion = createHmac('sha256', kDate).update(region).digest();
-  const kService = createHmac('sha256', kRegion).update(service).digest();
-  const kSigning = createHmac('sha256', kService).update('aws4_request').digest();
-  const signature = createHmac('sha256', kSigning).update(stringToSign).digest('hex');
-
-  const authHeader = `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-  return {
-    ...allHeaders,
-    Authorization: authHeader,
-  };
+// ============ R2 配置检查 ============
+function getR2Config() {
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const apiToken = process.env.R2_API_TOKEN;
+  const bucketName = process.env.R2_BUCKET_NAME || 'shouye-backups';
+  return { accountId, apiToken, bucketName };
 }
 
-// ============ 上传备份到 Cloudflare R2 ============
+function isR2Configured() {
+  const { accountId, apiToken } = getR2Config();
+  return !!(accountId && apiToken);
+}
+
+// ============ Cloudflare R2 原生 API ============
+// 文档: https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/objects/
+
+const R2_API_BASE = 'https://api.cloudflare.com/client/v4';
+
+// ============ 上传对象到 R2 ============
 async function uploadToR2(
-  jsonData: Buffer,
+  jsonData: Uint8Array,
   key: string,
 ): Promise<{ ok: boolean; message: string; url?: string }> {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucketName = process.env.R2_BUCKET_NAME || 'shouye-cache';
+  const { accountId, apiToken, bucketName } = getR2Config();
 
-  if (!accountId || !accessKeyId || !secretAccessKey) {
+  if (!accountId || !apiToken) {
     return {
       ok: false,
-      message: 'R2 未配置。请在环境变量中设置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY',
+      message: 'R2 未配置。请在环境变量中设置 R2_ACCOUNT_ID 和 R2_API_TOKEN',
     };
   }
 
-  const r2Url = new URL(`https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${key}`);
+  // object_key 中的斜杠不需要 percent-encode，其他特殊字符正常编码
+  const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+  const url = `${R2_API_BASE}/accounts/${accountId}/r2/buckets/${bucketName}/objects/${encodedKey}`;
 
-  const signedHeaders = sigV4Sign(
-    'PUT',
-    r2Url,
-    { 'Content-Type': 'application/json' },
-    jsonData,
-    accessKeyId,
-    secretAccessKey,
-    'auto',
-    's3',
-  );
-
-  const res = await fetch(r2Url.toString(), {
+  const res = await fetch(url, {
     method: 'PUT',
-    headers: signedHeaders,
-    body: new Uint8Array(jsonData),
+    headers: {
+      'Authorization': `Bearer ${apiToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: jsonData,
   });
 
   if (!res.ok) {
     const errText = await res.text().catch(() => 'unknown');
     return { ok: false, message: `R2 上传失败 (${res.status}): ${errText}` };
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!data.success) {
+    const errMsg = data.errors?.[0]?.message || '未知错误';
+    return { ok: false, message: `R2 上传失败: ${errMsg}` };
   }
 
   return {
@@ -148,52 +96,112 @@ async function listR2Backups(): Promise<{
   backups: Array<{ key: string; size: number; lastModified: string }>;
   message?: string;
 }> {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucketName = process.env.R2_BUCKET_NAME || 'shouye-cache';
+  const { accountId, apiToken, bucketName } = getR2Config();
 
-  if (!accountId || !accessKeyId || !secretAccessKey) {
+  if (!accountId || !apiToken) {
     return { ok: false, backups: [], message: 'R2 未配置' };
   }
 
-  const r2Url = new URL(`https://${accountId}.r2.cloudflarestorage.com/${bucketName}`);
-  r2Url.searchParams.set('prefix', 'backups/');
- r2Url.searchParams.set('list-type', '2');
-
-  const signedHeaders = sigV4Sign(
-    'GET',
-    r2Url,
-    {},
-    Buffer.alloc(0),
-    accessKeyId,
-    secretAccessKey,
-    'auto',
-    's3',
-  );
-
-  const res = await fetch(r2Url.toString(), { method: 'GET', headers: signedHeaders });
-
-  if (!res.ok) {
-    return { ok: false, backups: [], message: `R2 列表失败 (${res.status})` };
-  }
-
-  const xml = await res.text();
   const backups: Array<{ key: string; size: number; lastModified: string }> = [];
+  let cursor: string | undefined;
 
-  // 简单解析 XML
-  const regex = /<Contents>([\s\S]*?)<\/Contents>/g;
-  let match;
-  while ((match = regex.exec(xml)) !== null) {
-    const block = match[1];
-    const key = block.match(/<Key>(.*?)<\/Key>/)?.[1] || '';
-    const size = parseInt(block.match(/<Size>(.*?)<\/Size>/)?.[1] || '0', 10);
-    const lastModified = block.match(/<LastModified>(.*?)<\/LastModified>/)?.[1] || '';
-    if (key) backups.push({ key, size, lastModified });
+  // 分页获取所有备份
+  for (let page = 0; page < 10; page++) {
+    const params = new URLSearchParams({
+      prefix: 'backups/',
+      per_page: '1000',
+    });
+    if (cursor) params.set('cursor', cursor);
+
+    const url = `${R2_API_BASE}/accounts/${accountId}/r2/buckets/${bucketName}/objects?${params}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${apiToken}` },
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'unknown');
+      return { ok: false, backups: [], message: `R2 列表失败 (${res.status}): ${errText}` };
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!data.success) {
+      const errMsg = data.errors?.[0]?.message || '未知错误';
+      return { ok: false, backups: [], message: `R2 列表失败: ${errMsg}` };
+    }
+
+    const objects = data.result || [];
+    for (const obj of objects) {
+      if (obj.key) {
+        backups.push({
+          key: obj.key,
+          size: obj.size || 0,
+          lastModified: obj.last_modified || '',
+        });
+      }
+    }
+
+    // 检查是否还有更多数据
+    if (!data.result_info?.is_truncated || !data.result_info?.cursor) {
+      break;
+    }
+    cursor = data.result_info.cursor;
   }
 
   backups.sort((a, b) => b.lastModified.localeCompare(a.lastModified));
   return { ok: true, backups };
+}
+
+// ============ 从 R2 下载备份 ============
+async function downloadFromR2(
+  key: string,
+): Promise<{ ok: boolean; data?: Buffer; message?: string }> {
+  const { accountId, apiToken, bucketName } = getR2Config();
+
+  if (!accountId || !apiToken) {
+    return { ok: false, message: 'R2 未配置' };
+  }
+
+  const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+  const url = `${R2_API_BASE}/accounts/${accountId}/r2/buckets/${bucketName}/objects/${encodedKey}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${apiToken}` },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'unknown');
+    return { ok: false, message: `R2 下载失败 (${res.status}): ${errText}` };
+  }
+
+  const arrayBuffer = await res.arrayBuffer();
+  return { ok: true, data: Buffer.from(arrayBuffer) };
+}
+
+// ============ 删除 R2 中的对象 ============
+async function deleteFromR2(key: string): Promise<{ ok: boolean; message?: string }> {
+  const { accountId, apiToken, bucketName } = getR2Config();
+
+  if (!accountId || !apiToken) {
+    return { ok: false, message: 'R2 未配置' };
+  }
+
+  const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+  const url = `${R2_API_BASE}/accounts/${accountId}/r2/buckets/${bucketName}/objects/${encodedKey}`;
+
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${apiToken}` },
+  });
+
+  if (!res.ok && res.status !== 204) {
+    const errText = await res.text().catch(() => 'unknown');
+    return { ok: false, message: `删除失败 (${res.status}): ${errText}` };
+  }
+
+  return { ok: true };
 }
 
 // ============ POST /api/admin/database/backup-r2 - 备份到 R2 ============
@@ -201,6 +209,13 @@ export async function POST(request: NextRequest) {
   try {
     const admin = adminAuth(request);
     if (admin instanceof Response) return admin;
+
+    if (!isR2Configured()) {
+      return NextResponse.json(
+        { error: 'R2 未配置。请在环境变量中设置 R2_ACCOUNT_ID 和 R2_API_TOKEN' },
+        { status: 400 },
+      );
+    }
 
     const body = await request.json().catch(() => ({}));
     const { tables: tablesParam } = body as { tables?: string[] };
@@ -248,7 +263,7 @@ export async function POST(request: NextRequest) {
     const key = `backups/db-backup-${timestamp}.json`;
 
     // ---- 上传到 R2 ----
-    const result = await uploadToR2(jsonBuffer, key);
+    const result = await uploadToR2(new Uint8Array(jsonBuffer), key);
 
     if (!result.ok) {
       return NextResponse.json({ error: result.message }, { status: 400 });
@@ -277,6 +292,25 @@ export async function GET(request: NextRequest) {
     const admin = adminAuth(request);
     if (admin instanceof Response) return admin;
 
+    // 检查是否是下载请求
+    const { searchParams } = new URL(request.url);
+    const downloadKey = searchParams.get('download');
+
+    if (downloadKey) {
+      // 下载备份
+      const result = await downloadFromR2(downloadKey);
+      if (!result.ok || !result.data) {
+        return NextResponse.json({ error: result.message || '下载失败' }, { status: 400 });
+      }
+      return new NextResponse(result.data, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Disposition': `attachment; filename="${downloadKey.split('/').pop()}"`,
+        },
+      });
+    }
+
+    // 列出备份
     const result = await listR2Backups();
 
     if (!result.ok) {
@@ -285,7 +319,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       backups: result.backups,
-      configured: !!process.env.R2_ACCOUNT_ID,
+      configured: isR2Configured(),
     });
   } catch (error) {
     console.error('[R2 BACKUP LIST ERROR]', error);
@@ -309,31 +343,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: '缺少 key 参数' }, { status: 400 });
     }
 
-    const accountId = process.env.R2_ACCOUNT_ID;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-    const bucketName = process.env.R2_BUCKET_NAME || 'shouye-cache';
-
-    if (!accountId || !accessKeyId || !secretAccessKey) {
+    if (!isR2Configured()) {
       return NextResponse.json({ error: 'R2 未配置' }, { status: 400 });
     }
 
-    const r2Url = new URL(`https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${key}`);
-    const signedHeaders = sigV4Sign(
-      'DELETE',
-      r2Url,
-      {},
-      Buffer.alloc(0),
-      accessKeyId,
-      secretAccessKey,
-      'auto',
-      's3',
-    );
+    const result = await deleteFromR2(key);
 
-    const res = await fetch(r2Url.toString(), { method: 'DELETE', headers: signedHeaders });
-
-    if (!res.ok && res.status !== 204) {
-      return NextResponse.json({ error: `删除失败 (${res.status})` }, { status: 500 });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.message || '删除失败' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, message: '备份已删除' });
