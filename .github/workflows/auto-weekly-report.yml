@@ -1,0 +1,42 @@
+name: Auto weekly report
+
+on:
+  # schedule 已禁用，不再自动发周报到论坛
+  # 如需手动生成周报，在 GitHub Actions 页面点击 "Run workflow"
+  # schedule:
+  #   - cron: '0 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: auto-weekly-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Generate weekly community report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+      AUTHOR_NAME: ${{ secrets.WEEKLY_AUTHOR_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate and publish weekly report
+        run: node scripts/auto-weekly-report.mjs

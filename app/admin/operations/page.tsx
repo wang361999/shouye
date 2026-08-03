@@ -20,6 +20,7 @@ import {
 // ============ 工作流定义 ============
 const WORKFLOWS = [
   { id: "auto-content-creator.yml", name: "写博客", desc: "自动生成深度技术文章", icon: "✍️" },
+  { id: "auto-weekly-report.yml", name: "周报", desc: "生成每周站点运营报告（手动触发）", icon: "📊" },
   { id: "auto-forum-poster.yml", name: "自动发帖", desc: "开发教程与项目推荐", icon: "💬" },
   { id: "auto-forum-reply.yml", name: "自动回复", desc: "回复无评论的帖子", icon: "↩️" },
   { id: "auto-patrol.yml", name: "自动巡检", desc: "检查并改进网站", icon: "🔍" },
