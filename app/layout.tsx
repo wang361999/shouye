@@ -1,10 +1,24 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Header } from '@/components/common/Header';
 import { Footer } from '@/components/common/Footer';
 import MobileNav from '@/components/common/MobileNav';
 import { Toaster } from 'react-hot-toast';
 import prisma from '@/lib/prisma';
+
+/**
+ * viewport 导出 — 启用 viewport-fit=cover 以支持 iPhone 安全区适配
+ * 配合 globals.css 中的 env(safe-area-inset-*) 使用
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+  ],
+};
 
 // ============ 默认站点信息 ============
 const DEFAULT_SITE_NAME = 'Gitd';

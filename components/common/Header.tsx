@@ -397,7 +397,9 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
           {/* 移动端汉堡菜单 */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+            className="md:hidden p-2.5 -mr-1 rounded-md text-gray-700 hover:bg-gray-100 transition-colors touch-target flex items-center justify-center"
+            aria-label="菜单"
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? (
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

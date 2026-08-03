@@ -129,7 +129,7 @@ export default function PostForm({
             type="button"
             onClick={() => setPostType("discussion")}
             className={cn(
-              "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border transition-colors",
+              "flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors touch-target",
               postType === "discussion"
                 ? "bg-blue-600 text-white border-blue-600"
                 : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
@@ -141,7 +141,7 @@ export default function PostForm({
             type="button"
             onClick={() => setPostType("question")}
             className={cn(
-              "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border transition-colors",
+              "flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-lg border transition-colors touch-target",
               postType === "question"
                 ? "bg-green-600 text-white border-green-600"
                 : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
@@ -227,7 +227,7 @@ export default function PostForm({
               type="button"
               onClick={() => setActiveTab("edit")}
               className={cn(
-                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                "px-4 py-1.5 text-xs font-medium rounded-md transition-colors touch-target flex items-center",
                 activeTab === "edit"
                   ? "bg-white text-blue-600 shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
@@ -239,7 +239,7 @@ export default function PostForm({
               type="button"
               onClick={() => setActiveTab("preview")}
               className={cn(
-                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                "px-4 py-1.5 text-xs font-medium rounded-md transition-colors touch-target flex items-center",
                 activeTab === "preview"
                   ? "bg-white text-blue-600 shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
@@ -263,7 +263,7 @@ export default function PostForm({
               }}
               onPaste={handlePaste}
               placeholder="请输入帖子内容...（支持 Markdown 格式）&#10;&#10;💡 插入 GitHub 代码：&#10;1. 直接粘贴 GitHub 文件链接，自动识别转换&#10;2. 使用上方搜索框搜索引用&#10;3. 使用短代码: [github]https://github.com/owner/repo/blob/main/file.ts[/github]&#10;4. 手动输入: ```github-code&#10;owner/repo/path/to/file.ts&#10;```"
-              rows={12}
+              rows={8}
               className={cn(
                 "w-full px-4 py-3 text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:border-transparent transition-shadow font-mono",
                 errors.content
@@ -313,17 +313,17 @@ export default function PostForm({
       </div>
 
       {/* 操作按钮 */}
-      <div className="flex items-center justify-end space-x-3 pt-2">
+      <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-2">
         <button
           type="button"
           onClick={onCancel}
-          className="px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          className="px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors touch-target"
         >
           取消
         </button>
         <button
           type="submit"
-          className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors touch-target"
         >
           {initialData ? "保存修改" : postType === "question" ? "发布问题" : "发表帖子"}
         </button>

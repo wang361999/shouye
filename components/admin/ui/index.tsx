@@ -524,7 +524,7 @@ export function Tabs({ tabs, active, onChange }: { tabs: { key: string; label: s
 // ============ DataTable wrapper ============
 export function DataTable({ headers, children }: { headers: string[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto scrollbar-hide">
       <table className="admin-table">
         <thead>
           <tr>
@@ -533,6 +533,44 @@ export function DataTable({ headers, children }: { headers: string[]; children: 
         </thead>
         <tbody>{children}</tbody>
       </table>
+    </div>
+  );
+}
+
+// ============ MobileCardList (移动端卡片列表) ============
+/**
+ * 移动端卡片列表组件
+ * 在移动端显示卡片式布局，桌面端隐藏
+ * 用于替代 DataTable 在移动端的横向滚动体验
+ */
+export function MobileCardList({ children }: { children: ReactNode }) {
+  return (
+    <div className="lg:hidden space-y-3">
+      {children}
+    </div>
+  );
+}
+
+/**
+ * 移动端卡片项
+ * 统一卡片样式，包含标题行和内容行
+ */
+export function MobileCardItem({
+  title,
+  children,
+  actions,
+}: {
+  title: ReactNode;
+  children: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="admin-card p-4 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="font-medium text-gray-900 min-w-0 flex-1">{title}</div>
+        {actions && <div className="flex items-center gap-1 shrink-0">{actions}</div>}
+      </div>
+      <div className="text-sm text-gray-600 space-y-1">{children}</div>
     </div>
   );
 }
