@@ -72,6 +72,35 @@ interface FeaturedTool {
   clickCount: number;
 }
 
+function isImageUrl(value?: string | null) {
+  if (!value) return false;
+  return /^(https?:\/\/|\/|data:image\/)/i.test(value.trim());
+}
+
+function FeaturedToolIcon({ tool }: { tool: FeaturedTool }) {
+  if (isImageUrl(tool.icon)) {
+    return (
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={tool.icon}
+          alt={tool.name}
+          className="h-full w-full object-cover"
+          onError={(e) => {
+            const img = e.currentTarget;
+            img.style.display = "none";
+            const fallback = img.nextElementSibling as HTMLElement | null;
+            if (fallback) fallback.style.display = "inline";
+          }}
+        />
+        <span className="hidden">🔧</span>
+      </>
+    );
+  }
+
+  return <span>{tool.icon || "🔧"}</span>;
+}
+
 interface CommunityHomeProps {
   siteName: string;
   siteDesc: string;
@@ -652,20 +681,16 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
 
           {(data?.featuredTools ?? []).length > 0 ? (
             <>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {(data?.featuredTools ?? []).slice(0, 8).map((tool) => (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {(data?.featuredTools ?? []).slice(0, 6).map((tool) => (
                   <Link
                     key={tool.id}
                     href={`/tools/${tool.id}`}
                     className="group bg-white rounded-xl border border-gray-200 p-4 transition-all duration-200 hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5"
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-105 transition-transform">
-                        {tool.icon ? (
-                          <span>{tool.icon}</span>
-                        ) : (
-                          <span>🔧</span>
-                        )}
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 flex items-center justify-center text-lg flex-shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
+                        <FeaturedToolIcon tool={tool} />
                       </div>
                       <h3 className="font-semibold text-sm text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-1">
                         {tool.name}

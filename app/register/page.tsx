@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAppStore } from "@/lib/store";
@@ -19,7 +19,52 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailVerifyEnabled, setEmailVerifyEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [codeCountdown, setCodeCountdown] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setEmailVerifyEnabled(Boolean(data?.email_verify)))
+      .catch(() => setEmailVerifyEnabled(false));
+  }, []);
+
+  useEffect(() => {
+    if (codeCountdown <= 0) return;
+    const timer = window.setTimeout(() => setCodeCountdown((v) => v - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [codeCountdown]);
+
+  async function handleSendCode() {
+    const trimmedEmail = email.trim();
+    if (!isValidEmail(trimmedEmail)) {
+      toast.error("请先输入正确的邮箱地址");
+      return;
+    }
+
+    try {
+      setSendingCode(true);
+      const res = await fetch("/api/auth/email-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail, purpose: "register" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "验证码发送失败");
+        return;
+      }
+      toast.success(data.message || "验证码已发送，请查收邮箱");
+      setCodeCountdown(60);
+    } catch {
+      toast.error("验证码发送失败，请稍后重试");
+    } finally {
+      setSendingCode(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,6 +89,10 @@ export default function RegisterPage() {
       toast.error("两次输入的密码不一致");
       return;
     }
+    if (emailVerifyEnabled && !/^\d{6}$/.test(emailCode.trim())) {
+      toast.error("请输入 6 位邮箱验证码");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -54,6 +103,7 @@ export default function RegisterPage() {
           username: trimmedUsername,
           email: trimmedEmail,
           password,
+          emailCode: emailCode.trim(),
         }),
       });
 
@@ -115,6 +165,40 @@ export default function RegisterPage() {
                 autoComplete="email"
               />
             </div>
+
+            {emailVerifyEnabled && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  邮箱验证码
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={emailCode}
+                    onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6 位验证码"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendCode}
+                    disabled={sendingCode || codeCountdown > 0}
+                    className="px-4 py-2.5 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {sendingCode
+                      ? "发送中..."
+                      : codeCountdown > 0
+                        ? `${codeCountdown}s`
+                        : "获取验证码"}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">
+                  后台已开启邮件验证，注册前需要先验证邮箱。
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">

@@ -253,6 +253,22 @@ model SystemSetting {
   @@map("SystemSetting")
 }
 
+// ============ 邮箱验证码 ============
+model EmailVerificationCode {
+  id        String    @id @default(cuid())
+  email     String
+  purpose   String    // register | reset_password
+  codeHash  String    @map("code_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([email, purpose])
+  @@index([expiresAt])
+  @@map("EmailVerificationCode")
+}
+
 // ============ OAuth 授权服务 - 应用模型 ============
 model OAuthApp {
   id           String   @id @default(cuid())

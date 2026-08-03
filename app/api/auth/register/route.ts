@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { generateToken } from '@/lib/auth';
 import { rateLimit, getClientIP } from '@/lib/rate-limit';
 import { sanitizeString } from '@/lib/security';
+import { isEmailVerifyEnabled, verifyEmailCode } from '@/lib/email-code';
 
 /** 邮箱格式校验 */
 function isValidEmail(email: string): boolean {
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    let { username, email, password } = body;
+    let { username, email, password, emailCode } = body;
 
     // ---- 基础非空校验 ----
     if (!username || !email || !password) {
@@ -95,6 +96,29 @@ export async function POST(request: NextRequest) {
         { error: '该邮箱已被注册，请更换' },
         { status: 409 }
       );
+    }
+
+    // ---- 后台开启邮件验证时，注册必须提供邮箱验证码 ----
+    const emailVerifyEnabled = await isEmailVerifyEnabled();
+    if (emailVerifyEnabled) {
+      if (!emailCode) {
+        return NextResponse.json(
+          { error: '请输入邮箱验证码' },
+          { status: 400 }
+        );
+      }
+      const verifyResult = await verifyEmailCode(
+        trimmedEmail,
+        'register',
+        String(emailCode),
+        true,
+      );
+      if (!verifyResult.success) {
+        return NextResponse.json(
+          { error: verifyResult.error || '邮箱验证码校验失败' },
+          { status: 400 }
+        );
+      }
     }
 
     // ---- 使用 bcryptjs 哈希密码 ----

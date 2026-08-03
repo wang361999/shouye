@@ -14,6 +14,13 @@ function LoginContent() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [sendingResetCode, setSendingResetCode] = useState(false);
+  const [resetCountdown, setResetCountdown] = useState(0);
 
   // 处理 GitHub 登录失败回调的提示
   useEffect(() => {
@@ -22,6 +29,98 @@ function LoginContent() {
       toast.error("GitHub 登录失败，请稍后重试或使用账号登录");
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (resetCountdown <= 0) return;
+    const timer = window.setTimeout(() => setResetCountdown((v) => v - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resetCountdown]);
+
+  function isValidEmail(email: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  async function handleSendResetCode() {
+    const email = resetEmail.trim();
+    if (!isValidEmail(email)) {
+      toast.error("请输入正确的邮箱地址");
+      return;
+    }
+
+    try {
+      setSendingResetCode(true);
+      const res = await fetch("/api/auth/email-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, purpose: "reset_password" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "验证码发送失败");
+        return;
+      }
+      toast.success(data.message || "如果邮箱存在，验证码将发送到该邮箱");
+      setResetCountdown(60);
+    } catch {
+      toast.error("验证码发送失败，请稍后重试");
+    } finally {
+      setSendingResetCode(false);
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    const email = resetEmail.trim();
+    const code = resetCode.trim();
+
+    if (!isValidEmail(email)) {
+      toast.error("请输入正确的邮箱地址");
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      toast.error("请输入 6 位邮箱验证码");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("新密码长度至少 6 位");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast.error("两次输入的新密码不一致");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const res = await fetch("/api/auth/password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          emailCode: code,
+          newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "密码重置失败");
+        return;
+      }
+
+      toast.success(data.message || "密码已重置，请使用新密码登录");
+      setResetMode(false);
+      setUsername(email);
+      setPassword("");
+      setResetCode("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch {
+      toast.error("网络错误，请稍后重试");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,12 +170,106 @@ function LoginContent() {
         <div className="bg-white rounded-2xl shadow-lg p-8">
           {/* Logo + 标题 */}
           <div className="text-center mb-8">
-            <div className="text-5xl mb-3">🚪</div>
-            <h1 className="text-2xl font-bold text-gray-900">用户登录</h1>
-            <p className="text-gray-500 text-sm mt-1">登录后享受更多功能</p>
+            <div className="text-5xl mb-3">{resetMode ? "🔑" : "🚪"}</div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {resetMode ? "找回密码" : "用户登录"}
+            </h1>
+            <p className="text-gray-500 text-sm mt-1">
+              {resetMode ? "通过邮箱验证码重置账号密码" : "登录后享受更多功能"}
+            </p>
           </div>
 
           {/* 表单 */}
+          {resetMode ? (
+            <form onSubmit={handleResetPassword} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  注册邮箱
+                </label>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="请输入注册邮箱"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  autoComplete="email"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  邮箱验证码
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6 位验证码"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendResetCode}
+                    disabled={sendingResetCode || resetCountdown > 0}
+                    className="px-4 py-2.5 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {sendingResetCode
+                      ? "发送中..."
+                      : resetCountdown > 0
+                        ? `${resetCountdown}s`
+                        : "获取验证码"}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  新密码
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="至少 6 位"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  确认新密码
+                </label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="请再次输入新密码"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? "重置中..." : "重置密码"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setResetMode(false)}
+                className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                返回登录
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -113,17 +306,31 @@ function LoginContent() {
             >
               {submitting ? "登录中..." : "登 录"}
             </button>
+
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => {
+                  setResetEmail(username.includes("@") ? username : "");
+                  setResetMode(true);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                忘记密码？
+              </button>
+            </div>
           </form>
+          )}
 
           {/* 分隔线 */}
-          <div className="flex items-center my-6">
+          {!resetMode && <div className="flex items-center my-6">
             <div className="flex-1 h-px bg-gray-200" />
             <span className="px-3 text-xs text-gray-400">或</span>
             <div className="flex-1 h-px bg-gray-200" />
-          </div>
+          </div>}
 
           {/* GitHub 登录 */}
-          <a
+          {!resetMode && <a
             href="/api/auth/github"
             className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors"
           >
@@ -140,10 +347,10 @@ function LoginContent() {
               />
             </svg>
             GitHub 登录
-          </a>
+          </a>}
 
           {/* 注册链接 */}
-          <div className="mt-6 text-center text-sm text-gray-500">
+          {!resetMode && <div className="mt-6 text-center text-sm text-gray-500">
             没有账号？
             <Link
               href="/register"
@@ -151,7 +358,7 @@ function LoginContent() {
             >
               立即注册
             </Link>
-          </div>
+          </div>}
 
           {/* 返回首页 */}
           <div className="mt-4 text-center">

@@ -152,7 +152,7 @@ export async function GET() {
       console.error('[HOME COLLAB PROJECTS ERROR]', err instanceof Error ? err.message : err);
     }
 
-    // 5. 精选工具（8条：优先 is_featured，其次 click_count）
+    // 5. 精选工具（固定 6 条：优先 is_featured，其次 click_count）
     try {
       const rows = await queryWithTimeout(
         db,
@@ -160,7 +160,7 @@ export async function GET() {
          FROM Tool
          WHERE is_active = 1
          ORDER BY is_featured DESC, click_count DESC, created_at DESC
-         LIMIT 8`,
+         LIMIT 6`,
         [],
         QUERY_TIMEOUT,
       );

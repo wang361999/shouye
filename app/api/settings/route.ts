@@ -7,14 +7,15 @@ const DEFAULT_SETTINGS = {
   site_description: '开发者工具与社区',
   site_logo: '',
   site_favicon: '',
+  email_verify: 'false',
 };
 
 // ============ GET /api/settings - 公开接口（无需鉴权） ============
-// 仅返回前端展示所需的站点信息：site_name, site_description, site_logo, site_favicon
+// 仅返回前端展示所需的站点信息和安全展示开关
 export async function GET() {
   try {
     // 从数据库读取需要的 key
-    const keys = ['site_name', 'site_description', 'site_logo', 'site_favicon'];
+    const keys = ['site_name', 'site_description', 'site_logo', 'site_favicon', 'email_verify'];
     const settings = await prisma.systemSetting.findMany({
       where: { key: { in: keys } },
     });
@@ -32,9 +33,10 @@ export async function GET() {
         settingsObj.site_description || DEFAULT_SETTINGS.site_description,
       site_logo: settingsObj.site_logo ?? DEFAULT_SETTINGS.site_logo,
       site_favicon: settingsObj.site_favicon ?? DEFAULT_SETTINGS.site_favicon,
+      email_verify: settingsObj.email_verify === 'true',
     });
-    // 公开设置可缓存 5 分钟（CDN + 浏览器）
-    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    // 包含注册邮箱验证开关，避免后台刚切换后前端仍读取旧缓存
+    response.headers.set('Cache-Control', 'no-store');
     return response;
   } catch (error) {
     // 数据库不可用时降级返回默认值

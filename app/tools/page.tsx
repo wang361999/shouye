@@ -19,6 +19,7 @@ interface ToolItem {
   icon?: string;
   logo?: string;
   cover?: string;
+  coverImage?: string;
   url?: string;
   link?: string;
   category?: ToolCategory | string;
@@ -32,6 +33,47 @@ interface ToolItem {
   toolType?: string;
   htmlContent?: string;
   createdAt?: string;
+}
+
+function isImageUrl(value?: string | null) {
+  if (!value) return false;
+  return /^(https?:\/\/|\/|data:image\/)/i.test(value.trim());
+}
+
+function ToolIcon({ tool }: { tool: ToolItem }) {
+  const imageUrl =
+    [tool.icon, tool.logo, tool.cover, tool.coverImage].find((value) =>
+      isImageUrl(value),
+    ) || "";
+  const textIcon = !isImageUrl(tool.icon) && tool.icon ? tool.icon : "🔧";
+
+  if (imageUrl) {
+    return (
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt={tool.name}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            const img = e.currentTarget;
+            img.style.display = "none";
+            const fallback = img.nextElementSibling as HTMLElement | null;
+            if (fallback) fallback.style.display = "inline";
+          }}
+        />
+        <span className="hidden px-1 text-center leading-none truncate max-w-full">
+          {textIcon}
+        </span>
+      </>
+    );
+  }
+
+  return (
+    <span className="px-1 text-center leading-none truncate max-w-full">
+      {textIcon}
+    </span>
+  );
 }
 
 export default function ToolsPage() {
@@ -270,7 +312,6 @@ export default function ToolsPage() {
           /* 工具网格列表 */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredTools.map((tool) => {
-              const iconUrl = tool.icon || tool.logo || tool.cover;
               const catName =
                 typeof tool.category === "object"
                   ? tool.category?.name
@@ -291,20 +332,7 @@ export default function ToolsPage() {
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
-                          {iconUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={iconUrl}
-                              alt={tool.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLElement).style.display =
-                                  "none";
-                              }}
-                            />
-                          ) : (
-                            <span>🔧</span>
-                          )}
+                          <ToolIcon tool={tool} />
                         </div>
                         <div className="min-w-0">
                           <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate text-base">
