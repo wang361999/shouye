@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 // ============ 类型定义 ============
 type ProjectStatus = 'recruiting' | 'active' | 'completed' | 'archived';
 type MemberRole = 'owner' | 'maintainer' | 'member';
-type TaskStatus = 'open' | 'in_progress' | 'review' | 'completed';
+type TaskStatus = 'open' | 'active' | 'in_progress' | 'review' | 'completed';
 type TaskPriority = 'urgent' | 'high' | 'medium' | 'low';
 type ContributionType = 'commit' | 'pull_request' | 'issue' | 'docs' | 'other';
 type ContributionStatus = 'pending' | 'approved' | 'rejected';
@@ -149,6 +149,10 @@ const taskStatusConfig: Record<TaskStatus, { label: string; badge: string }> = {
     label: '待认领',
     badge: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
   },
+  active: {
+    label: '待认领',
+    badge: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  },
   in_progress: {
     label: '进行中',
     badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -162,9 +166,6 @@ const taskStatusConfig: Record<TaskStatus, { label: string; badge: string }> = {
     badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   },
 };
-
-// 未知状态兜底配置
-const fallbackTaskStatus: { label: string; badge: string } = { label: '未知', badge: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' };
 
 const priorityConfig: Record<TaskPriority, { label: string; badge: string }> = {
   urgent: { label: '紧急', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -902,8 +903,8 @@ function TaskItem({
   onStatusChange: (status: TaskStatus) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const status = taskStatusConfig[task.status] ?? fallbackTaskStatus;
-  const priority = priorityConfig[task.priority] ?? fallbackTaskStatus;
+  const status = taskStatusConfig[task.status];
+  const priority = priorityConfig[task.priority];
   const isAssignee = task.assignee?.id === currentUserId;
   const canClaim = isMember && (task.status === 'open' || task.status === 'active');
   const canUpdateStatus = canManage || isAssignee;
@@ -911,12 +912,14 @@ function TaskItem({
   // 下一个状态流转
   const nextStatus: Record<TaskStatus, TaskStatus | null> = {
     open: 'in_progress',
+    active: 'in_progress',
     in_progress: 'review',
     review: 'completed',
     completed: null,
   };
   const nextStatusLabel: Record<TaskStatus, string> = {
     open: '认领任务',
+    active: '认领任务',
     in_progress: '提交审核',
     review: '标记完成',
     completed: '',
@@ -977,16 +980,16 @@ function TaskItem({
             disabled={updating}
             className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {updating ? '处理中...' : (nextStatusLabel[task.status as TaskStatus] ?? '认领任务')}
+            {updating ? '处理中...' : nextStatusLabel[task.status]}
           </button>
         )}
-        {!canClaim && canUpdateStatus && (nextStatus[task.status as TaskStatus] ?? null) && (
+        {!canClaim && canUpdateStatus && nextStatus[task.status] && (
           <button
-            onClick={() => onStatusChange(nextStatus[task.status as TaskStatus]!)}
+            onClick={() => onStatusChange(nextStatus[task.status]!)}
             disabled={updating}
             className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/40 disabled:opacity-50 transition-colors"
           >
-            {updating ? '处理中...' : (nextStatusLabel[task.status as TaskStatus] ?? '流转')}
+            {updating ? '处理中...' : nextStatusLabel[task.status]}
           </button>
         )}
         {canManage && task.status !== 'completed' && (
