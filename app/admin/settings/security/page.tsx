@@ -41,6 +41,11 @@ export default function SecuritySettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailAddr, setTestEmailAddr] = useState("");
+  const [emailRuntime, setEmailRuntime] = useState({
+    resend_configured: false,
+    resend_from_email: "",
+    active_email_provider: "none",
+  });
   // AI Agent 清理
   const [cleanupPreview, setCleanupPreview] = useState<any>(null);
   const [cleanupLoading, setCleanupLoading] = useState(false);
@@ -92,6 +97,11 @@ export default function SecuritySettingsPage() {
         smtp_secure: data.smtp_secure === "true",
         ai_agent_daily_limit: data.ai_agent_daily_limit || "10",
         ai_agent_inactive_days: data.ai_agent_inactive_days || "7",
+      });
+      setEmailRuntime({
+        resend_configured: data.resend_configured === "true",
+        resend_from_email: data.resend_from_email || "",
+        active_email_provider: data.active_email_provider || "none",
       });
       // 检查 GitHub API Token 是否已配置（不返回实际值，仅标记）
       setGithubApiTokenSet(!!data.github_token);
@@ -318,8 +328,8 @@ export default function SecuritySettingsPage() {
       toast.error("请输入测试邮箱地址");
       return;
     }
-    if (!form.smtp_host || !form.smtp_user) {
-      toast.error("请先填写并保存 SMTP 配置");
+    if (!emailRuntime.resend_configured && (!form.smtp_host || !form.smtp_user)) {
+      toast.error("请先配置 Resend 环境变量，或填写并保存 SMTP 备用配置");
       return;
     }
     try {
@@ -478,16 +488,53 @@ export default function SecuritySettingsPage() {
         </Card>
         </div>
 
-        {/* ========== 邮箱 SMTP 配置 ========== */}
+        {/* ========== 邮箱服务配置 ========== */}
         <div id="smtp" className="scroll-mt-20">
         <Card>
           <CardHeader
-            title="邮箱服务配置 (SMTP)"
-            subtitle="用于邮件验证、通知等功能的邮件发送服务"
+            title="邮箱服务配置"
+            subtitle="用于注册邮箱验证、通知等功能的邮件发送服务"
           />
           <CardBody className="space-y-6">
+            <div className={`rounded-lg border p-4 ${
+              emailRuntime.resend_configured
+                ? "border-green-200 bg-green-50"
+                : "border-amber-200 bg-amber-50"
+            }`}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className={`text-sm font-medium ${
+                    emailRuntime.resend_configured ? "text-green-800" : "text-amber-800"
+                  }`}>
+                    当前实际使用：{emailRuntime.resend_configured ? "Resend API" : (emailRuntime.active_email_provider === "smtp" ? "SMTP 备用配置" : "未配置")}
+                  </p>
+                  <p className={`mt-1 text-xs ${
+                    emailRuntime.resend_configured ? "text-green-700" : "text-amber-700"
+                  }`}>
+                    {emailRuntime.resend_configured
+                      ? `发件邮箱：${emailRuntime.resend_from_email || "已通过环境变量配置"}。Resend 优先级高于下方 SMTP，适合 Vercel 生产环境。`
+                      : "当前没有检测到 RESEND_API_KEY。若不配置 Resend，才会回退使用下方 SMTP。"}
+                  </p>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  emailRuntime.resend_configured
+                    ? "bg-green-100 text-green-700"
+                    : "bg-amber-100 text-amber-700"
+                }`}>
+                  {emailRuntime.resend_configured ? "已生效" : "需配置"}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm font-medium text-gray-700">SMTP 备用配置</p>
+              <p className="mt-1 text-xs text-gray-500">
+                生产环境已使用 Resend，下面的 SMTP 可以留空；只有未配置 Resend 时才会作为备用发信方式。
+              </p>
+            </div>
+
             {/* SMTP 主机 */}
-            <FormField label="SMTP 服务器地址" hint="常见邮箱: smtp.qq.com | smtp.163.com | smtp.gmail.com | smtp.exmail.qq.com">
+            <FormField label="SMTP 服务器地址（备用）" hint="可留空。常见邮箱: smtp.qq.com | smtp.163.com | smtp.gmail.com | smtp.exmail.qq.com">
               <Input
                 type="text"
                 value={form.smtp_host}
@@ -524,7 +571,7 @@ export default function SecuritySettingsPage() {
             </div>
 
             {/* SMTP 用户名 */}
-            <FormField label="SMTP 用户名（发件邮箱）">
+            <FormField label="SMTP 用户名（备用发件邮箱）">
               <Input
                 type="text"
                 value={form.smtp_user}
@@ -564,7 +611,10 @@ export default function SecuritySettingsPage() {
 
             {/* 测试邮件发送 */}
             <div className="border-t border-gray-100 pt-4">
-              <FormField label="发送测试邮件" hint="保存配置后可发送测试邮件验证配置是否正确">
+              <FormField
+                label="发送测试邮件"
+                hint={emailRuntime.resend_configured ? "当前会使用 Resend API 发送测试邮件" : "未配置 Resend 时，会使用已保存的 SMTP 备用配置"}
+              >
                 <div className="flex items-center gap-2">
                   <Input
                     type="email"
@@ -576,7 +626,7 @@ export default function SecuritySettingsPage() {
                     variant="primary"
                     onClick={handleTestEmail}
                     loading={testingEmail}
-                    disabled={!form.smtp_host}
+                    disabled={!emailRuntime.resend_configured && !form.smtp_host}
                   >
                     {testingEmail ? "发送中..." : "发送测试"}
                   </Button>

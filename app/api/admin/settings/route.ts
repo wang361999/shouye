@@ -23,6 +23,8 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   smtp_port: '587',
   smtp_user: '',
   smtp_pass: '',
+  smtp_from_name: 'Gitd',
+  smtp_secure: 'false',
   seo_title: 'Gitd - 开发者工具集',
   seo_keywords: '开发者,工具,GitHub,AI',
   seo_description: '汇聚实用开发者工具',
@@ -49,7 +51,12 @@ export async function GET(request: NextRequest) {
       settingsObj[item.key] = item.value;
     }
 
-    return NextResponse.json(settingsObj);
+    return NextResponse.json({
+      ...settingsObj,
+      resend_configured: process.env.RESEND_API_KEY ? 'true' : 'false',
+      resend_from_email: process.env.RESEND_FROM_EMAIL || '',
+      active_email_provider: process.env.RESEND_API_KEY ? 'resend' : (settingsObj.smtp_host && settingsObj.smtp_user ? 'smtp' : 'none'),
+    });
   } catch (error) {
     console.error('[ADMIN SETTINGS GET ERROR]', error);
     return NextResponse.json(
