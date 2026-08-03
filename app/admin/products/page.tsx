@@ -8,6 +8,7 @@ import { ProductsList } from "@/components/admin/products/ProductsList";
 import { ProductFormModal } from "@/components/admin/products/ProductFormModal";
 import { ProductDetail } from "@/components/admin/products/ProductDetail";
 import { type Product } from "@/components/admin/products/types";
+import { PageHeader, Button, ConfirmDialog, Icons } from "@/components/admin/ui";
 
 // ============ 主页面组件 ============
 export default function ProductsAdminPage() {
@@ -150,33 +151,16 @@ export default function ProductsAdminPage() {
     <AdminLayout activeKey="products">
       <div className="space-y-6">
         {/* 页头 */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">📦 产品管理</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              管理数字产品、定价、版本与下载发布
-            </p>
-          </div>
-          <button
-            onClick={openCreateModal}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            新建产品
-          </button>
-        </div>
+        <PageHeader
+          title="产品管理"
+          subtitle="管理数字产品、定价、版本与下载发布"
+          actions={
+            <Button onClick={openCreateModal}>
+              <Icons.Plus className="w-4 h-4 mr-1" />
+              新建产品
+            </Button>
+          }
+        />
 
         <ProductsList
           filteredProducts={filteredProducts}
@@ -212,60 +196,20 @@ export default function ProductsAdminPage() {
       )}
 
       {/* ============ 删除产品确认 ============ */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => !deleting && setDeleteTarget(null)}
-          />
-          <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900">确认删除产品</h3>
-            </div>
-            <p className="text-gray-500 text-sm mb-1">
-              确定要删除产品「
-              <span className="font-medium text-gray-700">
-                {deleteTarget.name}
-              </span>
-              」吗？
-            </p>
-            <p className="text-xs text-red-500 mb-6">
-              此操作不可撤销，将同时删除该产品下的所有版本与订单，关联授权码将被解除绑定。
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-              >
-                {deleting ? "删除中..." : "确认删除"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="确认删除产品"
+        message={
+          deleteTarget
+            ? `确定要删除产品「${deleteTarget.name}」吗？此操作不可撤销，将同时删除该产品下的所有版本与订单，关联授权码将被解除绑定。`
+            : ""
+        }
+        confirmText="确认删除"
+        cancelText="取消"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => !deleting && setDeleteTarget(null)}
+      />
     </AdminLayout>
   );
 }

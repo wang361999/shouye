@@ -21,6 +21,7 @@ import {
   LicenseEditModal,
   LicenseDeleteConfirmModal,
 } from "@/components/admin/licenses/LicenseFormModal";
+import { PageHeader, copyToClipboard } from "@/components/admin/ui";
 
 // ============ 页面组件 ============
 export default function LicensesPage() {
@@ -175,12 +176,12 @@ export default function LicensesPage() {
     });
   }, [licenses, statusFilter, keyword]);
 
-  // ============ 复制 ============
+  // ============ 复制（使用共享 copyToClipboard） ============
   async function handleCopy(text: string, label = "内容") {
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyToClipboard(text);
+    if (ok) {
       toast.success(`${label}已复制`);
-    } catch {
+    } else {
       toast.error("复制失败，请手动复制");
     }
   }
@@ -497,12 +498,10 @@ export default function LicensesPage() {
     <AdminLayout activeKey="settings-licenses">
       <div className="space-y-6">
         {/* 页头 */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">📜 授权管理</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            管理授权码、绑定域名及查看验证日志
-          </p>
-        </div>
+        <PageHeader
+          title="授权管理"
+          subtitle="管理授权码、绑定域名及查看验证日志"
+        />
 
         {/* Tab 切换 */}
         <div className="bg-white rounded-xl border border-gray-200 p-1 inline-flex gap-1">

@@ -5,6 +5,18 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
 import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardBody,
+  Button,
+  Input,
+  Textarea,
+  FormField,
+  Spinner,
+  Icons,
+} from "@/components/admin/ui";
 
 export default function SeoSettingsPage() {
   const { token } = useAppStore();
@@ -63,7 +75,7 @@ export default function SeoSettingsPage() {
     return (
       <AdminLayout activeKey="settings-seo">
         <div className="flex items-center justify-center py-20">
-          <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <Spinner className="w-8 h-8" />
         </div>
       </AdminLayout>
     );
@@ -72,79 +84,65 @@ export default function SeoSettingsPage() {
   return (
     <AdminLayout activeKey="settings-seo">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">&#128221; SEO设置</h1>
+        <PageHeader title="SEO设置" actions={
+          <Icons.Globe className="w-6 h-6 text-gray-400" />
+        } />
 
-        <div className="bg-white rounded-lg shadow p-6 space-y-6">
-          {/* 页面标题 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              页面标题
-            </label>
-            <input
-              type="text"
-              value={form.seo_title}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, seo_title: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="请输入页面标题"
-            />
-          </div>
+        <Card>
+          <CardHeader title="SEO设置" subtitle="配置页面标题、关键词与描述" />
+          <CardBody className="space-y-6">
+            {/* 页面标题 */}
+            <FormField label="页面标题">
+              <Input
+                type="text"
+                value={form.seo_title}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, seo_title: e.target.value }))
+                }
+                placeholder="请输入页面标题"
+              />
+            </FormField>
 
-          {/* 关键词 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              关键词
-            </label>
-            <input
-              type="text"
-              value={form.seo_keywords}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  seo_keywords: e.target.value,
-                }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="请输入关键词，逗号分隔"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              多个关键词请用英文逗号分隔
-            </p>
-          </div>
+            {/* 关键词 */}
+            <FormField label="关键词" hint="多个关键词请用英文逗号分隔">
+              <Input
+                type="text"
+                value={form.seo_keywords}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    seo_keywords: e.target.value,
+                  }))
+                }
+                placeholder="请输入关键词，逗号分隔"
+              />
+            </FormField>
 
-          {/* 描述 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              描述
-            </label>
-            <textarea
-              value={form.seo_description}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  seo_description: e.target.value,
-                }))
-              }
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="请输入页面描述"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              建议控制在 150 字符以内，有助于搜索引擎展示
-            </p>
-          </div>
-        </div>
+            {/* 描述 */}
+            <FormField
+              label="描述"
+              hint="建议控制在 150 字符以内，有助于搜索引擎展示"
+            >
+              <Textarea
+                value={form.seo_description}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    seo_description: e.target.value,
+                  }))
+                }
+                rows={4}
+                placeholder="请输入页面描述"
+              />
+            </FormField>
+          </CardBody>
+        </Card>
 
         {/* 保存按钮 */}
         <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button onClick={handleSave} loading={saving}>
             {saving ? "保存中..." : "保存设置"}
-          </button>
+          </Button>
         </div>
       </div>
     </AdminLayout>

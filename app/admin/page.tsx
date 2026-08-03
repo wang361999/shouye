@@ -5,6 +5,15 @@ import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
 import { adminFetch } from "@/lib/admin-fetch";
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardBody,
+  Button,
+  StatCard,
+  Icons,
+} from "@/components/admin/ui";
 
 interface DashboardStats {
   toolTotal: number;
@@ -19,7 +28,7 @@ interface QuickLink {
   title: string;
   desc: string;
   href: string;
-  icon: string;
+  icon: React.ComponentType<{ className?: string }>;
   color: string;
 }
 
@@ -28,42 +37,42 @@ const QUICK_LINKS: QuickLink[] = [
     title: "工具管理",
     desc: "管理工具的增删改查",
     href: "/admin/tools",
-    icon: "🧩",
+    icon: Icons.Tool,
     color: "blue",
   },
   {
     title: "添加工具",
     desc: "添加新的工具",
     href: "/admin/tools/new",
-    icon: "➕",
+    icon: Icons.Plus,
     color: "green",
   },
   {
     title: "帖子管理",
     desc: "管理论坛帖子",
     href: "/admin/forum/posts",
-    icon: "💬",
+    icon: Icons.Chat,
     color: "purple",
   },
   {
     title: "评论管理",
     desc: "审核和管理评论",
     href: "/admin/forum/comments",
-    icon: "💭",
+    icon: Icons.Comment,
     color: "orange",
   },
   {
     title: "论坛分类",
     desc: "管理论坛分类",
     href: "/admin/forum/categories",
-    icon: "🏷️",
+    icon: Icons.Tag,
     color: "pink",
   },
   {
     title: "工具分类",
     desc: "管理工具分类标签",
     href: "/admin/tools/categories",
-    icon: "📂",
+    icon: Icons.Box,
     color: "indigo",
   },
 ];
@@ -187,43 +196,36 @@ export default function AdminDashboardPage() {
     <AdminLayout activeKey="dashboard">
       <div className="space-y-6">
         {/* 欢迎区 */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">📊 仪表盘</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            欢迎回来，{user?.username}！这里是管理后台概览。
-          </p>
-        </div>
+        <PageHeader
+          title="仪表盘"
+          subtitle={`欢迎回来，${user?.username}！这里是管理后台概览。`}
+        />
 
         {/* 统计卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatBox
-            label="工具总数"
-            value={stats.toolTotal}
-            sub={`在线 ${stats.toolOnline}`}
-            icon="🧩"
-            loading={loading}
+          <StatCard
+            label={`工具总数 · 在线 ${stats.toolOnline}`}
+            value={loading ? "—" : stats.toolTotal}
+            icon={<Icons.Tool />}
+            color="blue"
           />
-          <StatBox
-            label="帖子总数"
-            value={stats.postTotal}
-            sub={`今日 ${stats.postToday}`}
-            icon="💬"
-            loading={loading}
+          <StatCard
+            label={`帖子总数 · 今日 ${stats.postToday}`}
+            value={loading ? "—" : stats.postTotal}
+            icon={<Icons.Chat />}
+            color="purple"
           />
-          <StatBox
-            label="待审评论"
-            value={stats.commentPending}
-            sub="条待处理"
-            icon="💭"
-            loading={loading}
-            highlight={stats.commentPending > 0}
+          <StatCard
+            label="待审评论 · 条待处理"
+            value={loading ? "—" : stats.commentPending}
+            icon={<Icons.Comment />}
+            color={stats.commentPending > 0 ? "yellow" : "gray"}
           />
-          <StatBox
-            label="论坛分类"
-            value={stats.categoryTotal}
-            sub="个分类"
-            icon="🏷️"
-            loading={loading}
+          <StatCard
+            label="论坛分类 · 个分类"
+            value={loading ? "—" : stats.categoryTotal}
+            icon={<Icons.Tag />}
+            color="indigo"
           />
         </div>
 
@@ -231,7 +233,9 @@ export default function AdminDashboardPage() {
         <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">🚀</span>
+              <span className="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600 flex-shrink-0 text-xl">
+                🚀
+              </span>
               <div>
                 <div className="font-semibold text-gray-900">一键部署</div>
                 <div className="text-xs text-gray-500 mt-0.5">
@@ -243,20 +247,14 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             </div>
-            <button
+            <Button
               onClick={handleDeploy}
-              disabled={deploying || !hookConfigured}
-              className="flex-shrink-0 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              disabled={!hookConfigured}
+              loading={deploying}
+              className="flex-shrink-0"
             >
-              {deploying ? (
-                <>
-                  <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  部署中...
-                </>
-              ) : (
-                "🚀 立即部署"
-              )}
-            </button>
+              {deploying ? "部署中..." : "立即部署"}
+            </Button>
           </div>
           {deployResult && (
             <div
@@ -273,89 +271,35 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* 快捷入口 */}
-        <div>
-          <h2 className="text-base font-semibold text-gray-800 mb-3">
-            快捷入口
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {QUICK_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`flex items-center gap-3 p-4 rounded-xl border transition-all hover:shadow-sm ${
-                  colorMap[link.color]
-                } hover:-translate-y-0.5`}
-              >
-                <span className="text-2xl flex-shrink-0">{link.icon}</span>
-                <div className="min-w-0">
-                  <div className="font-medium">{link.title}</div>
-                  <div className="text-xs opacity-75 mt-0.5 truncate">
-                    {link.desc}
-                  </div>
-                </div>
-                <svg
-                  className="w-4 h-4 ml-auto flex-shrink-0 opacity-50"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </Link>
-            ))}
-          </div>
-        </div>
+        <Card>
+          <CardHeader title="快捷入口" />
+          <CardBody>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {QUICK_LINKS.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center gap-3 p-4 rounded-xl border transition-all hover:shadow-sm ${
+                      colorMap[link.color]
+                    } hover:-translate-y-0.5`}
+                  >
+                    <Icon className="w-6 h-6 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <div className="font-medium">{link.title}</div>
+                      <div className="text-xs opacity-75 mt-0.5 truncate">
+                        {link.desc}
+                      </div>
+                    </div>
+                    <Icons.ChevronRight className="w-4 h-4 ml-auto flex-shrink-0 opacity-50" />
+                  </Link>
+                );
+              })}
+            </div>
+          </CardBody>
+        </Card>
       </div>
     </AdminLayout>
-  );
-}
-
-// ============ 统计卡片 ============
-function StatBox({
-  label,
-  value,
-  sub,
-  icon,
-  loading,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  sub: string;
-  icon: string;
-  loading: boolean;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl border p-4 ${
-        highlight
-          ? "bg-orange-50 border-orange-200"
-          : "bg-white border-gray-200"
-      }`}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xl">{icon}</span>
-        {highlight && (
-          <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-        )}
-      </div>
-      <div className="text-2xl font-bold text-gray-900">
-        {loading ? (
-          <span className="inline-block w-8 h-6 bg-gray-100 rounded animate-pulse" />
-        ) : (
-          value
-        )}
-      </div>
-      <div className="text-xs text-gray-500 mt-1">
-        {label}
-        <span className="ml-1 text-gray-400">· {sub}</span>
-      </div>
-    </div>
   );
 }

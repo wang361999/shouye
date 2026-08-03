@@ -6,7 +6,73 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* Markdown 渲染样式 */
+/* ============ Admin Design System ============ */
+@layer components {
+  /* Card */
+  .admin-card {
+    @apply bg-white rounded-lg border border-gray-200 shadow-card;
+  }
+
+  /* Button */
+  .admin-btn {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .admin-btn-primary {
+    @apply admin-btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .admin-btn-secondary {
+    @apply admin-btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50;
+  }
+  .admin-btn-danger {
+    @apply admin-btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .admin-btn-ghost {
+    @apply admin-btn text-gray-600 hover:bg-gray-100;
+  }
+
+  /* Input */
+  .admin-input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-400
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+           disabled:bg-gray-50 disabled:text-gray-400;
+  }
+  .admin-label {
+    @apply block text-sm font-medium text-gray-700 mb-1.5;
+  }
+  .admin-textarea {
+    @apply admin-input resize-y min-h-[80px];
+  }
+  .admin-select {
+    @apply admin-input appearance-none bg-no-repeat bg-right pr-8 cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 12px;
+  }
+
+  /* Badge */
+  .admin-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  }
+
+  /* Table */
+  .admin-table {
+    @apply w-full text-sm text-left;
+  }
+  .admin-table thead th {
+    @apply px-4 py-3 font-medium text-gray-500 bg-gray-50 border-b border-gray-200 whitespace-nowrap;
+  }
+  .admin-table tbody td {
+    @apply px-4 py-3 text-gray-900 border-b border-gray-100;
+  }
+  .admin-table tbody tr:hover {
+    @apply bg-gray-50;
+  }
+  .admin-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+}
+
+/* ============ Markdown Styles ============ */
 .markdown-body h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0; }
 .markdown-body h2 { font-size: 1.25rem; font-weight: 600; margin: 0.8rem 0; }
 .markdown-body h3 { font-size: 1.1rem; font-weight: 600; margin: 0.6rem 0; }
@@ -19,7 +85,7 @@ body {
 .markdown-body a { color: #3b82f6; text-decoration: underline; }
 .markdown-body img { max-width: 100%; border-radius: 0.5rem; }
 
-/* 下拉菜单动画 */
+/* ============ Animations ============ */
 @keyframes dropdown {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -32,27 +98,27 @@ body {
 }
 .animate-slide-down { animation: slide-down 0.2s ease-out; }
 
-/* Tab 内容淡入动画 */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in { animation: fade-in 0.25s ease-out; }
 
-/* 滚动条美化 */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #64748b; }
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-modal-in { animation: modal-in 0.15s ease-out; }
 
-/* 暗色模式基础样式 */
-html.dark {
-  color-scheme: dark;
-}
-html.dark body {
-  background-color: #0f172a;
-  color: #e2e8f0;
-}
+/* ============ Scrollbar ============ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ============ Dark Mode ============ */
+html.dark { color-scheme: dark; }
+html.dark body { background-color: #0f172a; color: #e2e8f0; }
 html.dark .bg-white { background-color: #1e293b !important; }
 html.dark .bg-gray-50 { background-color: #0f172a !important; }
 html.dark .bg-gray-100 { background-color: #1e293b !important; }
@@ -61,6 +127,7 @@ html.dark .text-gray-800 { color: #e2e8f0 !important; }
 html.dark .text-gray-700 { color: #cbd5e1 !important; }
 html.dark .text-gray-600 { color: #94a3b8 !important; }
 html.dark .text-gray-500 { color: #64748b !important; }
+html.dark .text-gray-400 { color: #475569 !important; }
 html.dark .border-gray-200 { border-color: #334155 !important; }
 html.dark .border-gray-100 { border-color: #1e293b !important; }
 html.dark .border-gray-300 { border-color: #475569 !important; }

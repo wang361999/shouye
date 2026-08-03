@@ -6,6 +6,17 @@ import { useAppStore } from "@/lib/store";
 import { adminFetch } from "@/lib/admin-fetch";
 import { DEFAULT_TERMS, DEFAULT_PRIVACY } from "@/lib/default-agreements";
 import toast from "react-hot-toast";
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardBody,
+  Button,
+  Textarea,
+  FormField,
+  Spinner,
+  Icons,
+} from "@/components/admin/ui";
 
 type AgreementType = "terms" | "privacy";
 
@@ -91,7 +102,7 @@ export default function AgreementsSettingsPage() {
     return (
       <AdminLayout activeKey="settings-agreements">
         <div className="flex items-center justify-center py-20">
-          <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <Spinner className="w-8 h-8" />
         </div>
       </AdminLayout>
     );
@@ -100,12 +111,13 @@ export default function AgreementsSettingsPage() {
   return (
     <AdminLayout activeKey="settings-agreements">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">📄 协议文档管理</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            管理用户协议和隐私政策内容，支持 Markdown 格式，修改后前台实时生效
-          </p>
-        </div>
+        <PageHeader
+          title="协议文档管理"
+          subtitle="管理用户协议和隐私政策内容，支持 Markdown 格式，修改后前台实时生效"
+          actions={
+            <Icons.Doc className="w-6 h-6 text-gray-400" />
+          }
+        />
 
         {/* Tab 切换 */}
         <div className="flex items-center gap-2 border-b border-gray-200">
@@ -132,48 +144,47 @@ export default function AgreementsSettingsPage() {
         </div>
 
         {/* 编辑区域 */}
-        <div className="bg-white rounded-lg shadow p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700">
-                {activeTab === "terms" ? "用户协议内容" : "隐私政策内容"}
-              </label>
-              <span className="text-xs text-gray-400">
-                {currentContentLength} 字符
-              </span>
-            </div>
-            <button
-              onClick={handleReset}
-              className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
-            >
-              恢复默认
-            </button>
-          </div>
-
-          <textarea
-            value={currentContent}
-            onChange={(e) => {
-              if (activeTab === "terms") {
-                setTermsContent(e.target.value);
-              } else {
-                setPrivacyContent(e.target.value);
-              }
-            }}
-            rows={24}
-            className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg font-mono leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="请输入协议内容（支持 Markdown 格式）..."
+        <Card>
+          <CardHeader
+            title={activeTab === "terms" ? "用户协议内容" : "隐私政策内容"}
+            subtitle={`${currentContentLength} 字符`}
+            action={
+              <button
+                onClick={handleReset}
+                className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
+              >
+                恢复默认
+              </button>
+            }
           />
+          <CardBody className="space-y-4">
+            <FormField label={activeTab === "terms" ? "用户协议内容" : "隐私政策内容"}>
+              <Textarea
+                value={currentContent}
+                onChange={(e) => {
+                  if (activeTab === "terms") {
+                    setTermsContent(e.target.value);
+                  } else {
+                    setPrivacyContent(e.target.value);
+                  }
+                }}
+                rows={24}
+                className="font-mono leading-relaxed resize-y"
+                placeholder="请输入协议内容（支持 Markdown 格式）..."
+              />
+            </FormField>
 
-          <div className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
-            <p className="font-medium text-gray-500 mb-1">💡 编辑提示</p>
-            <ul className="space-y-0.5 list-disc list-inside">
-              <li>支持 Markdown 语法（标题、列表、加粗、引用等）</li>
-              <li>修改后点击「保存」按钮，前台立即生效</li>
-              <li>如需恢复初始内容，点击右上角「恢复默认」</li>
-              <li>协议底部会显示更新日期，建议修改后同步更新</li>
-            </ul>
-          </div>
-        </div>
+            <div className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
+              <p className="font-medium text-gray-500 mb-1">💡 编辑提示</p>
+              <ul className="space-y-0.5 list-disc list-inside">
+                <li>支持 Markdown 语法（标题、列表、加粗、引用等）</li>
+                <li>修改后点击「保存」按钮，前台立即生效</li>
+                <li>如需恢复初始内容，点击右上角「恢复默认」</li>
+                <li>协议底部会显示更新日期，建议修改后同步更新</li>
+              </ul>
+            </div>
+          </CardBody>
+        </Card>
 
         {/* 操作按钮 */}
         <div className="flex items-center justify-between">
@@ -184,13 +195,9 @@ export default function AgreementsSettingsPage() {
           >
             在新窗口预览 →
           </a>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button onClick={handleSave} loading={saving}>
             {saving ? "保存中..." : "保存修改"}
-          </button>
+          </Button>
         </div>
       </div>
     </AdminLayout>

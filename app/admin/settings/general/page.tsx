@@ -5,6 +5,17 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
 import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardBody,
+  Button,
+  Input,
+  FormField,
+  Spinner,
+  Icons,
+} from "@/components/admin/ui";
 
 export default function GeneralSettingsPage() {
   const { token } = useAppStore();
@@ -65,7 +76,7 @@ export default function GeneralSettingsPage() {
     return (
       <AdminLayout activeKey="settings-general">
         <div className="flex items-center justify-center py-20">
-          <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <Spinner className="w-8 h-8" />
         </div>
       </AdminLayout>
     );
@@ -74,113 +85,98 @@ export default function GeneralSettingsPage() {
   return (
     <AdminLayout activeKey="settings-general">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">&#9881;&#65039; 基本信息</h1>
+        <PageHeader title="基本信息" actions={
+          <Icons.Settings className="w-6 h-6 text-gray-400" />
+        } />
 
-        <div className="bg-white rounded-lg shadow p-6 space-y-6">
-          {/* 网站名称 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              网站名称
-            </label>
-            <input
-              type="text"
-              value={form.site_name}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, site_name: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="请输入网站名称"
-            />
-          </div>
+        <Card>
+          <CardHeader title="基本信息" subtitle="配置网站基本资料" />
+          <CardBody className="space-y-6">
+            {/* 网站名称 */}
+            <FormField label="网站名称">
+              <Input
+                type="text"
+                value={form.site_name}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, site_name: e.target.value }))
+                }
+                placeholder="请输入网站名称"
+              />
+            </FormField>
 
-          {/* 网站描述 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              网站描述
-            </label>
-            <input
-              type="text"
-              value={form.site_description}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  site_description: e.target.value,
-                }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="请输入网站描述"
-            />
-          </div>
+            {/* 网站描述 */}
+            <FormField label="网站描述">
+              <Input
+                type="text"
+                value={form.site_description}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    site_description: e.target.value,
+                  }))
+                }
+                placeholder="请输入网站描述"
+              />
+            </FormField>
 
-          {/* 网站Logo */}
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              网站Logo
-            </label>
-            <input
-              type="text"
-              value={form.site_logo}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, site_logo: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="请输入Logo图片URL"
-            />
-            {form.site_logo && (
-              <div className="mt-3">
-                <img
-                  src={form.site_logo}
-                  alt="Logo预览"
-                  className="h-12 rounded border border-gray-200 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              </div>
-            )}
-          </div>
+            {/* 网站Logo */}
+            <FormField label="网站Logo">
+              <Input
+                type="text"
+                value={form.site_logo}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, site_logo: e.target.value }))
+                }
+                placeholder="请输入Logo图片URL"
+              />
+              {form.site_logo && (
+                <div className="mt-3">
+                  <img
+                    src={form.site_logo}
+                    alt="Logo预览"
+                    className="h-12 rounded border border-gray-200 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
+            </FormField>
 
-          {/* 网站图标 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              网站图标
-            </label>
-            <input
-              type="text"
-              value={form.site_favicon}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  site_favicon: e.target.value,
-                }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="请输入Favicon图片URL"
-            />
-            {form.site_favicon && (
-              <div className="mt-3">
-                <img
-                  src={form.site_favicon}
-                  alt="Favicon预览"
-                  className="h-10 w-10 rounded border border-gray-200 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
+            {/* 网站图标 */}
+            <FormField label="网站图标">
+              <Input
+                type="text"
+                value={form.site_favicon}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    site_favicon: e.target.value,
+                  }))
+                }
+                placeholder="请输入Favicon图片URL"
+              />
+              {form.site_favicon && (
+                <div className="mt-3">
+                  <img
+                    src={form.site_favicon}
+                    alt="Favicon预览"
+                    className="h-10 w-10 rounded border border-gray-200 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
+            </FormField>
+          </CardBody>
+        </Card>
 
         {/* 保存按钮 */}
         <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button onClick={handleSave} loading={saving}>
             {saving ? "保存中..." : "保存设置"}
-          </button>
+          </Button>
         </div>
       </div>
     </AdminLayout>

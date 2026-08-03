@@ -17,6 +17,7 @@ import {
   OrderGeneratedLicenseModal,
   OrderDeleteConfirmModal,
 } from "@/components/admin/orders/OrderDetail";
+import { PageHeader, copyToClipboard } from "@/components/admin/ui";
 
 // ============ 页面组件 ============
 export default function OrdersPage() {
@@ -120,12 +121,12 @@ export default function OrdersPage() {
     setCurrentPage(1);
   }, [statusFilter]);
 
-  // ============ 复制 ============
+  // ============ 复制（使用共享 copyToClipboard） ============
   async function handleCopy(text: string, label = "内容") {
-    try {
-      await navigator.clipboard.writeText(text);
+    const ok = await copyToClipboard(text);
+    if (ok) {
       toast.success(`${label}已复制`);
-    } catch {
+    } else {
       toast.error("复制失败，请手动复制");
     }
   }
@@ -336,12 +337,10 @@ export default function OrdersPage() {
     <AdminLayout activeKey="orders">
       <div className="space-y-6">
         {/* 页头 */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">📋 订单管理</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            管理产品订单、确认收款、生成授权码及退款处理
-          </p>
-        </div>
+        <PageHeader
+          title="订单管理"
+          subtitle="管理产品订单、确认收款、生成授权码及退款处理"
+        />
 
         <OrdersList
           orders={orders}

@@ -5,6 +5,17 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useAppStore } from "@/lib/store";
 import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
+import {
+  PageHeader,
+  Card,
+  CardHeader,
+  CardBody,
+  Button,
+  Input,
+  FormField,
+  Spinner,
+  Icons,
+} from "@/components/admin/ui";
 
 export default function SponsorSettingsPage() {
   const { token } = useAppStore();
@@ -117,7 +128,7 @@ export default function SponsorSettingsPage() {
     return (
       <AdminLayout activeKey="settings-sponsor">
         <div className="flex items-center justify-center py-20">
-          <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <Spinner className="w-8 h-8" />
         </div>
       </AdminLayout>
     );
@@ -139,9 +150,7 @@ export default function SponsorSettingsPage() {
 
     return (
       <div>
-        <label className="block text-sm font-medium text-gray-500 mb-1.5">
-          {label}
-        </label>
+        <label className="admin-label">{label}</label>
 
         {/* 隐藏的文件输入 */}
         <input
@@ -177,20 +186,22 @@ export default function SponsorSettingsPage() {
               </button>
             </div>
             <div className="flex flex-col gap-2">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => inputRef.current?.click()}
                 disabled={isUploading}
-                className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
               >
                 {isUploading ? "上传中..." : "重新上传"}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={() => handleClearImage(field)}
                 disabled={isUploading}
-                className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
               >
                 删除图片
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -201,7 +212,7 @@ export default function SponsorSettingsPage() {
           >
             {isUploading ? (
               <>
-                <div className="w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                <Spinner className="w-8 h-8" />
                 <span className="text-sm text-gray-500">上传中...</span>
               </>
             ) : (
@@ -222,56 +233,52 @@ export default function SponsorSettingsPage() {
   return (
     <AdminLayout activeKey="settings-sponsor">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">❤️ 赞助设置</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            上传微信、支付宝收款二维码，用户可在赞助页面扫码赞助
-          </p>
-        </div>
+        <PageHeader
+          title="赞助设置"
+          subtitle="上传微信、支付宝收款二维码，用户可在赞助页面扫码赞助"
+          actions={
+            <Icons.Heart className="w-6 h-6 text-gray-400" />
+          }
+        />
 
-        <div className="bg-white rounded-lg shadow p-6 space-y-6">
-          {/* 赞助说明文字 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              赞助说明文字
-            </label>
-            <input
-              type="text"
-              value={form.sponsor_text}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, sponsor_text: e.target.value }))
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="例如：如果我们的项目对您有帮助，欢迎赞助支持"
+        <Card>
+          <CardHeader title="赞助设置" subtitle="收款二维码与赞助说明" />
+          <CardBody className="space-y-6">
+            {/* 赞助说明文字 */}
+            <FormField label="赞助说明文字">
+              <Input
+                type="text"
+                value={form.sponsor_text}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, sponsor_text: e.target.value }))
+                }
+                placeholder="例如：如果我们的项目对您有帮助，欢迎赞助支持"
+              />
+            </FormField>
+
+            {/* 微信赞助二维码 */}
+            <UploadArea
+              field="sponsor_wechat_qr"
+              label="微信赞助二维码"
+              inputRef={wechatInputRef}
+              value={form.sponsor_wechat_qr}
             />
-          </div>
 
-          {/* 微信赞助二维码 */}
-          <UploadArea
-            field="sponsor_wechat_qr"
-            label="微信赞助二维码"
-            inputRef={wechatInputRef}
-            value={form.sponsor_wechat_qr}
-          />
-
-          {/* 支付宝赞助二维码 */}
-          <UploadArea
-            field="sponsor_alipay_qr"
-            label="支付宝赞助二维码"
-            inputRef={alipayInputRef}
-            value={form.sponsor_alipay_qr}
-          />
-        </div>
+            {/* 支付宝赞助二维码 */}
+            <UploadArea
+              field="sponsor_alipay_qr"
+              label="支付宝赞助二维码"
+              inputRef={alipayInputRef}
+              value={form.sponsor_alipay_qr}
+            />
+          </CardBody>
+        </Card>
 
         {/* 保存按钮 */}
         <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <Button onClick={handleSave} loading={saving}>
             {saving ? "保存中..." : "保存设置"}
-          </button>
+          </Button>
         </div>
       </div>
     </AdminLayout>
