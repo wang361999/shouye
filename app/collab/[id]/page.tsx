@@ -163,6 +163,9 @@ const taskStatusConfig: Record<TaskStatus, { label: string; badge: string }> = {
   },
 };
 
+// 未知状态兜底配置（避免数据库异常值导致前端崩溃）
+const fallbackTaskStatus = { label: '未知', badge: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' };
+
 const priorityConfig: Record<TaskPriority, { label: string; badge: string }> = {
   urgent: { label: '紧急', badge: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
   high: { label: '高', badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
@@ -899,10 +902,11 @@ function TaskItem({
   onStatusChange: (status: TaskStatus) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const status = taskStatusConfig[task.status];
-  const priority = priorityConfig[task.priority];
+  const status = taskStatusConfig[task.status] ?? fallbackTaskStatus;
+  const priority = priorityConfig[task.priority] ?? fallbackTaskStatus;
   const isAssignee = task.assignee?.id === currentUserId;
-  const canClaim = isMember && task.status === 'open';
+  // 支持 open / active 两种初始状态可认领
+  const canClaim = isMember && (task.status === 'open' || task.status === 'active');
   const canUpdateStatus = canManage || isAssignee;
 
   // 下一个状态流转
@@ -918,6 +922,9 @@ function TaskItem({
     review: '标记完成',
     completed: '',
   };
+  // 支持 active/invalid 状态 → 转为可认领
+  const ns = (task.status === 'open' || task.status === 'active') ? null : (nextStatus[task.status as TaskStatus] ?? null);
+  const nsLabel = (task.status === 'open' || task.status === 'active') ? '' : (nextStatusLabel[task.status as TaskStatus] ?? '');
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
@@ -974,16 +981,16 @@ function TaskItem({
             disabled={updating}
             className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {updating ? '处理中...' : nextStatusLabel[task.status]}
+            {updating ? '处理中...' : nsLabel || '流转'}
           </button>
         )}
-        {!canClaim && canUpdateStatus && nextStatus[task.status] && (
+        {!canClaim && canUpdateStatus && ns && (
           <button
-            onClick={() => onStatusChange(nextStatus[task.status]!)}
+            onClick={() => onStatusChange(ns)}
             disabled={updating}
             className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/40 disabled:opacity-50 transition-colors"
           >
-            {updating ? '处理中...' : nextStatusLabel[task.status]}
+            {updating ? '处理中...' : nsLabel || '流转'}
           </button>
         )}
         {canManage && task.status !== 'completed' && (
