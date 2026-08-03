@@ -77,15 +77,17 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // ============ 包打包策略 ============
-  // 不使用 serverExternalPackages / serverComponentsExternalPackages
-  //
-  // 原因：在 Cloudflare Workers (OpenNext) 部署中，如果将这些包标记为外部，
-  // Next.js 不会将它们打包进 server bundle，导致 OpenNext 的 esbuild 无法解析
-  // 这些包，构建报错 "Could not resolve @libsql/client"。
-  //
-  // 让 Next.js 直接打包这些包到 server bundle 中，OpenNext 就能正确处理。
-  // 这在 Vercel (Node.js) 和 Cloudflare Workers 上都能正常工作。
+  // ============ Cloudflare Workers 兼容 ============
+  // 这些包包含 workerd 专用代码（条件导出），需要由 OpenNext/esbuild 而非 Next.js 打包
+  // patch-libsql-exports.mjs 会在 OpenNext 构建前修补这些包的导出条件
+  // 参考: https://opennext.js.org/cloudflare/howtos/workerd
+  serverExternalPackages: [
+    '@libsql/client',
+    '@libsql/isomorphic-ws',
+    '@prisma/client',
+    '@prisma/adapter-libsql',
+    '.prisma/client',
+  ],
 
   // ============ 实验性功能 ============
   experimental: {
