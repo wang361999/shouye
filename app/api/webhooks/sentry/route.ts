@@ -315,8 +315,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[SENTRY WEBHOOK ERROR]', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: '处理 Sentry 告警失败' },
+      { error: '处理 Sentry 告警失败', detail: errMsg },
       { status: 500 },
     );
   }
