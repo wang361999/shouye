@@ -268,7 +268,7 @@ export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseF
  * AI 模型偶尔会在 JSON 字符串值中输出裸换行符、制表符等控制字符，
  * 或因 max_tokens 限制导致输出被截断（JSON 不完整）。
  * 此函数会：
- *   1. 从 ```json ... ``` 代码块中提取 JSON
+ *   1. 从 ```json ... ``` 代码块中提取 JSON（正确处理嵌套代码块）
  *   2. 定位第一个 { 和最后一个 } 之间的内容
  *   3. 先尝试直接解析
  *   4. 失败则转义所有字符串值中的裸控制字符后重试
@@ -280,13 +280,30 @@ export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseF
  */
 export function robustJSONParse(text) {
   const trimmed = String(text).trim();
+
   // 提取 ```json ... ``` 代码块
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1].trim() : trimmed;
+  // 注意：不能使用非贪婪匹配 .*?，因为 JSON 内容字段中可能包含嵌套的 ``` 代码块
+  // 正确做法：找到第一个 ``` 和最后一个 ``` 之间的内容
+  let candidate = trimmed;
+  const firstFence = trimmed.indexOf('```');
+  if (firstFence !== -1) {
+    const lastFence = trimmed.lastIndexOf('```');
+    if (lastFence > firstFence) {
+      // 取第一个 ``` 之后到最后一个 ``` 之前的内容
+      let inner = trimmed.slice(firstFence + 3, lastFence);
+      // 去掉开头的 json 标记
+      inner = inner.replace(/^(json|JSON)?\s*/i, '');
+      candidate = inner.trim();
+    }
+  }
+
   // 找到第一个 { 和最后一个 }
   const start = candidate.indexOf('{');
   const end = candidate.lastIndexOf('}');
   if (start === -1) {
+    // 没有 {，输出前500字符帮助调试
+    console.error('[robustJSONParse] 未找到 JSON 对象边界（缺少 "{"）');
+    console.error('[robustJSONParse] AI 返回内容前500字符：', candidate.slice(0, 500));
     throw new Error('未找到 JSON 对象边界（缺少 "{"）');
   }
 
@@ -301,32 +318,23 @@ export function robustJSONParse(text) {
     return JSON.parse(jsonStr);
   } catch {
     // 尝试修复：转义字符串值中的裸控制字符（换行、回车、制表符等）
-    jsonStr = jsonStr.replace(/"(?:\\.|[^"\\])*"/g, (match) => {
-      return match.replace(/[\x00-\x1f]/g, (ch) => {
-        const code = ch.charCodeAt(0);
-        if (code === 10) return '\\n';
-        if (code === 13) return '\\r';
-        if (code === 9) return '\\t';
-        return '\\u' + code.toString(16).padStart(4, '0');
-      });
-    });
+    jsonStr = escapeControlCharsInStrings(jsonStr);
     try {
       return JSON.parse(jsonStr);
     } catch {
       // 仍然失败，尝试自动补全截断的 JSON
       console.warn('[robustJSONParse] 标准解析失败，尝试自动补全...');
+      console.warn('[robustJSONParse] JSON 前200字符：', jsonStr.slice(0, 200));
       return repairAndParse(candidate.slice(start));
     }
   }
 }
 
 /**
- * 尝试修复并解析截断的 JSON
- * 策略：从后往前扫描，补齐未闭合的引号、方括号、大括号
+ * 转义 JSON 字符串值中的裸控制字符
  */
-function repairAndParse(jsonStr) {
-  // 先转义字符串值中的裸控制字符
-  jsonStr = jsonStr.replace(/"(?:\\.|[^"\\])*"/g, (match) => {
+function escapeControlCharsInStrings(jsonStr) {
+  return jsonStr.replace(/"(?:\\.|[^"\\])*"/g, (match) => {
     return match.replace(/[\x00-\x1f]/g, (ch) => {
       const code = ch.charCodeAt(0);
       if (code === 10) return '\\n';
@@ -335,6 +343,15 @@ function repairAndParse(jsonStr) {
       return '\\u' + code.toString(16).padStart(4, '0');
     });
   });
+}
+
+/**
+ * 尝试修复并解析截断的 JSON
+ * 策略：从后往前扫描，补齐未闭合的引号、方括号、大括号
+ */
+function repairAndParse(jsonStr) {
+  // 先转义字符串值中的裸控制字符
+  jsonStr = escapeControlCharsInStrings(jsonStr);
 
   // 统计未闭合的符号
   let inString = false;
@@ -381,6 +398,55 @@ function repairAndParse(jsonStr) {
  */
 export async function siteFetch(url, options = {}, timeoutMs = SITE_TIMEOUT_MS) {
   return fetchWithTimeout(url, options, timeoutMs);
+}
+
+/**
+ * 从非 JSON 文本中提取帖子信息（兜底方案）
+ * 当 AI 返回的不是有效 JSON 时，尝试从 Markdown/纯文本中提取标题和内容
+ *
+ * @param {string} text - AI 返回的原始文本
+ * @param {string} fallbackTitle - 备选标题
+ * @returns {object} 包含 title, content, tags, postType, summary 的对象
+ */
+export function extractPostFromText(text, fallbackTitle = '') {
+  const trimmed = String(text).trim();
+
+  // 尝试从第一行 # 标题 中提取
+  let title = fallbackTitle;
+  const titleMatch = trimmed.match(/^#\s+(.+)$/m);
+  if (titleMatch) {
+    title = titleMatch[1].trim();
+  }
+
+  // 去掉代码块标记，取全部内容作为帖子正文
+  let content = trimmed;
+  // 如果有标题行，从标题之后开始取内容
+  if (titleMatch) {
+    const titleIdx = content.indexOf(titleMatch[0]);
+    if (titleIdx !== -1) {
+      content = content.slice(titleIdx + titleMatch[0].length).trim();
+    }
+  }
+
+  // 如果内容为空，用原始文本
+  if (!content) content = trimmed;
+
+  // 从内容中提取可能的标签
+  const tags = [];
+  const tagMatches = content.match(/[#＃]([\w\u4e00-\u9fa5]+)/g);
+  if (tagMatches) {
+    for (const t of tagMatches.slice(0, 3)) {
+      tags.push(t.replace(/[#＃]/, ''));
+    }
+  }
+
+  return {
+    title,
+    content,
+    tags: tags.length > 0 ? tags : ['技术分享'],
+    postType: 'discussion',
+    summary: content.slice(0, 100).replace(/\n/g, ' '),
+  };
 }
 
 export { AI_TIMEOUT_MS, SITE_TIMEOUT_MS, MAX_RETRIES, RETRY_DELAY_MS };

@@ -8,7 +8,7 @@
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL
  */
 
-import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
+import { callAI, checkAIHealth, siteFetch, robustJSONParse, extractPostFromText } from './lib/ai-client.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -20,8 +20,19 @@ const {
 
 const TAG = '[auto-forum-poster]';
 
+// 登录重试配置
+const LOGIN_MAX_RETRIES = 2;
+const LOGIN_RETRY_DELAY_MS = 3000;
+// AI 生成重试次数
+const AI_GENERATE_RETRIES = 2;
+
 function log(message) { console.log(`${TAG} ${message}`); }
+function warn(message) { console.warn(`${TAG} ${message}`); }
 function fail(message) { console.error(`::error::${TAG} ${message}`); process.exit(1); }
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 if (!ADMIN_PASSWORD) fail('缺少 ADMIN_PASSWORD');
 if (!SITE_URL) fail('缺少 SITE_URL');
@@ -74,24 +85,44 @@ function pickTopic() {
   return { topicType, title };
 }
 
-// ===== 登录 =====
+// ===== 登录（带重试）=====
 async function login() {
-  log(`登录 ${SITE_URL}...`);
-  const res = await siteFetch(`${SITE_URL}/api/auth`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }),
-  });
+  for (let attempt = 0; attempt <= LOGIN_MAX_RETRIES; attempt++) {
+    try {
+      log(`登录 ${SITE_URL}...（第 ${attempt + 1} 次尝试）`);
+      const res = await siteFetch(`${SITE_URL}/api/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: ADMIN_USERNAME, password: ADMIN_PASSWORD }),
+      });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    fail(`登录失败：${res.status} ${text.slice(0, 300)}`);
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        if (attempt < LOGIN_MAX_RETRIES) {
+          warn(`登录失败：${res.status}，${LOGIN_RETRY_DELAY_MS}ms 后重试...`);
+          await sleep(LOGIN_RETRY_DELAY_MS);
+          continue;
+        }
+        fail(`登录失败：${res.status} ${text.slice(0, 300)}`);
+      }
+
+      const data = await res.json();
+      if (!data.token) fail('登录返回中没有 token');
+      log(`登录成功，用户：${data.user?.username}`);
+      return data.token;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        warn(`登录超时，${LOGIN_RETRY_DELAY_MS}ms 后重试...`);
+      } else {
+        warn(`登录异常：${error?.message || error}，${LOGIN_RETRY_DELAY_MS}ms 后重试...`);
+      }
+      if (attempt < LOGIN_MAX_RETRIES) {
+        await sleep(LOGIN_RETRY_DELAY_MS);
+        continue;
+      }
+      fail(`登录失败（已重试 ${LOGIN_MAX_RETRIES + 1} 次）：${error?.message || error}`);
+    }
   }
-
-  const data = await res.json();
-  if (!data.token) fail('登录返回中没有 token');
-  log(`登录成功，用户：${data.user?.username}`);
-  return data.token;
 }
 
 // ===== 获取分类 =====
@@ -109,9 +140,7 @@ async function fetchCategories(token) {
   return Array.isArray(data.categories) ? data.categories : [];
 }
 
-// ===== 健壮 JSON 解析已移至共享库 ai-client.mjs，直接导入使用 =====
-
-// ===== 调用 AI 生成帖子内容 =====
+// ===== 调用 AI 生成帖子内容（带 JSON 解析重试和兜底提取）=====
 async function generatePostContent(title, topicType, categories) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
   const typeHint = topicType === 'tutorial'
@@ -133,10 +162,10 @@ async function generatePostContent(title, topicType, categories) {
 
 ## 输出格式
 
-输出严格 JSON：
+只输出一个 JSON 对象，不要输出任何其他文字，不要用 markdown 代码块包裹：
 {
   "title": "帖子标题",
-  "content": "Markdown 格式的帖子正文",
+  "content": "Markdown 格式的帖子正文，注意：正文中的换行用 \\n 表示",
   "tags": ["标签1", "标签2", "标签3"],
   "postType": "discussion",
   "summary": "一句话总结这篇帖子"
@@ -147,27 +176,57 @@ async function generatePostContent(title, topicType, categories) {
 
   log(`调用 AI 生成帖子：${title}`);
 
-  const content = await callAI({
-    prompt,
-    systemPrompt: '你是技术社区内容创作者，擅长写高质量的编程教程和开源项目推荐文章。只输出严格 JSON。',
-    maxTokens: 8000,
-    responseFormat: { type: 'json_object' },
-    tag: TAG,
-  });
+  let lastError = null;
+  for (let attempt = 0; attempt <= AI_GENERATE_RETRIES; attempt++) {
+    const content = await callAI({
+      prompt,
+      systemPrompt: '你是技术社区内容创作者，擅长写高质量的编程教程和开源项目推荐文章。必须只输出一个有效的 JSON 对象，不要包含任何 markdown 代码块标记或其他文字。',
+      maxTokens: 8000,
+      responseFormat: { type: 'json_object' },
+      tag: TAG,
+    });
 
-  const parsed = robustJSONParse(content);
-  if (!parsed.title || !parsed.content) fail('AI 返回内容缺少 title 或 content');
-  log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
-  return parsed;
+    // 尝试 JSON 解析
+    try {
+      const parsed = robustJSONParse(content);
+      if (parsed.title && parsed.content) {
+        log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
+        return parsed;
+      }
+      warn(`AI 返回的 JSON 缺少 title 或 content（第 ${attempt + 1} 次）`);
+    } catch (parseError) {
+      warn(`JSON 解析失败（第 ${attempt + 1} 次）：${parseError.message}`);
+      log(`AI 返回内容前300字符：${content.slice(0, 300)}`);
+    }
+
+    lastError = new Error('JSON 解析失败');
+
+    // 最后一次尝试时，使用兜底提取
+    if (attempt === AI_GENERATE_RETRIES) {
+      warn('JSON 解析多次失败，尝试从文本中提取帖子内容...');
+      const fallback = extractPostFromText(content, title);
+      if (fallback.title && fallback.content && fallback.content.length > 50) {
+        log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
+        return fallback;
+      }
+    }
+  }
+
+  fail(`AI 生成帖子内容失败（已重试 ${AI_GENERATE_RETRIES + 1} 次）：${lastError?.message || '未知错误'}`);
 }
 
 // ===== 发布帖子 =====
 async function publishPost(token, postData, categories) {
   let categoryId = null;
-  // 验证 AI 返回的 categoryId 是否真实存在，不存在则用第一个分类
-  if (postData.categoryId && categories.some((c) => c.id === postData.categoryId)) {
-    categoryId = postData.categoryId;
-  } else if (categories.length > 0) {
+  // 验证 AI 返回的 categoryId 是否真实存在（用 String 比较避免类型不匹配）
+  if (postData.categoryId) {
+    const matched = categories.find((c) => String(c.id) === String(postData.categoryId));
+    if (matched) {
+      categoryId = matched.id;
+    }
+  }
+  // 没有匹配到分类，用第一个分类
+  if (!categoryId && categories.length > 0) {
     categoryId = categories[0].id;
   }
 
@@ -209,21 +268,27 @@ async function publishPost(token, postData, categories) {
 }
 
 // ===== 主流程 =====
-log('=== 自动论坛发帖任务开始 ===');
+async function main() {
+  log('=== 自动论坛发帖任务开始 ===');
 
-// 预检 AI API
-const healthyModel = await checkAIHealth(TAG);
-if (!healthyModel) fail('AI API 预检失败，所有模型均不可用');
-log(`使用 AI 模型：${healthyModel}`);
+  // 预检 AI API
+  const healthyModel = await checkAIHealth(TAG);
+  if (!healthyModel) fail('AI API 预检失败，所有模型均不可用');
+  log(`使用 AI 模型：${healthyModel}`);
 
-const { topicType, title } = pickTopic();
-log(`本次主题类型：${topicType}，标题：${title}`);
-if (AUTHOR_NAME) log(`自定义作者名：${AUTHOR_NAME}`);
+  const { topicType, title } = pickTopic();
+  log(`本次主题类型：${topicType}，标题：${title}`);
+  if (AUTHOR_NAME) log(`自定义作者名：${AUTHOR_NAME}`);
 
-const token = await login();
-const categories = await fetchCategories(token);
-const postData = await generatePostContent(title, topicType, categories);
-const result = await publishPost(token, postData, categories);
+  const token = await login();
+  const categories = await fetchCategories(token);
+  const postData = await generatePostContent(title, topicType, categories);
+  const result = await publishPost(token, postData, categories);
 
-log(`完成！帖子：${postData.title}`);
-log(`摘要：${postData.summary || '无'}`);
+  log(`完成！帖子：${postData.title}`);
+  log(`摘要：${postData.summary || '无'}`);
+}
+
+main().catch((error) => {
+  fail(`未捕获的错误：${error?.stack || error}`);
+});
