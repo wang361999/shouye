@@ -186,7 +186,9 @@ async function generateArticle(postType, title, categories) {
     parsed = robustJSONParse(content);
   } catch (err) {
     log(`JSON 解析失败：${err.message}`);
-    log(`模型返回内容（前 500 字符）：${content.slice(0, 500)}`);
+    log(`模型返回内容长度：${content.length}`);
+    log(`内容开头（前 500 字符）：${content.slice(0, 500)}`);
+    log(`内容结尾（后 300 字符）：${content.slice(-300)}`);
     fail('AI 返回内容无法解析为 JSON');
   }
 

@@ -108,7 +108,7 @@ export async function checkAIHealth(tag = '[ai-client]') {
           },
           body: JSON.stringify({
             model,
-            max_tokens: 16,
+            max_tokens: 128,
             messages: [{ role: 'user', content: '你好，请回复"OK"' }],
           }),
         },
@@ -118,8 +118,14 @@ export async function checkAIHealth(tag = '[ai-client]') {
       if (res.ok) {
         const data = await res.json().catch(() => null);
         const content = data?.choices?.[0]?.message?.content;
-        console.log(`${tag}   ✅ 模型 ${model} 可用（回复：${(content || '').slice(0, 20)}）`);
-        return model;
+        if (content && content.trim()) {
+          console.log(`${tag}   ✅ 模型 ${model} 可用（回复：${content.trim().slice(0, 20)}）`);
+          return model;
+        }
+        // 200 但内容为空：可能 max_tokens 太小或模型异常，继续尝试下一个
+        const rawPreview = JSON.stringify(data)?.slice(0, 300) || '(空响应)';
+        console.warn(`${tag}   ⚠️ 模型 ${model} 返回 200 但内容为空，跳过：${rawPreview}`);
+        continue;
       }
 
       const text = await res.text().catch(() => '');
@@ -189,14 +195,20 @@ export async function callAI({ prompt, systemPrompt, maxTokens = 2048, responseF
 
         if (res.ok) {
           const data = await res.json();
-          const content = data?.choices?.[0]?.message?.content;
+          const choice = data?.choices?.[0];
+          const content = choice?.message?.content;
+          const finishReason = choice?.finish_reason || 'unknown';
           if (content && content.trim()) {
+            console.log(`${tag} AI 返回 ${content.length} 字符，finish_reason=${finishReason}，模型=${model}`);
+            if (finishReason === 'length') {
+              console.warn(`${tag} ⚠️ 响应因 max_tokens 被截断（finish_reason=length），JSON 可能不完整`);
+            }
             if (model !== UNIQUE_MODELS[0]) {
               console.warn(`${tag} ⚠️ 主模型不可用，已降级到 ${model}`);
             }
             return content.trim();
           }
-          throw new Error('AI 返回内容为空');
+          throw new Error(`AI 返回内容为空（finish_reason=${finishReason}）`);
         }
 
         // 429 限流：等待更长时间后重试
