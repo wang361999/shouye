@@ -89,6 +89,7 @@ export default function GithubCodeBlock({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [highlighted, setHighlighted] = useState<string>("");
+  const [copied, setCopied] = useState(false);
   const codeRef = useRef<HTMLElement>(null);
 
   // 解析 source: owner/repo/path/to/file.ext
@@ -182,24 +183,35 @@ export default function GithubCodeBlock({
     };
   }, [owner, repo, filePath, gitRef, startLine, endLine]);
 
+  async function handleCopy() {
+    if (!data?.content) return;
+    try {
+      await navigator.clipboard.writeText(data.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   // 加载中
   if (loading) {
     return (
-      <div className="my-4 rounded-lg border border-gray-200 overflow-hidden">
+      <div className="my-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-lg shadow-slate-900/10">
         {showHeader && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm text-gray-500">
-            <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-3 border-b border-slate-800 bg-slate-900 px-4 py-2.5 text-sm text-slate-300">
+            <svg className="w-4 h-4 animate-spin text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            <span className="font-mono text-xs">{source}</span>
+            <span className="truncate font-mono text-xs">{source}</span>
           </div>
         )}
-        <div className="p-4 bg-gray-900">
+        <div className="bg-slate-950 p-4">
           <div className="space-y-2 animate-pulse">
-            <div className="h-3 bg-gray-700 rounded w-3/4" />
-            <div className="h-3 bg-gray-700 rounded w-full" />
-            <div className="h-3 bg-gray-700 rounded w-5/6" />
-            <div className="h-3 bg-gray-700 rounded w-2/3" />
+            <div className="h-3 rounded bg-slate-800 w-3/4" />
+            <div className="h-3 rounded bg-slate-800 w-full" />
+            <div className="h-3 rounded bg-slate-800 w-5/6" />
+            <div className="h-3 rounded bg-slate-800 w-2/3" />
           </div>
         </div>
       </div>
@@ -209,8 +221,8 @@ export default function GithubCodeBlock({
   // 错误
   if (error) {
     return (
-      <div className="my-4 rounded-lg border border-red-200 bg-red-50 p-4">
-        <div className="flex items-center gap-2 text-sm text-red-600">
+      <div className="my-5 rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
+        <div className="flex items-center gap-2 text-sm font-medium text-red-600">
           <span>⚠️</span>
           <span>{error}</span>
         </div>
@@ -221,39 +233,53 @@ export default function GithubCodeBlock({
 
   // 正常渲染
   return (
-    <div className="my-4 rounded-lg border border-gray-200 overflow-hidden">
+    <div className="my-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-lg shadow-slate-900/10">
       {/* 文件头 */}
       {showHeader && data && (
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-800 bg-slate-900 px-4 py-2.5">
           <div className="flex items-center gap-2 min-w-0">
+            <div className="hidden sm:flex items-center gap-1.5 mr-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+            </div>
             {/* GitHub 图标 */}
-            <svg className="w-4 h-4 flex-shrink-0 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 flex-shrink-0 text-slate-300" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
             </svg>
-            <span className="text-sm font-medium text-gray-700 truncate">
+            <span className="text-sm font-semibold text-slate-100 truncate">
               {data.owner}/{data.repo}
             </span>
-            <span className="text-gray-300">/</span>
-            <span className="text-xs text-gray-500 font-mono truncate">
+            <span className="text-slate-600">/</span>
+            <span className="text-xs text-slate-400 font-mono truncate">
               {data.path}
             </span>
             {lines && (
-              <span className="flex-shrink-0 px-1.5 py-0.5 text-xs bg-blue-50 text-blue-600 rounded font-mono">
+              <span className="flex-shrink-0 rounded-md border border-blue-400/30 bg-blue-400/10 px-1.5 py-0.5 font-mono text-xs text-blue-200">
                 L{startLine}{endLine > 0 ? `-L${endLine}` : ""}
               </span>
             )}
           </div>
-          <a
-            href={data.htmlUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors"
-          >
-            查看
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </a>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-300 transition-colors hover:border-blue-400 hover:text-blue-200"
+            >
+              {copied ? "已复制" : "复制"}
+            </button>
+            <a
+              href={data.htmlUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-300 transition-colors hover:border-blue-400 hover:text-blue-200"
+            >
+              查看
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          </div>
         </div>
       )}
 
@@ -261,7 +287,7 @@ export default function GithubCodeBlock({
       <div className="relative">
         {/* 行号侧边栏 + 代码 */
         data && (
-          <div className="flex bg-gray-900 text-gray-300 text-xs overflow-x-auto">
+          <div className="flex overflow-x-auto bg-slate-950 text-xs text-slate-300">
             {/* 行号 */
             (() => {
               const codeLines = data.content.split("\n");
@@ -272,15 +298,15 @@ export default function GithubCodeBlock({
               }
               return (
                 <>
-                  <div className="flex-shrink-0 py-3 px-3 text-right select-none border-r border-gray-700 bg-gray-800 text-gray-500 font-mono">
+                  <div className="flex-shrink-0 select-none border-r border-slate-800 bg-slate-900 px-3 py-4 text-right font-mono text-slate-500">
                     {lineNumbers.map((n) => (
-                      <div key={n} className="leading-5">{n}</div>
+                      <div key={n} className="leading-6">{n}</div>
                     ))}
                   </div>
-                  <pre className="flex-1 py-3 px-4 overflow-x-auto">
+                  <pre className="flex-1 overflow-x-auto px-4 py-4">
                     <code
                       ref={codeRef as any}
-                      className={`language-${getLanguageFromPath(data.path)} font-mono leading-5`}
+                      className={`language-${getLanguageFromPath(data.path)} font-mono leading-6`}
                       dangerouslySetInnerHTML={{
                         __html: highlighted || escapeHtml(data.content),
                       }}
