@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import {
@@ -58,6 +58,19 @@ interface PreviewData {
   content: string;
   digest: string;
   author: string;
+}
+
+interface ForumPostItem {
+  id: string;
+  title: string;
+  summary: string;
+  author: { username: string };
+  category: { name: string } | null;
+  createdAt: string;
+  viewCount: number;
+  likeCount: number;
+  commentCount: number;
+  status: string;
 }
 
 // ============ Constants ============
@@ -145,6 +158,16 @@ export default function WeChatSyncPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // 帖子选择弹窗
+  const [postPickerOpen, setPostPickerOpen] = useState(false);
+  const [postList, setPostList] = useState<ForumPostItem[]>([]);
+  const [postLoading, setPostLoading] = useState(false);
+  const [postSearch, setPostSearch] = useState("");
+  const [postPage, setPostPage] = useState(1);
+  const [postTotalPages, setPostTotalPages] = useState(1);
+  const [postTotal, setPostTotal] = useState(0);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
   const isPersonal = config.accountType === "personal";
   const isConfigured = config.configured;
 
@@ -191,8 +214,15 @@ export default function WeChatSyncPage() {
       toast.error("请输入有效的帖子 ID 或帖子链接");
       return;
     }
+    await syncPost(postId);
+  }
+
+  // 同步指定帖子（共用逻辑）
+  async function syncPost(postId: string) {
+    if (syncing) return;
     try {
       setSyncing(true);
+      setSelectedPostId(postId);
       const res = await adminFetch("/api/wechat/sync", {
         method: "POST",
         body: JSON.stringify({ postId }),
@@ -203,20 +233,63 @@ export default function WeChatSyncPage() {
       }
 
       if (isPersonal && data.preview) {
-        // 个人号模式：直接显示生成的内容
         setPreviewData(data.preview);
         toast.success("内容已生成，请复制到公众号后台");
       } else {
         toast.success(data.message || "已提交同步任务");
       }
       setSyncInput("");
+      setPostPickerOpen(false);
       setCurrentPage(1);
       await fetchHistory();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "同步失败，请稍后重试");
     } finally {
       setSyncing(false);
+      setSelectedPostId(null);
     }
+  }
+
+  // 获取帖子列表（用于选择器）
+  async function fetchPosts(page = 1, search = "") {
+    try {
+      setPostLoading(true);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "10",
+        admin: "1",
+      });
+      if (search) params.set("search", search);
+      const res = await adminFetch(`/api/forum/posts?${params.toString()}`);
+      if (!res.ok) throw new Error("获取帖子列表失败");
+      const data = await res.json();
+      setPostList(data.posts || []);
+      setPostTotal(data.total || 0);
+      setPostTotalPages(data.totalPages || 1);
+      setPostPage(page);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "获取帖子列表失败");
+    } finally {
+      setPostLoading(false);
+    }
+  }
+
+  // 打开帖子选择器
+  function openPostPicker() {
+    setPostPickerOpen(true);
+    setPostSearch("");
+    setPostPage(1);
+    fetchPosts(1, "");
+  }
+
+  // 搜索帖子（防抖）
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function handlePostSearch(value: string) {
+    setPostSearch(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      fetchPosts(1, value);
+    }, 400);
   }
 
   // 查看已生成内容（个人号模式，从记录重新获取）
@@ -442,8 +515,8 @@ export default function WeChatSyncPage() {
             title={isPersonal ? "生成微信内容" : "手动同步"}
             subtitle={
               isPersonal
-                ? "输入论坛帖子 ID 或链接，生成微信公众号适配的 HTML 内容"
-                : "输入论坛帖子 ID 或链接，将其同步为公众号草稿"
+                ? "选择或输入论坛帖子，生成微信公众号适配的 HTML 内容"
+                : "选择或输入论坛帖子 ID 或链接，将其同步为公众号草稿"
             }
           />
           <CardBody>
@@ -459,9 +532,17 @@ export default function WeChatSyncPage() {
                 }}
               />
               <Button
+                variant="secondary"
+                onClick={openPostPicker}
+                disabled={!isConfigured || syncing}
+              >
+                <Icons.Chat className="w-4 h-4" />
+                选择帖子
+              </Button>
+              <Button
                 onClick={handleSync}
                 loading={syncing}
-                disabled={!isConfigured}
+                disabled={!isConfigured || !syncInput.trim()}
               >
                 <Icons.ExternalLink className="w-4 h-4" />
                 {isPersonal ? "生成内容" : "同步到微信"}
@@ -475,7 +556,7 @@ export default function WeChatSyncPage() {
             {isPersonal && isConfigured && (
               <div className="mt-3 rounded-md bg-blue-50 border border-blue-200 px-3 py-2">
                 <p className="text-xs text-blue-800">
-                  个人号模式：点击「生成内容」后将自动弹出预览窗口，可一键复制 HTML 内容，然后粘贴到微信公众号后台编辑器中发布。
+                  个人号模式：点击「选择帖子」直接选取论坛帖子，生成后可一键复制 HTML 内容，粘贴到微信公众号后台发布。
                 </p>
               </div>
             )}
@@ -800,6 +881,156 @@ export default function WeChatSyncPage() {
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 帖子选择弹窗 */}
+      {postPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+            {/* 弹窗头部 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">选择帖子</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  搜索并选择要同步到微信公众号的帖子
+                </p>
+              </div>
+              <button
+                onClick={() => !syncing && setPostPickerOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 搜索栏 */}
+            <div className="px-6 py-3 border-b border-gray-100">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={postSearch}
+                  onChange={(e) => handlePostSearch(e.target.value)}
+                  placeholder="搜索帖子标题或内容..."
+                  className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* 帖子列表 */}
+            <div className="flex-1 overflow-y-auto">
+              {postLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Spinner className="w-6 h-6 text-brand-500" />
+                  <span className="ml-2 text-sm text-gray-500">加载中...</span>
+                </div>
+              ) : postList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                  <Icons.Chat className="w-12 h-12 mb-2" />
+                  <p className="text-sm">暂无帖子</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {postList.map((post) => {
+                    const isSelected = selectedPostId === post.id;
+                    const isThisSyncing = syncing && isSelected;
+                    return (
+                      <button
+                        key={post.id}
+                        onClick={() => !syncing && syncPost(post.id)}
+                        disabled={syncing}
+                        className={`w-full text-left px-6 py-3 hover:bg-brand-50 transition-colors flex items-start gap-3 group disabled:opacity-60 disabled:cursor-not-allowed ${
+                          isSelected ? "bg-brand-50" : ""
+                        }`}
+                      >
+                        {/* 帖子信息 */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-gray-900 line-clamp-1 group-hover:text-brand-600">
+                              {post.title}
+                            </span>
+                            {post.category && (
+                              <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                                {post.category.name}
+                              </span>
+                            )}
+                          </div>
+                          {post.summary && (
+                            <p className="text-xs text-gray-500 line-clamp-1 mb-1">
+                              {post.summary}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 text-xs text-gray-400">
+                            <span>{post.author?.username || "匿名"}</span>
+                            <span>{formatDateTime(post.createdAt)}</span>
+                            <span className="flex items-center gap-0.5">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              {post.viewCount || 0}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                              </svg>
+                              {post.likeCount || 0}
+                            </span>
+                          </div>
+                        </div>
+                        {/* 操作指示 */}
+                        <div className="flex-shrink-0 mt-1">
+                          {isThisSyncing ? (
+                            <Spinner className="w-5 h-5 text-brand-500" />
+                          ) : (
+                            <div className="flex items-center gap-1 text-xs text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+                              {isPersonal ? "生成" : "同步"}
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 分页 */}
+            {!postLoading && postList.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                <span className="text-xs text-gray-500">
+                  共 {postTotal} 篇帖子
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => fetchPosts(postPage - 1, postSearch)}
+                    disabled={postPage <= 1 || postLoading}
+                    className="px-3 py-1 text-xs text-gray-600 border border-gray-200 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    上一页
+                  </button>
+                  <span className="text-xs text-gray-500">
+                    {postPage} / {postTotalPages}
+                  </span>
+                  <button
+                    onClick={() => fetchPosts(postPage + 1, postSearch)}
+                    disabled={postPage >= postTotalPages || postLoading}
+                    className="px-3 py-1 text-xs text-gray-600 border border-gray-200 rounded hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    下一页
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
