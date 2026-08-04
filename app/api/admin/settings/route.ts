@@ -31,6 +31,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   ai_agent_inactive_days: '7',
   wechat_app_id: '',
   wechat_app_secret: '',
+  wechat_account_type: 'enterprise',
 };
 
 // ============ GET /api/admin/settings - 获取所有系统设置 ============

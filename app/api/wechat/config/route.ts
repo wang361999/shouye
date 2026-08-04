@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         configured: false,
         appId: undefined,
+        accountType: config.accountType,
         message: '微信公众号未配置 AppID/AppSecret',
       });
     }
@@ -31,6 +32,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         configured: true,
         appId: config.appId,
+        accountType: config.accountType,
+      });
+    }
+
+    // 个人号模式不需要测试 Access Token（不调用微信 API）
+    if (config.accountType === 'personal') {
+      return NextResponse.json({
+        configured: true,
+        appId: config.appId,
+        accountType: 'personal',
+        message: '个人号模式，无需测试 API 连接。内容生成后请手动复制到公众号后台发布。',
       });
     }
 
@@ -42,12 +54,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           configured: true,
           appId: config.appId,
+          accountType: config.accountType,
           message: '连接成功，Access Token 获取正常',
         });
       } else {
         return NextResponse.json({
           configured: true,
           appId: config.appId,
+          accountType: config.accountType,
           message: '获取 Access Token 返回为空，请检查配置',
         });
       }
@@ -58,9 +72,10 @@ export async function GET(request: NextRequest) {
         {
           configured: true,
           appId: config.appId,
+          accountType: config.accountType,
           error: message,
         },
-        { status: 200 }, // 返回 200 但带 error 字段，便于前端区分
+        { status: 200 },
       );
     }
   } catch (error) {

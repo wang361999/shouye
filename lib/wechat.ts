@@ -912,18 +912,40 @@ export async function getOrCreateDefaultThumbMediaId(): Promise<string> {
 }
 
 /**
+ * 从数据库 SystemSetting 或环境变量获取微信公众号类型
+ *
+ * 值为 "personal"（个人号）或 "enterprise"（企业号），默认 "enterprise"
+ *
+ * @returns 账号类型
+ */
+export async function getWechatAccountType(): Promise<'personal' | 'enterprise'> {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'wechat_account_type' },
+    });
+    if (setting?.value === 'personal') return 'personal';
+    return 'enterprise';
+  } catch {
+    return 'enterprise';
+  }
+}
+
+/**
  * 获取微信配置状态
  *
- * @returns { configured: boolean, appId?: string }
+ * @returns { configured: boolean, appId?: string, accountType?: 'personal' | 'enterprise' }
  */
 export async function getWechatConfig(): Promise<{
   configured: boolean;
   appId?: string;
+  accountType?: 'personal' | 'enterprise';
 }> {
   const appId = await getWechatAppId();
   const appSecret = await getWechatAppSecret();
+  const accountType = await getWechatAccountType();
   return {
     configured: Boolean(appId && appSecret),
     appId: appId || undefined,
+    accountType,
   };
 }

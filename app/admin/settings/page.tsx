@@ -38,6 +38,7 @@ export default function SiteSettingsPage() {
     sponsor_alipay_qr: "",
     wechat_app_id: "",
     wechat_app_secret: "",
+    wechat_account_type: "enterprise" as "personal" | "enterprise",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,6 +67,7 @@ export default function SiteSettingsPage() {
         sponsor_alipay_qr: data.sponsor_alipay_qr || "",
         wechat_app_id: data.wechat_app_id || "",
         wechat_app_secret: data.wechat_app_secret || "",
+        wechat_account_type: (data.wechat_account_type as "personal" | "enterprise") || "enterprise",
       });
     } catch {
       toast.error("获取设置失败");
@@ -421,11 +423,61 @@ export default function SiteSettingsPage() {
                     <p>2. 在同页面「基础信息」→「开发信息」中配置 <span className="font-medium">API IP 白名单</span>，将本服务器出口 IP 加入白名单（支持 IP 和 IP 段如 1.2.3.4/24，不支持 IP:端口）。</p>
                     <p>3. AppSecret 仅在启用或重置时显示一次，请立即复制保存。平台不保存此密钥，丢失只能重置。</p>
                     <p>4. 个人订阅号需完成管理员实名认证；非个人主体需完成微信认证后才能启用 AppSecret。</p>
-                    <p>5. 认证订阅号/服务号可使用草稿+发布接口；个人订阅号部分接口受限，可能仅支持手动发布。</p>
+                    <p>5. <span className="font-medium text-red-600">2025年7月起，个人主体账号的发布接口已被微信回收。</span> 个人号请选择「个人号」模式，系统将生成微信格式内容供手动复制；企业认证号选择「企业号」模式可使用草稿+发布接口。</p>
                     <p className="text-xs text-blue-600 mt-1">注：原「微信公众平台 - 设置与开发 - 基本配置」入口已于 2025年12月1日关闭，所有配置已迁移至微信开发者平台。</p>
                   </div>
                 </div>
               </div>
+
+              {/* 账号类型选择 */}
+              <FormField label="账号类型" hint="选择公众号主体类型，决定同步方式">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors flex-1 ${
+                      form.wechat_account_type === "personal"
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="account_type"
+                      value="personal"
+                      checked={form.wechat_account_type === "personal"}
+                      onChange={(e) => setForm((p) => ({ ...p, wechat_account_type: e.target.value as "personal" }))}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">个人号</span>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        生成微信格式 HTML，手动复制到公众号后台发布。适用于个人主体订阅号（2025.7 后发布接口已回收）。
+                      </p>
+                    </div>
+                  </label>
+                  <label
+                    className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors flex-1 ${
+                      form.wechat_account_type === "enterprise"
+                        ? "border-green-400 bg-green-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="account_type"
+                      value="enterprise"
+                      checked={form.wechat_account_type === "enterprise"}
+                      onChange={(e) => setForm((p) => ({ ...p, wechat_account_type: e.target.value as "enterprise" }))}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">企业号</span>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        调用微信 API 自动创建草稿并发布。需已完成微信认证（蓝V），300元/年。
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </FormField>
 
               <FormField label="AppID" hint="公众号的唯一凭证">
                 <Input
@@ -476,7 +528,9 @@ export default function SiteSettingsPage() {
                   测试连接
                 </Button>
                 <span className="text-xs text-gray-500">
-                  点击后会先保存配置，然后实际请求微信 API 验证 Access Token 是否可正常获取
+                  {form.wechat_account_type === "personal"
+                    ? "个人号模式无需测试 API 连接，保存后即可生成内容"
+                    : "点击后会先保存配置，然后实际请求微信 API 验证 Access Token 是否可正常获取"}
                 </span>
               </div>
             </CardBody>

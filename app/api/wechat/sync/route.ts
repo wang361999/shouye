@@ -4,6 +4,7 @@ import { adminAuth } from '@/lib/auth';
 import { logOperation } from '@/lib/admin-log';
 import {
   getWechatConfig,
+  getWechatAccountType,
   markdownToWechatHtml,
   extractFirstImageFromMarkdown,
   downloadAndUploadThumb,
@@ -74,8 +75,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ============ POST /api/wechat/sync - 同步帖子到微信草稿箱 ============
+// ============ POST /api/wechat/sync - 同步帖子到微信 ============
 // body: { postId: string }
+// 企业号模式：调用微信 API 创建草稿
+// 个人号模式：生成微信格式 HTML，不调用 API，返回内容供手动复制
 export async function POST(request: NextRequest) {
   try {
     const admin = adminAuth(request);
@@ -109,6 +112,7 @@ export async function POST(request: NextRequest) {
         content: true,
         status: true,
         authorId: true,
+        authorName: true,
       },
     });
 
@@ -121,10 +125,66 @@ export async function POST(request: NextRequest) {
 
     // ---- 3. 转换 Markdown 为微信 HTML ----
     const htmlContent = markdownToWechatHtml(post.content);
+    const digest = post.content
+      .replace(/[#*`>\-\[\]!()]/g, '')
+      .replace(/\n+/g, ' ')
+      .trim()
+      .slice(0, 120);
 
-    // ---- 4. 处理封面缩略图 ----
-    // 优先从帖子内容提取第一张图片作为封面
-    // 若无图片则使用默认封面
+    // ---- 4. 判断账号类型，走不同流程 ----
+    const accountType = await getWechatAccountType();
+
+    if (accountType === 'personal') {
+      // ===== 个人号模式：不调用微信 API，仅生成内容 =====
+      const syncRecord = await prisma.wechatSync.create({
+        data: {
+          postId: post.id,
+          mediaId: 'manual',
+          status: 'generated',
+          syncedBy: admin.userId,
+        },
+        include: {
+          post: { select: { id: true, title: true } },
+          user: { select: { id: true, username: true } },
+        },
+      });
+
+      await logOperation(
+        admin.userId,
+        admin.username,
+        'wechat_sync',
+        'Post',
+        `生成微信内容（个人号模式）: ${post.title}`,
+      );
+
+      return NextResponse.json(
+        {
+          message: '内容已生成，请复制到微信公众号后台手动发布',
+          record: {
+            id: syncRecord.id,
+            postId: syncRecord.postId,
+            postTitle: syncRecord.post?.title || '',
+            status: syncRecord.status,
+            wechatMediaId: syncRecord.mediaId,
+            syncedBy: syncRecord.user
+              ? { id: syncRecord.user.id, username: syncRecord.user.username }
+              : null,
+            createdAt: syncRecord.createdAt.toISOString(),
+          },
+          // 个人号模式直接返回生成的内容
+          preview: {
+            title: post.title.slice(0, 64),
+            content: htmlContent,
+            digest: digest || '',
+            author: post.authorName || 'Gitd 社区',
+          },
+        },
+        { status: 201 },
+      );
+    }
+
+    // ===== 企业号模式：调用微信 API 创建草稿 =====
+    // ---- 5. 处理封面缩略图 ----
     let thumbMediaId: string;
     const firstImage = extractFirstImageFromMarkdown(post.content);
 
@@ -133,7 +193,6 @@ export async function POST(request: NextRequest) {
       if (thumbResult.success && thumbResult.mediaId) {
         thumbMediaId = thumbResult.mediaId;
       } else {
-        // 图片下载/上传失败，回退到默认封面
         console.warn('[WECHAT SYNC] 封面图片上传失败，使用默认封面:', thumbResult.message);
         thumbMediaId = await getOrCreateDefaultThumbMediaId();
       }
@@ -141,13 +200,7 @@ export async function POST(request: NextRequest) {
       thumbMediaId = await getOrCreateDefaultThumbMediaId();
     }
 
-    // ---- 5. 提交草稿到微信 ----
-    const digest = post.content
-      .replace(/[#*`>\-\[\]!()]/g, '')
-      .replace(/\n+/g, ' ')
-      .trim()
-      .slice(0, 120);
-
+    // ---- 6. 提交草稿到微信 ----
     const draftResult = await addDraft({
       title: post.title.slice(0, 64),
       content: htmlContent,
@@ -157,7 +210,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (!draftResult.success || !draftResult.mediaId) {
-      // 草稿创建失败，记录失败状态
       await prisma.wechatSync.create({
         data: {
           postId: post.id,
@@ -174,7 +226,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---- 6. 创建同步记录 ----
+    // ---- 7. 创建同步记录 ----
     const syncRecord = await prisma.wechatSync.create({
       data: {
         postId: post.id,
@@ -188,7 +240,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 记录操作日志
     await logOperation(
       admin.userId,
       admin.username,

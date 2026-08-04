@@ -25,11 +25,13 @@ import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
 
 // ============ Types ============
-type SyncStatus = "draft" | "published" | "failed" | "deleted";
+type SyncStatus = "draft" | "published" | "failed" | "deleted" | "generated";
+type AccountType = "personal" | "enterprise";
 
 interface WeChatConfig {
   configured: boolean;
   appId?: string;
+  accountType?: AccountType;
 }
 
 interface SyncRecord {
@@ -51,17 +53,25 @@ interface SyncHistoryResponse {
   config: WeChatConfig;
 }
 
+interface PreviewData {
+  title: string;
+  content: string;
+  digest: string;
+  author: string;
+}
+
 // ============ Constants ============
 const PAGE_SIZE = 20;
 
 const STATUS_META: Record<
   SyncStatus,
-  { label: string; color: "blue" | "green" | "red" | "gray" }
+  { label: string; color: "blue" | "green" | "red" | "gray" | "purple" }
 > = {
   draft: { label: "草稿", color: "blue" },
   published: { label: "已发布", color: "green" },
   failed: { label: "失败", color: "red" },
   deleted: { label: "已删除", color: "gray" },
+  generated: { label: "已生成", color: "purple" },
 };
 
 // ============ Helpers ============
@@ -87,7 +97,6 @@ function parsePostId(input: string): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  // 链接形式：尝试从路径中提取帖子 ID
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     try {
       const url = new URL(trimmed);
@@ -101,7 +110,6 @@ function parsePostId(input: string): string | null {
     }
   }
 
-  // 相对路径形式：/forum/post/<id>
   if (trimmed.startsWith("/")) {
     const segs = trimmed.split("/").filter(Boolean);
     const postIdx = segs.findIndex((s) => s === "post");
@@ -131,6 +139,14 @@ export default function WeChatSyncPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SyncRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // 预览弹窗（个人号模式）
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const isPersonal = config.accountType === "personal";
+  const isConfigured = config.configured;
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -181,11 +197,18 @@ export default function WeChatSyncPage() {
         method: "POST",
         body: JSON.stringify({ postId }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "同步失败");
+        throw new Error(data.error || "同步失败");
       }
-      toast.success("已提交同步任务");
+
+      if (isPersonal && data.preview) {
+        // 个人号模式：直接显示生成的内容
+        setPreviewData(data.preview);
+        toast.success("内容已生成，请复制到公众号后台");
+      } else {
+        toast.success(data.message || "已提交同步任务");
+      }
       setSyncInput("");
       setCurrentPage(1);
       await fetchHistory();
@@ -196,7 +219,66 @@ export default function WeChatSyncPage() {
     }
   }
 
-  // 发布草稿到公众号
+  // 查看已生成内容（个人号模式，从记录重新获取）
+  async function handleViewContent(record: SyncRecord) {
+    if (actionLoading) return;
+    try {
+      setActionLoading(`view-${record.id}`);
+      setPreviewLoading(true);
+      const res = await adminFetch("/api/wechat/preview", {
+        method: "POST",
+        body: JSON.stringify({ postId: record.postId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "获取内容失败");
+      }
+      setPreviewData({
+        title: data.title,
+        content: data.content,
+        digest: data.digest,
+        author: data.author,
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "获取内容失败");
+    } finally {
+      setActionLoading(null);
+      setPreviewLoading(false);
+    }
+  }
+
+  // 复制内容到剪贴板
+  async function handleCopyContent() {
+    if (!previewData) return;
+    try {
+      // 构建完整的图文内容（标题 + 正文）
+      const fullContent = `<h1 style="font-size:24px;font-weight:bold;margin:20px 0 12px;color:#24292e;">${previewData.title}</h1>\n${previewData.content}`;
+      await navigator.clipboard.writeText(fullContent);
+      setCopied(true);
+      toast.success("内容已复制到剪贴板，请粘贴到公众号后台编辑器");
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      // 降级方案：使用 textarea
+      const textarea = document.createElement("textarea");
+      const fullContent = `<h1 style="font-size:24px;font-weight:bold;margin:20px 0 12px;color:#24292e;">${previewData.title}</h1>\n${previewData.content}`;
+      textarea.value = fullContent;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand("copy");
+        setCopied(true);
+        toast.success("内容已复制，请粘贴到公众号后台编辑器");
+        setTimeout(() => setCopied(false), 3000);
+      } catch {
+        toast.error("复制失败，请手动选择内容复制");
+      }
+      document.body.removeChild(textarea);
+    }
+  }
+
+  // 发布草稿到公众号（仅企业号模式）
   async function handlePublish(record: SyncRecord) {
     if (actionLoading || record.status !== "draft") return;
     try {
@@ -227,6 +309,19 @@ export default function WeChatSyncPage() {
     if (!deleteTarget || deleting) return;
     try {
       setDeleting(true);
+      // 个人号模式的 generated 记录不需要调用微信 API 删除
+      if (deleteTarget.status === "generated") {
+        setRecords((prev) =>
+          prev.map((r) =>
+            r.id === deleteTarget.id
+              ? { ...r, status: "deleted" as SyncStatus }
+              : r,
+          ),
+        );
+        toast.success("记录已删除");
+        setDeleteTarget(null);
+        return;
+      }
       const res = await adminFetch(`/api/wechat/sync/${deleteTarget.id}`, {
         method: "DELETE",
       });
@@ -250,16 +345,21 @@ export default function WeChatSyncPage() {
     }
   }
 
-  const isConfigured = config.configured;
   const publishLoadingId =
     actionLoading?.startsWith("publish-") ? actionLoading : null;
+  const viewLoadingId =
+    actionLoading?.startsWith("view-") ? actionLoading : null;
 
   return (
     <AdminLayout activeKey="wechat">
       <div className="space-y-6">
         <PageHeader
           title="公众号同步"
-          subtitle="将论坛帖子同步至微信公众号，支持草稿管理与一键发布"
+          subtitle={
+            isPersonal
+              ? "个人号模式：生成微信格式内容，手动复制到公众号后台发布"
+              : "将论坛帖子同步至微信公众号，支持草稿管理与一键发布"
+          }
           actions={
             <Link
               href="/admin/settings"
@@ -275,13 +375,19 @@ export default function WeChatSyncPage() {
         <div
           className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${
             isConfigured
-              ? "bg-green-50 border-green-200"
+              ? isPersonal
+                ? "bg-blue-50 border-blue-200"
+                : "bg-green-50 border-green-200"
               : "bg-yellow-50 border-yellow-200"
           }`}
         >
           <div
             className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
-              isConfigured ? "bg-green-500" : "bg-yellow-500"
+              isConfigured
+                ? isPersonal
+                  ? "bg-blue-500"
+                  : "bg-green-500"
+                : "bg-yellow-500"
             }`}
           >
             {isConfigured ? (
@@ -293,18 +399,32 @@ export default function WeChatSyncPage() {
           <div className="flex-1 min-w-0">
             <p
               className={`text-sm font-medium ${
-                isConfigured ? "text-green-800" : "text-yellow-800"
-              }`}
-            >
-              {isConfigured ? "微信公众号已配置" : "微信公众号未配置"}
-            </p>
-            <p
-              className={`text-xs mt-0.5 ${
-                isConfigured ? "text-green-700" : "text-yellow-700"
+                isConfigured
+                  ? isPersonal
+                    ? "text-blue-800"
+                    : "text-green-800"
+                  : "text-yellow-800"
               }`}
             >
               {isConfigured
-                ? "已连接公众号，可进行帖子同步与发布。"
+                ? isPersonal
+                  ? "微信公众号已配置（个人号模式）"
+                  : "微信公众号已配置（企业号模式）"
+                : "微信公众号未配置"}
+            </p>
+            <p
+              className={`text-xs mt-0.5 ${
+                isConfigured
+                  ? isPersonal
+                    ? "text-blue-700"
+                    : "text-green-700"
+                  : "text-yellow-700"
+              }`}
+            >
+              {isConfigured
+                ? isPersonal
+                  ? "个人号无法调用发布 API，将生成微信格式 HTML 供你手动复制到公众号后台发布。"
+                  : "已连接公众号，可进行帖子同步与发布。"
                 : "请先在系统设置中配置微信公众号 AppID 与 Secret，否则无法同步。"}
             </p>
           </div>
@@ -319,8 +439,12 @@ export default function WeChatSyncPage() {
         {/* 手动同步 */}
         <Card>
           <CardHeader
-            title="手动同步"
-            subtitle="输入论坛帖子 ID 或链接，将其同步为公众号草稿"
+            title={isPersonal ? "生成微信内容" : "手动同步"}
+            subtitle={
+              isPersonal
+                ? "输入论坛帖子 ID 或链接，生成微信公众号适配的 HTML 内容"
+                : "输入论坛帖子 ID 或链接，将其同步为公众号草稿"
+            }
           />
           <CardBody>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -340,13 +464,20 @@ export default function WeChatSyncPage() {
                 disabled={!isConfigured}
               >
                 <Icons.ExternalLink className="w-4 h-4" />
-                同步到微信
+                {isPersonal ? "生成内容" : "同步到微信"}
               </Button>
             </div>
             {!isConfigured && (
               <p className="text-xs text-yellow-700 mt-2">
                 微信公众号未配置，同步功能暂不可用。
               </p>
+            )}
+            {isPersonal && isConfigured && (
+              <div className="mt-3 rounded-md bg-blue-50 border border-blue-200 px-3 py-2">
+                <p className="text-xs text-blue-800">
+                  个人号模式：点击「生成内容」后将自动弹出预览窗口，可一键复制 HTML 内容，然后粘贴到微信公众号后台编辑器中发布。
+                </p>
+              </div>
             )}
           </CardBody>
         </Card>
@@ -363,11 +494,19 @@ export default function WeChatSyncPage() {
                 <Spinner className="w-4 h-4" /> 加载中...
               </div>
             ) : (
-              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <dl className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <dt className="text-xs text-gray-500">AppID</dt>
                   <dd className="mt-1 text-sm font-medium text-gray-900 font-mono break-all">
                     {maskAppId(config.appId)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-gray-500">账号类型</dt>
+                  <dd className="mt-1">
+                    <Badge color={isPersonal ? "blue" : "green"}>
+                      {isPersonal ? "个人号" : "企业号"}
+                    </Badge>
                   </dd>
                 </div>
                 <div>
@@ -416,7 +555,11 @@ export default function WeChatSyncPage() {
             <EmptyState
               icon={<Icons.Chat className="w-12 h-12" />}
               title="暂无同步记录"
-              description="通过上方「手动同步」开始将帖子同步到公众号"
+              description={
+                isPersonal
+                  ? "通过上方「生成内容」开始将帖子生成微信格式内容"
+                  : "通过上方「手动同步」开始将帖子同步到公众号"
+              }
             />
           ) : (
             <DataTable
@@ -430,6 +573,8 @@ export default function WeChatSyncPage() {
                   };
                 const isPublishing =
                   publishLoadingId === `publish-${record.id}`;
+                const isViewing =
+                  viewLoadingId === `view-${record.id}`;
                 return (
                   <tr
                     key={record.id}
@@ -463,7 +608,22 @@ export default function WeChatSyncPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-0.5">
-                        {record.status === "draft" && (
+                        {/* 个人号模式：查看内容按钮 */}
+                        {isPersonal && record.status === "generated" && (
+                          <IconButton
+                            icon={
+                              isViewing ? (
+                                <Spinner className="w-4 h-4" />
+                              ) : (
+                                <Icons.Eye className="w-4 h-4" />
+                              )
+                            }
+                            onClick={() => handleViewContent(record)}
+                            title="查看微信内容"
+                          />
+                        )}
+                        {/* 企业号模式：发布按钮 */}
+                        {!isPersonal && record.status === "draft" && (
                           <IconButton
                             icon={
                               isPublishing ? (
@@ -476,12 +636,14 @@ export default function WeChatSyncPage() {
                             title="发布到公众号"
                           />
                         )}
+                        {/* 删除按钮 */}
                         {(record.status === "draft" ||
-                          record.status === "failed") && (
+                          record.status === "failed" ||
+                          record.status === "generated") && (
                           <IconButton
                             icon={<Icons.Trash className="w-4 h-4" />}
                             onClick={() => setDeleteTarget(record)}
-                            title="删除草稿"
+                            title="删除记录"
                             variant="danger"
                           />
                         )}
@@ -517,10 +679,10 @@ export default function WeChatSyncPage() {
       {/* 删除确认 */}
       <ConfirmDialog
         open={!!deleteTarget}
-        title="确认删除草稿"
+        title="确认删除"
         message={
           deleteTarget
-            ? `确定要删除帖子「${deleteTarget.postTitle}」的公众号草稿吗？删除后将无法在公众号后台恢复。`
+            ? `确定要删除帖子「${deleteTarget.postTitle}」的同步记录吗？`
             : ""
         }
         confirmText="确认删除"
@@ -531,6 +693,126 @@ export default function WeChatSyncPage() {
         }}
         danger
       />
+
+      {/* 内容预览弹窗（个人号模式） */}
+      {previewData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+            {/* 弹窗头部 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  微信内容预览
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  复制下方内容，粘贴到微信公众号后台编辑器中发布
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setPreviewData(null);
+                  setCopied(false);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 弹窗内容 */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {/* 文章信息 */}
+              <div className="mb-4 pb-4 border-b border-gray-100">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500">标题：</span>
+                    <span className="font-medium text-gray-900">{previewData.title}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">作者：</span>
+                    <span className="font-medium text-gray-900">{previewData.author}</span>
+                  </div>
+                  {previewData.digest && (
+                    <div className="col-span-2">
+                      <span className="text-gray-500">摘要：</span>
+                      <span className="text-gray-700">{previewData.digest}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* HTML 预览 */}
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">内容预览</span>
+                <span className="text-xs text-gray-400">下方为微信公众号适配的渲染效果</span>
+              </div>
+              <div
+                className="rounded-lg border border-gray-200 p-4 bg-gray-50 overflow-x-auto"
+                dangerouslySetInnerHTML={{ __html: previewData.content }}
+              />
+
+              {/* HTML 源码 */}
+              <details className="mt-4">
+                <summary className="text-sm text-brand-600 cursor-pointer hover:text-brand-700">
+                  查看 HTML 源码（高级用户可自行编辑后复制）
+                </summary>
+                <pre className="mt-2 p-3 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-x-auto max-h-48">
+                  {previewData.content}
+                </pre>
+              </details>
+            </div>
+
+            {/* 弹窗底部操作 */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+              <div className="text-xs text-gray-500">
+                {copied ? (
+                  <span className="text-green-600 font-medium">已复制到剪贴板</span>
+                ) : (
+                  <span>点击复制后，前往公众号后台粘贴发布</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setPreviewData(null);
+                    setCopied(false);
+                  }}
+                >
+                  关闭
+                </Button>
+                <Button onClick={handleCopyContent} disabled={copied}>
+                  {copied ? (
+                    <>
+                      <Icons.Check className="w-4 h-4" />
+                      已复制
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      复制内容
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 预览加载中 */}
+      {previewLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl px-8 py-6 flex items-center gap-3">
+            <Spinner className="w-6 h-6 text-brand-500" />
+            <span className="text-sm text-gray-600">正在生成微信内容...</span>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
