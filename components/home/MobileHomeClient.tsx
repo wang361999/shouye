@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getCategoryDisplayName } from "@/lib/utils";
 import GitdLogo from "@/components/common/GitdLogo";
@@ -125,7 +125,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    fetch("/api/community/home", { cache: "no-store", signal: controller.signal })
+    fetch("/api/community/home?view=mobile", { cache: "no-store", signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error("API error");
         return res.json();
@@ -153,13 +153,16 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
   const tools = data?.featuredTools ?? [];
   const leadPost = latestPosts[0] ?? hotPosts[0] ?? null;
   // 正在讨论：合并 hotPosts + latestPosts 去重，排除公告分类帖和置顶帖，随机取 5 条
-  const discussionPosts = shuffle(
-    [...hotPosts, ...latestPosts]
-      .filter((post, idx, arr) => arr.findIndex((p) => p.id === post.id) === idx) // 去重
-      .filter((post) => post.id !== leadPost?.id)
-      .filter((post) => !post.isPinned && post.category?.slug !== 'announcement')
-  ).slice(0, 5);
-  const randomTools = shuffle(tools).slice(0, 4);
+  const discussionPosts = useMemo(
+    () => shuffle(
+      [...hotPosts, ...latestPosts]
+        .filter((post, idx, arr) => arr.findIndex((p) => p.id === post.id) === idx)
+        .filter((post) => post.id !== leadPost?.id)
+        .filter((post) => !post.isPinned && post.category?.slug !== 'announcement')
+    ).slice(0, 5),
+    [hotPosts, latestPosts, leadPost?.id],
+  );
+  const randomTools = useMemo(() => shuffle(tools).slice(0, 4), [tools]);
   const challengeProject = projects[0] ?? null;
   const heatScore = Math.min(99, Math.max(36, stats.todayPostCount * 6 + discussionPosts.length * 8 + projects.length * 5));
 

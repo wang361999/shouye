@@ -4,9 +4,9 @@ import { checkDbOr503 } from '@/lib/db-check';
 import { stripMarkdown, truncateText, formatTimeAgo, getCategoryDisplayName } from '@/lib/utils';
 
 // ============ 两级缓存 ============
-// 内容数据 2 分钟，统计数据 10 分钟
-let contentCache: object | null = null;
-let contentCacheExpiry = 0;
+// 内容数据 2 分钟，统计数据 10 分钟；移动端和桌面端分开缓存，避免互相覆盖
+let contentCache: Record<string, object | null> = {};
+let contentCacheExpiry: Record<string, number> = {};
 const CONTENT_TTL = 120_000;
 
 let statsCache: object | null = null;
@@ -26,12 +26,22 @@ const QUERY_TIMEOUT = 8000;
  *   5. substr() 只取内容摘要减少传输量
  *   6. 两级缓存：内容 2min / 统计 10min
  */
-export async function GET() {
+export async function GET(request: Request) {
   const now = Date.now();
+  const { searchParams } = new URL(request.url);
+  const isMobileView = searchParams.get('view') === 'mobile';
+  const cacheKey = isMobileView ? 'mobile' : 'default';
+  const cachedContent = contentCache[cacheKey];
+  const cachedContentExpiry = contentCacheExpiry[cacheKey] || 0;
+  const latestLimit = isMobileView ? 8 : 12;
+  const hotLimit = isMobileView ? 8 : 12;
+  const collabLimit = isMobileView ? 4 : 6;
+  const toolLimit = isMobileView ? 4 : 6;
+  const shouldLoadMembers = !isMobileView;
 
   // 两级缓存都命中 → 直接返回
-  if (contentCache && statsCache && now < contentCacheExpiry && now < statsCacheExpiry) {
-    return NextResponse.json({ ...contentCache, ...statsCache }, {
+  if (cachedContent && statsCache && now < cachedContentExpiry && now < statsCacheExpiry) {
+    return NextResponse.json({ ...cachedContent, ...statsCache }, {
       headers: { 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600' },
     });
   }
@@ -43,7 +53,7 @@ export async function GET() {
   try {
     db = getDb();
   } catch {
-    const fallbackContent = contentCache || {
+    const fallbackContent = cachedContent || {
       latestPosts: [], hotPosts: [], activeMembers: [], collabProjects: [],
     };
     const fallbackStats = statsCache || {
@@ -55,7 +65,7 @@ export async function GET() {
   }
 
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
-  const needContent = !contentCache || now >= contentCacheExpiry;
+  const needContent = !cachedContent || now >= cachedContentExpiry;
   const needStats = !statsCache || now >= statsCacheExpiry;
 
   // ============ 内容数据（顺序查询，避免并发 HTTP 请求失败） ============
@@ -66,7 +76,7 @@ export async function GET() {
   let toolRows: Record<string, unknown>[] = [];
 
   if (needContent) {
-    // 1. 最新帖子（12条）
+    // 1. 最新帖子
     try {
       const rows = await queryWithTimeout(
         db,
@@ -80,7 +90,7 @@ export async function GET() {
          LEFT JOIN Category c ON p.category_id = c.id
          WHERE p.status = 'PUBLISHED'
          ORDER BY p.is_pinned DESC, p.created_at DESC
-         LIMIT 12`,
+         LIMIT ${latestLimit}`,
         [],
         QUERY_TIMEOUT,
       );
@@ -90,7 +100,7 @@ export async function GET() {
       // 降级：返回空数组
     }
 
-    // 2. 热门讨论（12条，供移动端筛选后仍有足够数量）
+    // 2. 热门讨论
     try {
       const rows = await queryWithTimeout(
         db,
@@ -104,7 +114,7 @@ export async function GET() {
          LEFT JOIN Category c ON p.category_id = c.id
          WHERE p.status = 'PUBLISHED'
          ORDER BY p.is_pinned DESC, p.like_count DESC, p.view_count DESC
-         LIMIT 12`,
+         LIMIT ${hotLimit}`,
         [],
         QUERY_TIMEOUT,
       );
@@ -113,21 +123,23 @@ export async function GET() {
       console.error('[HOME HOT POSTS ERROR]', err instanceof Error ? err.message : err);
     }
 
-    // 3. 活跃成员（8人）
-    try {
-      const rows = await queryWithTimeout(
-        db,
-        `SELECT id, username, avatar, bio, post_count, comment_count
-         FROM User
-         WHERE status = 'active'
-         ORDER BY post_count DESC, comment_count DESC
-         LIMIT 8`,
-        [],
-        QUERY_TIMEOUT,
-      );
-      memberRows = rows as Record<string, unknown>[];
-    } catch (err) {
-      console.error('[HOME ACTIVE MEMBERS ERROR]', err instanceof Error ? err.message : err);
+    // 3. 活跃成员（移动端不展示，跳过查询）
+    if (shouldLoadMembers) {
+      try {
+        const rows = await queryWithTimeout(
+          db,
+          `SELECT id, username, avatar, bio, post_count, comment_count
+           FROM User
+           WHERE status = 'active'
+           ORDER BY post_count DESC, comment_count DESC
+           LIMIT 8`,
+          [],
+          QUERY_TIMEOUT,
+        );
+        memberRows = rows as Record<string, unknown>[];
+      } catch (err) {
+        console.error('[HOME ACTIVE MEMBERS ERROR]', err instanceof Error ? err.message : err);
+      }
     }
 
     // 4. 协作召集令（6条）
@@ -143,7 +155,7 @@ export async function GET() {
          LEFT JOIN User u ON cp.author_id = u.id
          WHERE cp.status IN ('recruiting', 'active')
          ORDER BY cp.created_at DESC
-         LIMIT 6`,
+         LIMIT ${collabLimit}`,
         [],
         QUERY_TIMEOUT,
       );
@@ -160,7 +172,7 @@ export async function GET() {
          FROM Tool
          WHERE is_active = 1
          ORDER BY is_featured DESC, click_count DESC, created_at DESC
-         LIMIT 6`,
+         LIMIT ${toolLimit}`,
         [],
         QUERY_TIMEOUT,
       );
@@ -280,17 +292,17 @@ export async function GET() {
 
   // 只在有帖子数据时才缓存
   if (formattedLatest.length > 0) {
-    contentCache = {
+    contentCache[cacheKey] = {
       latestPosts: formattedLatest,
       hotPosts: formattedHot,
       activeMembers: formattedMembers,
       collabProjects: formattedCollab,
       featuredTools: formattedTools,
     };
-    contentCacheExpiry = now + CONTENT_TTL;
+    contentCacheExpiry[cacheKey] = now + CONTENT_TTL;
   }
 
-  statsCache = { stats: statsData };
+  const responseData = { ...(contentCache[cacheKey] || {}), stats: statsData };
   statsCacheExpiry = now + STATS_TTL;
 
   const result = { ...(contentCache as object), ...(statsCache as object) };
