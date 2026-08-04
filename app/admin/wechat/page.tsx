@@ -320,34 +320,53 @@ export default function WeChatSyncPage() {
     }
   }
 
-  // 复制内容到剪贴板
+  // 复制内容到剪贴板（以 text/html 格式写入，公众号编辑器粘贴时保留格式）
   async function handleCopyContent() {
     if (!previewData) return;
+    // 构建完整的图文 HTML（标题 + 正文）
+    const fullHtml = `<h1 style="font-size:24px;font-weight:bold;margin:20px 0 12px;color:#24292e;">${previewData.title}</h1>\n${previewData.content}`;
+    // 纯文本备用（去掉标签）
+    const plainText = `${previewData.title}\n\n${previewData.digest || ""}`;
+
     try {
-      // 构建完整的图文内容（标题 + 正文）
-      const fullContent = `<h1 style="font-size:24px;font-weight:bold;margin:20px 0 12px;color:#24292e;">${previewData.title}</h1>\n${previewData.content}`;
-      await navigator.clipboard.writeText(fullContent);
+      // 优先使用 ClipboardItem API 写入 text/html，公众号编辑器粘贴时自动渲染
+      const htmlBlob = new Blob([fullHtml], { type: "text/html" });
+      const textBlob = new Blob([plainText], { type: "text/plain" });
+      const clipboardItem = new ClipboardItem({
+        "text/html": htmlBlob,
+        "text/plain": textBlob,
+      });
+      await navigator.clipboard.write([clipboardItem]);
       setCopied(true);
-      toast.success("内容已复制到剪贴板，请粘贴到公众号后台编辑器");
+      toast.success("内容已复制（富文本格式），请粘贴到公众号后台编辑器");
       setTimeout(() => setCopied(false), 3000);
     } catch {
-      // 降级方案：使用 textarea
-      const textarea = document.createElement("textarea");
-      const fullContent = `<h1 style="font-size:24px;font-weight:bold;margin:20px 0 12px;color:#24292e;">${previewData.title}</h1>\n${previewData.content}`;
-      textarea.value = fullContent;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
+      // 降级方案 1：尝试用 execCommand 复制 HTML
       try {
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = fullHtml;
+        tempDiv.style.position = "fixed";
+        tempDiv.style.left = "-9999px";
+        tempDiv.style.top = "0";
+        document.body.appendChild(tempDiv);
+
+        const range = document.createRange();
+        range.selectNodeContents(tempDiv);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+
         document.execCommand("copy");
+        selection?.removeAllRanges();
+        document.body.removeChild(tempDiv);
+
         setCopied(true);
         toast.success("内容已复制，请粘贴到公众号后台编辑器");
         setTimeout(() => setCopied(false), 3000);
       } catch {
-        toast.error("复制失败，请手动选择内容复制");
+        // 降级方案 2：提示用户手动选中复制
+        toast.error("自动复制失败，请手动选中下方预览内容后 Ctrl+C 复制");
       }
-      document.body.removeChild(textarea);
     }
   }
 
@@ -827,19 +846,19 @@ export default function WeChatSyncPage() {
               {/* HTML 预览 */}
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">内容预览</span>
-                <span className="text-xs text-gray-400">下方为微信公众号适配的渲染效果</span>
+                <span className="text-xs text-gray-400">下方为微信公众号适配的渲染效果，也可手动选中后 Ctrl+C 复制</span>
               </div>
               <div
-                className="rounded-lg border border-gray-200 p-4 bg-gray-50 overflow-x-auto"
+                className="rounded-lg border border-gray-200 p-4 bg-gray-50 overflow-x-auto select-text cursor-text"
                 dangerouslySetInnerHTML={{ __html: previewData.content }}
               />
 
               {/* HTML 源码 */}
               <details className="mt-4">
                 <summary className="text-sm text-brand-600 cursor-pointer hover:text-brand-700">
-                  查看 HTML 源码（高级用户可自行编辑后复制）
+                  查看 HTML 源码（如粘贴后格式异常，可复制源码到公众号编辑器「源码模式」）
                 </summary>
-                <pre className="mt-2 p-3 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-x-auto max-h-48">
+                <pre className="mt-2 p-3 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-x-auto max-h-48 select-text cursor-text">
                   {previewData.content}
                 </pre>
               </details>
