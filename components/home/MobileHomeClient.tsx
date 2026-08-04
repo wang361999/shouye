@@ -152,9 +152,10 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
   const projects = data?.collabProjects ?? [];
   const tools = data?.featuredTools ?? [];
   const leadPost = latestPosts[0] ?? hotPosts[0] ?? null;
-  // 正在讨论：排除公告分类帖和置顶帖，只保留普通社区讨论内容
+  // 正在讨论：合并 hotPosts + latestPosts 去重，排除公告分类帖和置顶帖，随机取 5 条
   const discussionPosts = shuffle(
-    (hotPosts.length > 0 ? hotPosts : latestPosts)
+    [...hotPosts, ...latestPosts]
+      .filter((post, idx, arr) => arr.findIndex((p) => p.id === post.id) === idx) // 去重
       .filter((post) => post.id !== leadPost?.id)
       .filter((post) => !post.isPinned && post.category?.slug !== 'announcement')
   ).slice(0, 5);

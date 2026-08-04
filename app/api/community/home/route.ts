@@ -66,7 +66,7 @@ export async function GET() {
   let toolRows: Record<string, unknown>[] = [];
 
   if (needContent) {
-    // 1. 最新帖子（6条）
+    // 1. 最新帖子（12条）
     try {
       const rows = await queryWithTimeout(
         db,
@@ -80,7 +80,7 @@ export async function GET() {
          LEFT JOIN Category c ON p.category_id = c.id
          WHERE p.status = 'PUBLISHED'
          ORDER BY p.is_pinned DESC, p.created_at DESC
-         LIMIT 6`,
+         LIMIT 12`,
         [],
         QUERY_TIMEOUT,
       );
@@ -90,7 +90,7 @@ export async function GET() {
       // 降级：返回空数组
     }
 
-    // 2. 热门讨论（5条）
+    // 2. 热门讨论（12条，供移动端筛选后仍有足够数量）
     try {
       const rows = await queryWithTimeout(
         db,
@@ -104,7 +104,7 @@ export async function GET() {
          LEFT JOIN Category c ON p.category_id = c.id
          WHERE p.status = 'PUBLISHED'
          ORDER BY p.is_pinned DESC, p.like_count DESC, p.view_count DESC
-         LIMIT 5`,
+         LIMIT 12`,
         [],
         QUERY_TIMEOUT,
       );

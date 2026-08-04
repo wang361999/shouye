@@ -32,34 +32,29 @@ function MarkdownCodeBlock({
   }
 
   return (
-    <div
-      className="not-prose my-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-950"
-      style={{ boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}
-    >
-      {/* 标题栏：红黄绿三点 + 语言标签 + 复制按钮 */}
-      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-3.5 py-2.5">
+    <div className="not-prose my-5 overflow-hidden rounded-xl bg-slate-950">
+      {/* 标题栏：红黄绿三点 + 语言标签 + 复制按钮（与代码区同背景，无分隔线） */}
+      <div className="flex items-center justify-between px-3.5 py-2.5">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#ff5f57]" />
           <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#ffbd2e]" />
           <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#28c840]" />
         </div>
         <div className="flex items-center gap-2.5">
-          <span className="font-mono text-[12px] font-bold tracking-wide text-blue-300">
+          <span className="font-mono text-[12px] font-bold tracking-wide text-slate-400">
             {label}
           </span>
           <button
             type="button"
             onClick={handleCopy}
-            className="font-mono text-[12px] text-slate-400 transition-colors hover:text-white"
+            className="font-mono text-[12px] text-slate-500 transition-colors hover:text-white"
           >
             {copied ? "✓" : "复制"}
           </button>
         </div>
       </div>
       {/* 代码区域 */}
-      <pre
-        className="m-0 overflow-x-auto bg-slate-950 px-4 py-4 text-[13px] leading-[1.75] text-slate-200"
-      >
+      <pre className="m-0 overflow-x-auto px-4 pb-4 text-[13px] leading-[1.75] text-slate-200">
         <code className={`language-${language || "text"} font-mono`}>
           {code}
         </code>
