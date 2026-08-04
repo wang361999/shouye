@@ -15,8 +15,8 @@
 
 import { callAI, checkAIHealth, siteFetch, robustJSONParse, extractPostFromText } from './lib/ai-client.mjs';
 import {
-  appendProfessionalFooter,
-  buildProfessionalPromptRules,
+  appendWechatOpenSourceFooter,
+  buildWechatOpenSourcePromptRules,
   normalizeTags,
   normalizeTitle,
 } from './lib/post-template.mjs';
@@ -253,7 +253,9 @@ function findCategoryIdBySlug(categories, slug) {
 // ===== 调用 AI 生成帖子内容（带 JSON 解析重试和兜底提取）=====
 async function generatePostContent(bot, title, categories) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
-  const professionalRules = buildProfessionalPromptRules({ mode: 'forum' });
+  const openSourceStyleRules = buildWechatOpenSourcePromptRules({
+    topicKind: bot.key === 'open-source' ? 'open-source' : 'general',
+  });
 
   const prompt = `你是一个技术社区的内容创作者，人设是「${bot.authorName}」，专注${bot.tagline}。请生成一篇高质量的论坛帖子。
 
@@ -266,10 +268,10 @@ async function generatePostContent(bot, title, categories) {
 5. 语言：中文。
 6. 要有实际价值，不要空洞的水文。
 7. 代码示例要正确可运行；如果涉及命令或配置，要说明使用前提。
-8. 帖子要专业、易读，能吸引开发者收藏或参与讨论。
+8. 帖子要像微信公众号开源风模板一样清爽、专业、易读，能吸引开发者收藏或参与讨论。
 9. 不要写“作为 AI”“我是 AI”之类表达。
 
-${professionalRules}
+${openSourceStyleRules}
 
 ## 输出格式
 
@@ -303,7 +305,7 @@ ${professionalRules}
       if (parsed.title && parsed.content) {
         parsed.title = normalizeTitle(parsed.title, title);
         parsed.tags = normalizeTags(parsed.tags, bot.defaultTags);
-        parsed.content = appendProfessionalFooter(parsed.content, {
+        parsed.content = appendWechatOpenSourceFooter(parsed.content, {
           discussionQuestion: bot.discussionQuestion,
         });
         log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
@@ -324,7 +326,7 @@ ${professionalRules}
       if (fallback.title && fallback.content && fallback.content.length > 50) {
         fallback.title = normalizeTitle(fallback.title, title);
         fallback.tags = normalizeTags(fallback.tags, bot.defaultTags);
-        fallback.content = appendProfessionalFooter(fallback.content, {
+        fallback.content = appendWechatOpenSourceFooter(fallback.content, {
           discussionQuestion: bot.discussionQuestion,
         });
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
@@ -347,7 +349,7 @@ async function publishPost(token, bot, postData, categories) {
 
   const body = {
     title: normalizeTitle(postData.title),
-    // content 已在生成阶段 appendProfessionalFooter 处理过，这里不再重复追加
+    // content 已在生成阶段按微信开源风模板处理过，这里不再重复追加
     content: postData.content,
     postType: postData.postType || 'discussion',
     isAIGenerated: true,
