@@ -85,11 +85,12 @@ export async function GET() {
     ),
 
     // 3. 热门帖子（仅 5 条，不需要 COUNT）
+    // 注意：不查询 is_ai_generated 列，避免 Turso 副本同步延迟导致查询失败
     queryWithTimeout(
       db,
       `SELECT p.id, p.title, substr(p.content, 1, 200) as summary_content,
               p.view_count, p.like_count, p.comment_count, p.is_pinned, p.is_essence,
-              p.created_at, p.post_type, p.author_name, p.is_ai_generated,
+              p.created_at, p.post_type, p.author_name,
               u.id as author_id, u.username as author_username, u.avatar as author_avatar,
               c.id as cat_id, c.name as cat_name, c.slug as cat_slug
        FROM Post p
@@ -161,7 +162,7 @@ export async function GET() {
       isEssence: Boolean(p.is_essence),
       createdAt: p.created_at,
       postType: p.post_type,
-      isAIGenerated: Boolean(p.is_ai_generated),
+      isAIGenerated: false,
       author: {
         id: p.author_id || '',
         username: p.author_name || p.author_username || '匿名',
