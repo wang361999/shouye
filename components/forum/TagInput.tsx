@@ -101,7 +101,7 @@ export default function TagInput({ value, onChange, maxTags = 5, error }: TagInp
       <div ref={containerRef} className="relative">
         <div
           className={cn(
-            "flex flex-wrap items-center gap-1.5 min-h-[42px] px-3 py-2 border rounded-lg cursor-text transition-shadow",
+            "flex flex-wrap items-center gap-1.5 min-h-[42px] px-2.5 sm:px-3 py-2 border rounded-lg cursor-text transition-shadow",
             error
               ? "border-red-300 focus-within:ring-2 focus-within:ring-red-500"
               : "border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent"
@@ -137,9 +137,9 @@ export default function TagInput({ value, onChange, maxTags = 5, error }: TagInp
             }}
             onKeyDown={handleKeyDown}
             onFocus={() => setShowSuggestions(true)}
-            placeholder={value.length === 0 ? "输入标签，按回车添加（最多5个）" : ""}
+            placeholder={value.length === 0 ? "输入标签，按回车添加" : ""}
             disabled={value.length >= maxTags}
-            className="flex-1 min-w-[120px] text-sm bg-transparent outline-none disabled:cursor-not-allowed"
+            className="flex-1 min-w-[80px] sm:min-w-[120px] text-sm bg-transparent outline-none disabled:cursor-not-allowed"
           />
         </div>
 

@@ -176,19 +176,19 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
   return (
     <div ref={containerRef} className="relative">
       {/* 搜索框 + 筛选按钮 */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={() => {
             const input = document.getElementById("github-search-input");
             input?.focus();
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap flex-shrink-0"
         >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
           </svg>
-          GitHub 代码
+          <span className="hidden sm:inline">GitHub 代码</span>
         </button>
         <input
           id="github-search-input"
@@ -199,24 +199,24 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
             if (results.length > 0) setShowResults(true);
           }}
           onBlur={handleBlur}
-          placeholder="搜索 GitHub 开源代码..."
-          className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="搜索 GitHub 代码..."
+          className="flex-1 min-w-0 px-2.5 sm:px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         {/* 筛选切换按钮 */}
         <button
           type="button"
           onClick={() => setShowFilters(!showFilters)}
           className={cn(
-            "flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-lg transition-colors whitespace-nowrap",
+            "flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium border rounded-lg transition-colors whitespace-nowrap flex-shrink-0",
             showFilters || activeFilterCount > 0
               ? "bg-blue-50 text-blue-600 border-blue-300"
               : "text-gray-600 border-gray-300 hover:bg-gray-50"
           )}
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
-          筛选
+          <span className="hidden sm:inline">筛选</span>
           {activeFilterCount > 0 && (
             <span className="inline-flex items-center justify-center w-4 h-4 text-xs text-white bg-blue-500 rounded-full">
               {activeFilterCount}
@@ -231,7 +231,7 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
           {/* 语言选择 */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">编程语言</label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
               {LANGUAGES.map((lang) => (
                 <button
                   key={lang.value || "all"}
@@ -251,7 +251,7 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
           </div>
 
           {/* 仓库和用户筛选 */}
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-500 mb-1">限定仓库 (owner/repo)</label>
               <input
@@ -285,7 +285,7 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
             <button
               type="button"
               onClick={applyFilters}
-              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors touch-target"
             >
               应用筛选
             </button>
@@ -293,7 +293,7 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-red-500 transition-colors"
+                className="px-3 py-1 text-xs font-medium text-gray-500 hover:text-red-500 transition-colors touch-target"
               >
                 重置筛选
               </button>
@@ -304,7 +304,7 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
 
       {/* 搜索结果下拉 */}
       {showResults && (
-        <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto">
+        <div className="absolute z-30 top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-[60vh] sm:max-h-96 overflow-y-auto">
           {/* 加载中 */}
           {loading && (
             <div className="flex items-center justify-center py-8 text-sm text-gray-400">
