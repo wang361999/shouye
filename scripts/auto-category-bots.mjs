@@ -15,7 +15,9 @@
 
 import { callAI, checkAIHealth, siteFetch, robustJSONParse, extractPostFromText } from './lib/ai-client.mjs';
 import {
+  appendProfessionalFooter,
   appendWechatOpenSourceFooter,
+  buildProfessionalPromptRules,
   buildWechatOpenSourcePromptRules,
   normalizeTags,
   normalizeTitle,
@@ -253,9 +255,13 @@ function findCategoryIdBySlug(categories, slug) {
 // ===== 调用 AI 生成帖子内容（带 JSON 解析重试和兜底提取）=====
 async function generatePostContent(bot, title, categories) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
-  const openSourceStyleRules = buildWechatOpenSourcePromptRules({
-    topicKind: bot.key === 'open-source' ? 'open-source' : 'general',
-  });
+  const useOpenSourceStyle = bot.key === 'open-source';
+  const promptRules = useOpenSourceStyle
+    ? buildWechatOpenSourcePromptRules({ topicKind: 'open-source' })
+    : buildProfessionalPromptRules({ mode: 'forum' });
+  const styleRequirement = useOpenSourceStyle
+    ? '帖子要像微信公众号开源风模板一样清爽、专业、易读，适合开源项目精选和社区共创场景。'
+    : '帖子要像高质量技术社区教程一样专业、清晰、可复现，优先保证技术准确性和实践价值。';
 
   const prompt = `你是一个技术社区的内容创作者，人设是「${bot.authorName}」，专注${bot.tagline}。请生成一篇高质量的论坛帖子。
 
@@ -268,10 +274,10 @@ async function generatePostContent(bot, title, categories) {
 5. 语言：中文。
 6. 要有实际价值，不要空洞的水文。
 7. 代码示例要正确可运行；如果涉及命令或配置，要说明使用前提。
-8. 帖子要像微信公众号开源风模板一样清爽、专业、易读，能吸引开发者收藏或参与讨论。
+8. ${styleRequirement}
 9. 不要写“作为 AI”“我是 AI”之类表达。
 
-${openSourceStyleRules}
+${promptRules}
 
 ## 输出格式
 
@@ -305,9 +311,13 @@ ${openSourceStyleRules}
       if (parsed.title && parsed.content) {
         parsed.title = normalizeTitle(parsed.title, title);
         parsed.tags = normalizeTags(parsed.tags, bot.defaultTags);
-        parsed.content = appendWechatOpenSourceFooter(parsed.content, {
-          discussionQuestion: bot.discussionQuestion,
-        });
+        parsed.content = useOpenSourceStyle
+          ? appendWechatOpenSourceFooter(parsed.content, {
+              discussionQuestion: bot.discussionQuestion,
+            })
+          : appendProfessionalFooter(parsed.content, {
+              discussionQuestion: bot.discussionQuestion,
+            });
         log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
         return parsed;
       }
@@ -326,9 +336,13 @@ ${openSourceStyleRules}
       if (fallback.title && fallback.content && fallback.content.length > 50) {
         fallback.title = normalizeTitle(fallback.title, title);
         fallback.tags = normalizeTags(fallback.tags, bot.defaultTags);
-        fallback.content = appendWechatOpenSourceFooter(fallback.content, {
-          discussionQuestion: bot.discussionQuestion,
-        });
+        fallback.content = useOpenSourceStyle
+          ? appendWechatOpenSourceFooter(fallback.content, {
+              discussionQuestion: bot.discussionQuestion,
+            })
+          : appendProfessionalFooter(fallback.content, {
+              discussionQuestion: bot.discussionQuestion,
+            });
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
         return fallback;
       }

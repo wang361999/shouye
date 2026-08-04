@@ -10,8 +10,8 @@
 
 import { callAI, checkAIHealth, siteFetch, robustJSONParse, extractPostFromText } from './lib/ai-client.mjs';
 import {
-  appendWechatOpenSourceFooter,
-  buildWechatOpenSourcePromptRules,
+  appendProfessionalFooter,
+  buildProfessionalPromptRules,
   normalizeTags,
   normalizeTitle,
 } from './lib/post-template.mjs';
@@ -193,7 +193,7 @@ async function fetchCategories(token) {
 async function generatePostContent(title, topicType, categories) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
   const typeHint = '开发教程：写一篇实用的技术教程，包含背景、步骤、代码示例、避坑建议和讨论引导';
-  const openSourceStyleRules = buildWechatOpenSourcePromptRules({ topicKind: 'general' });
+  const professionalRules = buildProfessionalPromptRules({ mode: 'forum' });
 
   const prompt = `你是一个技术社区的内容创作者。请生成一篇高质量的论坛帖子。
 
@@ -206,10 +206,10 @@ async function generatePostContent(title, topicType, categories) {
 5. 语言：中文。
 6. 要有实际价值，不要空洞的水文。
 7. 代码示例要正确可运行；如果涉及命令或配置，要说明使用前提。
-8. 帖子要像微信公众号开源风模板一样清爽、专业、易读，能吸引开发者收藏或参与讨论。
+8. 帖子要像高质量技术社区教程一样专业、清晰、可复现，优先保证技术准确性和实践价值。
 9. 不要写“作为 AI”“我是 AI”之类表达。
 
-${openSourceStyleRules}
+${professionalRules}
 
 ## 输出格式
 
@@ -243,7 +243,7 @@ ${openSourceStyleRules}
       if (parsed.title && parsed.content) {
         parsed.title = normalizeTitle(parsed.title, title);
         parsed.tags = normalizeTags(parsed.tags, ['教程', '开发实践']);
-        parsed.content = appendWechatOpenSourceFooter(parsed.content, {
+        parsed.content = appendProfessionalFooter(parsed.content, {
           discussionQuestion: '你在实践这个方案时遇到过哪些坑？欢迎把你的环境、报错和解决方式发出来，后续可以一起整理成更完整的教程。',
         });
         log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
@@ -264,7 +264,7 @@ ${openSourceStyleRules}
       if (fallback.title && fallback.content && fallback.content.length > 50) {
         fallback.title = normalizeTitle(fallback.title, title);
         fallback.tags = normalizeTags(fallback.tags, ['教程', '开发实践']);
-        fallback.content = appendWechatOpenSourceFooter(fallback.content, {
+        fallback.content = appendProfessionalFooter(fallback.content, {
           discussionQuestion: '你在实践这个方案时遇到过哪些坑？欢迎把你的环境、报错和解决方式发出来，后续可以一起整理成更完整的教程。',
         });
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
