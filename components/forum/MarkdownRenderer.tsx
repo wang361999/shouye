@@ -32,23 +32,34 @@ function MarkdownCodeBlock({
   }
 
   return (
-    <div className="not-prose group relative my-5 overflow-hidden rounded-xl bg-slate-950">
-      {/* 语言标签 + 复制按钮：浮于右上角，不单独占一行 */}
-      <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
-        {language && (
-          <span className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-wide text-slate-400">
+    <div
+      className="not-prose my-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-950"
+      style={{ boxShadow: "0 8px 20px rgba(15,23,42,0.12)" }}
+    >
+      {/* 标题栏：红黄绿三点 + 语言标签 + 复制按钮 */}
+      <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-3.5 py-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#ff5f57]" />
+          <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#ffbd2e]" />
+          <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#28c840]" />
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="font-mono text-[12px] font-bold tracking-wide text-blue-300">
             {label}
           </span>
-        )}
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="flex items-center gap-1 rounded bg-slate-800/80 px-2 py-0.5 text-[11px] font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
-        >
-          {copied ? "✓ 已复制" : "复制"}
-        </button>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="font-mono text-[12px] text-slate-400 transition-colors hover:text-white"
+          >
+            {copied ? "✓" : "复制"}
+          </button>
+        </div>
       </div>
-      <pre className="m-0 overflow-x-auto bg-slate-950 px-4 py-4 pt-9 text-[13px] leading-6 text-slate-100">
+      {/* 代码区域 */}
+      <pre
+        className="m-0 overflow-x-auto bg-slate-950 px-4 py-4 text-[13px] leading-[1.75] text-slate-200"
+      >
         <code className={`language-${language || "text"} font-mono`}>
           {code}
         </code>
