@@ -207,7 +207,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
               <div className="h-full rounded-full bg-sky-400" style={{ width: `${heatScore}%` }} />
             </div>
             <div className="flex gap-2 text-[11px] leading-4 text-white/75">
-              <span className="rounded-full bg-white/10 px-2 py-0.5">开源分享</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5">开源项目</span>
               <span className="rounded-full bg-white/10 px-2 py-0.5">前端开发</span>
               <span className="rounded-full bg-white/10 px-2 py-0.5">后端开发</span>
             </div>
@@ -248,7 +248,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
 
       <section className="mt-3 px-4">
         <div className="mb-3 grid grid-cols-2 gap-2">
-          <ChannelCard icon="OS" title="开源分享" desc="项目推荐" count={latestPosts.length || 7} href="/forum/category/open-source" className="bg-violet-600" />
+          <ChannelCard icon="OS" title="开源项目" desc="项目推荐" count={latestPosts.length || 7} href="/forum/category/open-source" className="bg-violet-600" />
           <ChannelCard icon="FE" title="前端开发" desc="技术讨论" count={latestPosts.length || 6} href="/forum/category/frontend" className="bg-teal-700" />
           <ChannelCard icon="BE" title="后端开发" desc="架构实践" count={latestPosts.length || 5} href="/forum/category/backend" className="bg-blue-600" />
           <ChannelCard icon="🤝" title="协作" desc="项目招募" count={projects.length || 4} href="/collab" className="bg-orange-600" />

@@ -92,16 +92,16 @@ const CATEGORY_SLUG_TO_CN: Record<string, string> = {
 
 /**
  * 获取分类显示名称
- * 优先使用数据库中的 name，如果 name 看起来是拼音/slug 则用映射表兜底
+ * 优先使用 slug 的标准显示名，避免旧数据里的同义分类名称重复展示
  */
 export function getCategoryDisplayName(name: string | null | undefined, slug: string | null | undefined): string {
-  // 有中文名直接用
-  if (name && /[\u4e00-\u9fff]/.test(name)) return name;
   // 尝试 slug 映射
   if (slug) {
     const mapped = CATEGORY_SLUG_TO_CN[slug.toLowerCase()];
     if (mapped) return mapped;
   }
+  // 有中文名直接用
+  if (name && /[\u4e00-\u9fff]/.test(name)) return name;
   // name 存在就用 name（可能是英文分类名）
   if (name) return name;
   return '其他';

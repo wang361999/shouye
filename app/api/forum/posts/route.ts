@@ -5,6 +5,7 @@ import { checkDbOr503 } from '@/lib/db-check';
 import type { InValue } from '@libsql/client/http';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
+import { getCategoryDisplayName } from '@/lib/utils';
 
 const QUERY_TIMEOUT = 5000;
 
@@ -247,7 +248,11 @@ export async function GET(request: NextRequest) {
         avatar: p.author_avatar || null,
       },
       category: p.cat_id
-        ? { id: p.cat_id as string, name: p.cat_name as string, slug: p.cat_slug as string }
+        ? {
+            id: p.cat_id as string,
+            name: getCategoryDisplayName(p.cat_name as string, p.cat_slug as string),
+            slug: p.cat_slug as string,
+          }
         : null,
       tags: tagsMap.get(p.id as string) || [],
     }));

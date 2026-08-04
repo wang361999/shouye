@@ -5,6 +5,7 @@ import { checkDbOr503 } from '@/lib/db-check';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { sendNotification } from '@/lib/notify';
 import { revalidateCommunityHome } from '@/lib/revalidate';
+import { getCategoryDisplayName } from '@/lib/utils';
 
 const QUERY_TIMEOUT = 8000;
 
@@ -283,7 +284,7 @@ export async function GET(
       category: postRow.cat_id
         ? {
             id: postRow.cat_id,
-            name: postRow.cat_name,
+            name: getCategoryDisplayName(postRow.cat_name as string, postRow.cat_slug as string),
             slug: postRow.cat_slug,
           }
         : null,

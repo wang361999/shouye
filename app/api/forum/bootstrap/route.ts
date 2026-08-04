@@ -169,7 +169,11 @@ export async function GET() {
         avatar: p.author_avatar || null,
       },
       category: p.cat_id
-        ? { id: p.cat_id as string, name: p.cat_name as string, slug: p.cat_slug as string }
+        ? {
+            id: p.cat_id as string,
+            name: getCategoryDisplayName(p.cat_name as string, p.cat_slug as string),
+            slug: p.cat_slug as string,
+          }
         : null,
     }));
   } else {

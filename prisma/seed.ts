@@ -53,7 +53,7 @@ async function main() {
     { name: '反馈建议', slug: 'feedback', icon: '💬', desc: '产品反馈与功能建议', sortOrder: 2 },
     { name: '使用教程', slug: 'tutorial', icon: '📖', desc: '工具使用教程与经验分享', sortOrder: 3 },
     { name: '闲聊', slug: 'chat', icon: '🗣️', desc: '开发者日常闲聊', sortOrder: 4 },
-    { name: '开源分享', slug: 'open-source', icon: '📦', desc: '开源项目推荐与协议分析', sortOrder: 5 },
+    { name: '开源项目', slug: 'open-source', icon: '📦', desc: '开源项目推荐、协议分析与社区趋势', sortOrder: 5 },
     { name: '前端开发', slug: 'frontend', icon: '🎨', desc: '前端框架、CSS与性能优化', sortOrder: 6 },
     { name: '后端开发', slug: 'backend', icon: '⚙️', desc: '后端架构、数据库与API设计', sortOrder: 7 },
   ];
@@ -64,8 +64,17 @@ async function main() {
       where: { slug: cat.slug },
     });
     if (existing) {
-      categoryRecords.push(existing);
-      console.log(`ℹ️  分类已存在：${cat.name}（跳过）`);
+      const updated = await prisma.category.update({
+        where: { slug: cat.slug },
+        data: {
+          name: cat.name,
+          icon: cat.icon,
+          desc: cat.desc,
+          sortOrder: cat.sortOrder,
+        },
+      });
+      categoryRecords.push(updated);
+      console.log(`🔄 同步分类：${cat.icon} ${cat.name}`);
     } else {
       const created = await prisma.category.create({ data: cat });
       categoryRecords.push(created);

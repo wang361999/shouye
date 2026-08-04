@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getCategoryDisplayName } from '@/lib/utils';
 
 // ============ XML 字符转义 ============
 function escapeXml(unsafe: string): string {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       });
       if (category) {
         where.categoryId = category.id;
-        categoryName = category.name;
+        categoryName = getCategoryDisplayName(category.name, category.slug);
       }
     }
 
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
       <pubDate>${post.createdAt.toUTCString()}</pubDate>
       <author>${escapeXml(post.authorName || post.author.username)}</author>${
           post.category
-            ? `\n      <category>${escapeXml(post.category.name)}</category>`
+            ? `\n      <category>${escapeXml(getCategoryDisplayName(post.category.name, post.category.slug))}</category>`
             : ''
         }
       <description><![CDATA[${post.content}]]></description>

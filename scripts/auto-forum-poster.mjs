@@ -2,7 +2,7 @@
 
 /**
  * 自动论坛发帖脚本
- * 调用 AI 生成开发教程或开源项目推荐帖子，通过 API 发布到论坛
+ * 调用 AI 生成开发教程帖子，通过 API 发布到论坛
  *
  * 用法：在 GitHub Actions 中运行
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL
@@ -20,7 +20,7 @@ const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
-  POST_TOPIC = '', // tutorial | opensource | random
+  POST_TOPIC = '', // tutorial | random（opensource 已合并到 auto-category-bots 的“开源项目”机器人）
   AUTHOR_NAME = 'GitdBot', // AI 发帖时显示的自定义作者名，默认不用 admin
 } = process.env;
 
@@ -62,29 +62,16 @@ const TOPICS = {
     'Git 分支管理策略与团队协作',
     'Docker 本地开发环境搭建',
   ],
-  opensource: [
-    '开源项目推荐：shadcn/ui — 可定制的前端组件库',
-    '开源项目推荐：Prisma — 类型安全的 ORM',
-    '开源项目推荐：Hono — 超快的 Web 框架',
-    '开源项目推荐：Zod — TypeScript 优先的数据验证',
-    '开源项目推荐：Bun — 全新的 JavaScript 运行时',
-    '开源项目推荐：Tauri — 比 Electron 更轻量的桌面应用框架',
-    '开源项目推荐：Astro — 内容驱动的新一代前端框架',
-    '开源项目推荐：Drizzle ORM — 轻量级 TypeScript ORM',
-    '开源项目推荐：Vite — 下一代前端构建工具',
-    '开源项目推荐：TanStack Query — 数据请求管理利器',
-    '开源项目推荐：Playwright — 跨浏览器端到端测试',
-    '开源项目推荐：Biome — 一体化代码格式化与 lint 工具',
-    '开源项目推荐：Htmx — 不用框架也能做动态页面',
-    '开源项目推荐：Lucia Auth — 轻量认证库',
-    '开源项目推荐：Better Stack — 日志监控免费方案',
-  ],
 };
 
 function pickTopic() {
   let topicType = POST_TOPIC;
   if (!topicType || topicType === 'random') {
-    topicType = Math.random() > 0.5 ? 'tutorial' : 'opensource';
+    topicType = 'tutorial';
+  }
+  if (topicType === 'opensource') {
+    warn('opensource 已合并到“开源项目”分类机器人，auto-forum-poster 将改为生成 tutorial');
+    topicType = 'tutorial';
   }
   const pool = TOPICS[topicType] || TOPICS.tutorial;
   const title = pool[Math.floor(Math.random() * pool.length)];
@@ -199,15 +186,13 @@ async function fetchCategories(token) {
   }
 
   const data = await res.json();
-  return Array.isArray(data.categories) ? data.categories : [];
+  return Array.isArray(data) ? data : (Array.isArray(data.categories) ? data.categories : []);
 }
 
 // ===== 调用 AI 生成帖子内容（带 JSON 解析重试和兜底提取）=====
 async function generatePostContent(title, topicType, categories) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
-  const typeHint = topicType === 'tutorial'
-    ? '开发教程：写一篇实用的技术教程，包含背景、步骤、代码示例、避坑建议和讨论引导'
-    : '开源项目推荐：介绍一个开源项目的定位、核心亮点、适用场景、快速上手和选型建议';
+  const typeHint = '开发教程：写一篇实用的技术教程，包含背景、步骤、代码示例、避坑建议和讨论引导';
   const professionalRules = buildProfessionalPromptRules({ mode: 'forum' });
 
   const prompt = `你是一个技术社区的内容创作者。请生成一篇高质量的论坛帖子。
@@ -246,7 +231,7 @@ ${professionalRules}
   for (let attempt = 0; attempt <= AI_GENERATE_RETRIES; attempt++) {
     const content = await callAI({
       prompt,
-      systemPrompt: '你是技术社区内容创作者，擅长写高质量的编程教程和开源项目推荐文章。必须只输出一个有效的 JSON 对象，不要包含任何 markdown 代码块标记或其他文字。',
+      systemPrompt: '你是技术社区内容创作者，擅长写高质量的编程教程和开发实践文章。必须只输出一个有效的 JSON 对象，不要包含任何 markdown 代码块标记或其他文字。',
       maxTokens: 8000,
       responseFormat: { type: 'json_object' },
       tag: TAG,
@@ -257,13 +242,9 @@ ${professionalRules}
       const parsed = robustJSONParse(content);
       if (parsed.title && parsed.content) {
         parsed.title = normalizeTitle(parsed.title, title);
-        parsed.tags = normalizeTags(parsed.tags, topicType === 'tutorial'
-          ? ['教程', '开发实践']
-          : ['开源项目', '工具推荐']);
+        parsed.tags = normalizeTags(parsed.tags, ['教程', '开发实践']);
         parsed.content = appendProfessionalFooter(parsed.content, {
-          discussionQuestion: topicType === 'tutorial'
-            ? '你在实践这个方案时遇到过哪些坑？欢迎把你的环境、报错和解决方式发出来，后续可以一起整理成更完整的教程。'
-            : '你用过这个项目或类似工具吗？欢迎补充真实体验、替代方案和适合/不适合的场景。',
+          discussionQuestion: '你在实践这个方案时遇到过哪些坑？欢迎把你的环境、报错和解决方式发出来，后续可以一起整理成更完整的教程。',
         });
         log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
         return parsed;
@@ -282,9 +263,7 @@ ${professionalRules}
       const fallback = extractPostFromText(content, title);
       if (fallback.title && fallback.content && fallback.content.length > 50) {
         fallback.title = normalizeTitle(fallback.title, title);
-        fallback.tags = normalizeTags(fallback.tags, topicType === 'tutorial'
-          ? ['教程', '开发实践']
-          : ['开源项目', '工具推荐']);
+        fallback.tags = normalizeTags(fallback.tags, ['教程', '开发实践']);
         fallback.content = appendProfessionalFooter(fallback.content);
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
         return fallback;

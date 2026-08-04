@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       post_topic:
-        description: "帖子类型：tutorial / opensource / random"
+        description: "帖子类型：tutorial / random（开源项目由 Auto category bots 负责）"
         required: false
         default: 'random'
       force:

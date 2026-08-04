@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
+import { getCategoryDisplayName } from '@/lib/utils';
 
 // ============ GET /api/forum/search - 论坛增强搜索 ============
 // 参数: ?q=关键词&page=1&limit=20&type=post|comment|all
@@ -172,7 +173,11 @@ export async function GET(request: NextRequest) {
               }
             : null,
           category: p.cat_id
-            ? { id: p.cat_id, name: p.cat_name, slug: p.cat_slug }
+            ? {
+                id: p.cat_id,
+                name: getCategoryDisplayName(p.cat_name as string, p.cat_slug as string),
+                slug: p.cat_slug,
+              }
             : null,
           tags: postTags,
         });
