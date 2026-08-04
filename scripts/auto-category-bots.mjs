@@ -337,7 +337,7 @@ ${professionalRules}
   throw new Error(`AI 生成帖子内容失败（已重试 ${AI_GENERATE_RETRIES + 1} 次）：${lastError?.message || '未知错误'}`);
 }
 
-// ===== 发布帖子 =====
+// ===== 发布帖子（带 429 限流重试）=====
 async function publishPost(token, bot, postData, categories) {
   // 按分类 slug 找到 categoryId
   const categoryId = findCategoryIdBySlug(categories, bot.categorySlug);
@@ -359,25 +359,40 @@ async function publishPost(token, bot, postData, categories) {
     body.tags = normalizeTags(postData.tags);
   }
 
-  log(`发布帖子到 ${SITE_URL}/api/forum/posts...（作者：${bot.authorName}，分类：${bot.categorySlug}）`);
+  const POST_MAX_RETRIES = 2; // 最多重试 2 次（共 3 次尝试）
 
-  const res = await siteFetch(`${SITE_URL}/api/forum/posts`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  });
+  for (let attempt = 0; attempt <= POST_MAX_RETRIES; attempt++) {
+    log(`发布帖子到 ${SITE_URL}/api/forum/posts...（作者：${bot.authorName}，分类：${bot.categorySlug}）${attempt > 0 ? `（重试 ${attempt}/${POST_MAX_RETRIES}）` : ''}`);
 
-  if (!res.ok) {
+    const res = await siteFetch(`${SITE_URL}/api/forum/posts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      log(`发帖成功！帖子 ID：${result.post?.id || '未知'}`);
+      return result;
+    }
+
     const text = await res.text().catch(() => '');
+
+    // 429 限流：解析等待秒数并重试
+    if (res.status === 429 && attempt < POST_MAX_RETRIES) {
+      let waitSec = 45;
+      const match = text.match(/(\d+)\s*秒/);
+      if (match) waitSec = parseInt(match[1], 10) + 5;
+      warn(`发帖被限流（429），等待 ${waitSec} 秒后重试...`);
+      await sleep(waitSec * 1000);
+      continue;
+    }
+
     throw new Error(`发帖失败：${res.status} ${text.slice(0, 300)}`);
   }
-
-  const result = await res.json();
-  log(`发帖成功！帖子 ID：${result.post?.id || '未知'}`);
-  return result;
 }
 
 // ===== DRY RUN 预览 =====
@@ -493,6 +508,12 @@ async function main() {
     } catch (error) {
       warn(`机器人 ${bot.authorName} 执行失败：${error?.message || error}`);
       results.push({ bot: bot.authorName, ok: false, error: error?.message });
+    }
+
+    // 非最后一个机器人且非 DRY RUN 时，等待 65 秒避免发帖频率限制（429）
+    if (!DRY_RUN && i < BOTS.length - 1) {
+      log(`等待 65 秒后再执行下一个机器人，避免发帖频率限制...`);
+      await sleep(65000);
     }
   }
 
