@@ -97,12 +97,12 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
   return (
     <div
       className={cn(
-        "group bg-white rounded-xl border p-4 sm:p-5 transition-all duration-200 hover:shadow-md hover:border-gray-300",
+        "group bg-white rounded-xl border p-3 sm:p-5 transition-all duration-200 hover:shadow-md hover:border-gray-300",
         post.isPinned && "border-l-4 border-l-red-400 bg-red-50/30"
       )}
     >
       {/* 顶部：用户信息 + 分类标签 */}
-      <div className="flex items-start gap-3 mb-2.5">
+      <div className="flex items-start gap-2.5 sm:gap-3 mb-2 sm:mb-2.5">
         {/* 头像 */}
         <UserAvatar username={post.author.username} avatar={post.author.avatar} size="md" />
 
@@ -113,7 +113,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
               {post.author.username}
             </span>
             <span className="text-gray-300">·</span>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 shrink-0">
               {formatTimeAgo(post.createdAt)}
             </span>
           </div>
@@ -158,7 +158,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
       </div>
 
       {/* 标题 */}
-      <h3 className="text-base sm:text-lg font-semibold mb-1.5 ml-12">
+      <h3 className="text-base sm:text-lg font-semibold mb-1.5 ml-0 sm:ml-12">
         <Link
           href={`/forum/post/${post.id}`}
           className="text-gray-900 hover:text-blue-600 transition-colors"
@@ -168,13 +168,13 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
       </h3>
 
       {/* 正文预览 */}
-      <p className="text-sm text-gray-500 mb-3 leading-relaxed ml-12 line-clamp-2">
+      <p className="text-sm text-gray-500 mb-3 leading-relaxed ml-0 sm:ml-12 line-clamp-2">
         {truncateText(stripMarkdown(post.content), 120)}
       </p>
 
       {/* 标签 */}
       {post.tags && post.tags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 ml-12 mb-3">
+        <div className="flex flex-wrap items-center gap-1.5 ml-0 sm:ml-12 mb-3">
           {post.tags.slice(0, 4).map(({ tag }) => (
             <Link
               key={tag.id}
@@ -189,7 +189,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
       )}
 
       {/* 底部统计行 */}
-      <div className="flex items-center gap-4 ml-12 text-xs text-gray-400">
+      <div className="flex items-center gap-3 sm:gap-4 ml-0 sm:ml-12 text-xs text-gray-400">
         <span className="inline-flex items-center gap-1">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

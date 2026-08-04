@@ -257,27 +257,32 @@ export default function ForumPage() {
   ];
 
   return (
-    <Container className="py-8">
-      {/* 顶部标题栏 */}
-      <div className="flex items-center justify-between mb-2">
-        <Link
-          href="/"
-          className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
-        >
-          &larr; 返回首页
-        </Link>
-        <div className="flex items-center gap-2">
+    <Container className="py-4 sm:py-8">
+      {/* 顶部标题栏 + 操作按钮 */}
+      <div className="flex items-center justify-between mb-3 sm:mb-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link
+            href="/"
+            className="hidden sm:inline text-sm text-gray-500 hover:text-blue-600 transition-colors shrink-0"
+          >
+            &larr; 返回首页
+          </Link>
+          <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
+            💬 社区论坛
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           {user ? (
             <>
               <Link
                 href="/forum/new?type=question"
-                className="px-3 py-2 text-sm font-medium text-green-600 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+                className="px-3 py-2 text-xs sm:text-sm font-medium text-green-600 border border-green-300 rounded-lg hover:bg-green-50 transition-colors touch-target"
               >
                 ❓ 提问
               </Link>
               <Link
                 href="/forum/new"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors touch-target"
               >
                 + 发帖
               </Link>
@@ -285,7 +290,7 @@ export default function ForumPage() {
           ) : (
             <Link
               href="/login"
-              className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+              className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors touch-target"
             >
               登录后发帖
             </Link>
@@ -293,22 +298,19 @@ export default function ForumPage() {
         </div>
       </div>
 
-      {/* 页面标题 */}
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">
-        💬 社区论坛
-      </h1>
-      <p className="text-sm text-gray-500 mb-6">
+      {/* 副标题 — 移动端隐藏 */}
+      <p className="hidden sm:block text-sm text-gray-500 mb-6">
         开发者交流 · 工具反馈 · 经验分享
       </p>
 
       {/* Tab 切换栏 */}
-      <div className="flex items-center gap-1 mb-4 bg-white rounded-xl border border-gray-200 p-1 overflow-x-auto">
+      <div className="flex items-center gap-1 mb-4 bg-white rounded-xl border border-gray-200 p-1 overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => handleTabChange(tab.key)}
             className={cn(
-              "flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap",
+              "flex items-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap touch-target",
               activeTab === tab.key
                 ? "bg-blue-600 text-white"
                 : "text-gray-600 hover:bg-gray-50"
@@ -365,7 +367,7 @@ export default function ForumPage() {
 
       {/* 主内容区：帖子列表 + 侧边栏 */}
       {!(activeTab === 'following' && (!user || (!loading && posts.length === 0))) && (
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
           {/* 左侧帖子列表 (2/3) */}
           <div className="w-full lg:w-2/3">
             {loading ? (

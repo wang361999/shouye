@@ -111,13 +111,13 @@ export default function PostList({
   const sortedPosts = getSortedPosts();
 
   return (
-    <div className="space-y-4">
-      {/* 分类标签栏 */}
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-3 sm:space-y-4">
+      {/* 分类标签栏 — 移动端横向滚动，桌面端换行 */}
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 sm:pb-0 sm:flex-wrap">
         <button
           onClick={() => onCategoryChange("all")}
           className={cn(
-            "px-3 py-1.5 text-sm font-medium rounded-full border transition-colors",
+            "px-3 py-1.5 text-sm font-medium rounded-full border transition-colors whitespace-nowrap shrink-0 touch-target",
             currentCategory === "all"
               ? "bg-blue-600 text-white border-blue-600"
               : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
@@ -130,7 +130,7 @@ export default function PostList({
             key={cat.id}
             onClick={() => onCategoryChange(cat.slug)}
             className={cn(
-              "px-3 py-1.5 text-sm font-medium rounded-full border transition-colors inline-flex items-center gap-1",
+              "px-3 py-1.5 text-sm font-medium rounded-full border transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0 touch-target",
               currentCategory === cat.slug
                 ? "bg-blue-600 text-white border-blue-600"
                 : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
@@ -182,13 +182,13 @@ export default function PostList({
         </form>
 
         {/* 排序按钮组 */}
-        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 overflow-x-auto scrollbar-hide">
           {sortOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setSortBy(opt.value)}
               className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap touch-target",
                 sortBy === opt.value
                   ? "bg-blue-600 text-white"
                   : "text-gray-500 hover:bg-gray-50"
@@ -201,7 +201,7 @@ export default function PostList({
       </div>
 
       {/* 帖子列表 */}
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         {sortedPosts.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <p className="text-4xl mb-3">📭</p>
@@ -214,13 +214,13 @@ export default function PostList({
 
       {/* 分页器 */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center space-x-1 pt-4">
+        <div className="flex items-center justify-center gap-1 sm:space-x-1 pt-4 flex-wrap">
           {/* 上一页 */}
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
             className={cn(
-              "px-3 py-1.5 text-sm rounded-md border transition-colors",
+              "px-3 py-1.5 text-sm rounded-md border transition-colors touch-target",
               currentPage <= 1
                 ? "text-gray-300 border-gray-200 cursor-not-allowed"
                 : "text-gray-600 border-gray-300 hover:bg-gray-50"
@@ -243,7 +243,7 @@ export default function PostList({
                 key={page}
                 onClick={() => onPageChange(page)}
                 className={cn(
-                  "w-8 h-8 text-sm rounded-md border transition-colors",
+                  "w-9 h-9 sm:w-8 sm:h-8 text-sm rounded-md border transition-colors touch-target",
                   page === currentPage
                     ? "bg-blue-600 text-white border-blue-600"
                     : "text-gray-600 border-gray-300 hover:bg-gray-50"
