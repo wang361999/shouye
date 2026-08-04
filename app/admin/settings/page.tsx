@@ -416,11 +416,13 @@ export default function SiteSettingsPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                   </svg>
                   <div className="text-sm text-blue-800 space-y-1.5">
-                    <p className="font-medium">配置说明</p>
-                    <p>1. 登录 <a href="https://mp.weixin.qq.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">微信公众平台</a>，在「设置与开发 - 基本配置」中获取 AppID 和 AppSecret。</p>
-                    <p>2. 需在公众号后台配置服务器 IP 白名单，将本服务器出口 IP 加入白名单。</p>
-                    <p>3. AppSecret 仅在配置时显示一次，请妥善保管。如需修改直接填写新值即可。</p>
-                    <p>4. 认证订阅号/服务号可使用草稿+发布接口；个人订阅号部分接口受限，可能仅支持手动发布。</p>
+                    <p className="font-medium">配置说明（微信开发者平台）</p>
+                    <p>1. 打开 <a href="https://developers.weixin.qq.com/platform" target="_blank" rel="noopener noreferrer" className="underline font-medium">微信开发者平台</a> → 右上角扫码登录 → 「我的业务与服务」→「公众号/服务号」→「基础信息」→「开发密钥」获取 AppID 和 AppSecret。</p>
+                    <p>2. 在同页面「基础信息」→「开发信息」中配置 <span className="font-medium">API IP 白名单</span>，将本服务器出口 IP 加入白名单（支持 IP 和 IP 段如 1.2.3.4/24，不支持 IP:端口）。</p>
+                    <p>3. AppSecret 仅在启用或重置时显示一次，请立即复制保存。平台不保存此密钥，丢失只能重置。</p>
+                    <p>4. 个人订阅号需完成管理员实名认证；非个人主体需完成微信认证后才能启用 AppSecret。</p>
+                    <p>5. 认证订阅号/服务号可使用草稿+发布接口；个人订阅号部分接口受限，可能仅支持手动发布。</p>
+                    <p className="text-xs text-blue-600 mt-1">注：原「微信公众平台 - 设置与开发 - 基本配置」入口已于 2025年12月1日关闭，所有配置已迁移至微信开发者平台。</p>
                   </div>
                 </div>
               </div>
