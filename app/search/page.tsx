@@ -184,7 +184,7 @@ function SearchContent() {
         /* 初始状态 */
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
           <p className="text-5xl mb-3">🔍</p>
-          <p className="text-gray-500 mb-1">输入关键词开始搜索</p>
+          <p className="text-[13px] sm:text-base text-gray-500 mb-1">输入关键词开始搜索</p>
           <p className="text-[11px] sm:text-sm text-gray-400">
             可以搜索论坛帖子和工具箱中的工具
           </p>
@@ -193,7 +193,7 @@ function SearchContent() {
         /* 无结果 */
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
           <p className="text-5xl mb-3">📭</p>
-          <p className="text-gray-500 mb-1">
+          <p className="text-[13px] sm:text-base text-gray-500 mb-1">
             未找到与「{query}」相关的内容
           </p>
           <p className="text-[11px] sm:text-sm text-gray-400">试试其他关键词吧</p>
@@ -248,7 +248,7 @@ function SearchContent() {
               {posts.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
                   <p className="text-4xl mb-3">📝</p>
-                  <p className="text-gray-400">没有找到相关帖子</p>
+                  <p className="text-[13px] sm:text-base text-gray-400">没有找到相关帖子</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -300,7 +300,7 @@ function SearchContent() {
               {tools.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
                   <p className="text-4xl mb-3">🧩</p>
-                  <p className="text-gray-400">没有找到相关工具</p>
+                  <p className="text-[13px] sm:text-base text-gray-400">没有找到相关工具</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

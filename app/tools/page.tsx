@@ -176,10 +176,10 @@ export default function ToolsPage() {
               <span>•</span>
               <span>开发者实用工具全集</span>
             </div>
-            <h1 className="text-[20px] md:text-4xl font-extrabold tracking-tight mb-3">
+            <h1 className="text-[18px] sm:text-3xl font-extrabold tracking-tight mb-3">
               工具库中心
             </h1>
-            <p className="text-blue-100 text-[11px] md:text-base leading-relaxed mb-6">
+            <p className="text-blue-100 text-[11px] sm:text-base leading-relaxed mb-6">
               汇聚高效便利的开发与日常在线工具，助你快速解决开发、调试、转换与效率难题。
             </p>
 
@@ -226,7 +226,7 @@ export default function ToolsPage() {
           <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`px-4 py-2 rounded-xl text-[11px] md:text-sm font-medium whitespace-nowrap transition-all ${
+              className={`px-4 py-2 rounded-xl text-[11px] sm:text-sm font-medium whitespace-nowrap transition-all ${
                 selectedCategory === "all"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
@@ -238,7 +238,7 @@ export default function ToolsPage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2 rounded-xl text-[11px] md:text-sm font-medium whitespace-nowrap transition-all ${
+                className={`px-4 py-2 rounded-xl text-[11px] sm:text-sm font-medium whitespace-nowrap transition-all ${
                   selectedCategory === cat.id
                     ? "bg-blue-600 text-white shadow-sm"
                     : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"

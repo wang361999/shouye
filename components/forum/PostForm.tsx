@@ -121,7 +121,7 @@ export default function PostForm({
     <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
       {/* 帖子类型切换 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
           类型
         </label>
         <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export default function PostForm({
             type="button"
             onClick={() => setPostType("discussion")}
             className={cn(
-              "flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 text-sm font-medium rounded-lg border transition-colors touch-target",
+              "flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 text-[13px] sm:text-sm font-medium rounded-lg border transition-colors touch-target",
               postType === "discussion"
                 ? "bg-blue-600 text-white border-blue-600"
                 : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
@@ -141,7 +141,7 @@ export default function PostForm({
             type="button"
             onClick={() => setPostType("question")}
             className={cn(
-              "flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 text-sm font-medium rounded-lg border transition-colors touch-target",
+              "flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 text-[13px] sm:text-sm font-medium rounded-lg border transition-colors touch-target",
               postType === "question"
                 ? "bg-green-600 text-white border-green-600"
                 : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
@@ -150,14 +150,14 @@ export default function PostForm({
             ❓ 问答
           </button>
         </div>
-        <p className="mt-1 text-xs text-gray-400 hidden sm:block">
+        <p className="mt-1 text-[11px] sm:text-xs text-gray-400 hidden sm:block">
           {postType === "question" ? "问答帖可以采纳最佳回答，提问者可标记满意答案" : "讨论帖用于分享观点和交流经验"}
         </p>
       </div>
 
       {/* 标题 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
           标题 <span className="text-red-500">*</span>
         </label>
         <input
@@ -170,19 +170,19 @@ export default function PostForm({
           placeholder={postType === "question" ? "请输入你的问题..." : "请输入帖子标题..."}
           maxLength={100}
           className={cn(
-            "w-full px-3 sm:px-4 py-2.5 text-base sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
+            "w-full px-3 sm:px-4 py-2.5 text-[13px] sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
             errors.title
               ? "border-red-300 focus:ring-red-500"
               : "border-gray-300 focus:ring-blue-500"
           )}
         />
-        {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title}</p>}
-        <p className="mt-1 text-xs text-gray-400 text-right">{title.length}/100</p>
+        {errors.title && <p className="mt-1 text-[11px] sm:text-xs text-red-500">{errors.title}</p>}
+        <p className="mt-1 text-[11px] sm:text-xs text-gray-400 text-right">{title.length}/100</p>
       </div>
 
       {/* 分类 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
           分类 <span className="text-red-500">*</span>
         </label>
         <select
@@ -192,7 +192,7 @@ export default function PostForm({
             if (errors.category) setErrors((prev) => ({ ...prev, category: undefined }));
           }}
           className={cn(
-            "w-full px-3 sm:px-4 py-2.5 text-base sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow appearance-none bg-white",
+            "w-full px-3 sm:px-4 py-2.5 text-[13px] sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow appearance-none bg-white",
             errors.category
               ? "border-red-300 focus:ring-red-500"
               : "border-gray-300 focus:ring-blue-500"
@@ -205,12 +205,12 @@ export default function PostForm({
             </option>
           ))}
         </select>
-        {errors.category && <p className="mt-1 text-xs text-red-500">{errors.category}</p>}
+        {errors.category && <p className="mt-1 text-[11px] sm:text-xs text-red-500">{errors.category}</p>}
       </div>
 
       {/* 标签 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
           标签
         </label>
         <TagInput value={tags} onChange={setTags} maxTags={5} />
@@ -219,7 +219,7 @@ export default function PostForm({
       {/* 内容 */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-[13px] sm:text-sm font-medium text-gray-700">
             内容 <span className="text-red-500">*</span>
           </label>
           <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-100 rounded-lg p-0.5">
@@ -227,7 +227,7 @@ export default function PostForm({
               type="button"
               onClick={() => setActiveTab("edit")}
               className={cn(
-                "px-3 sm:px-4 py-1.5 text-xs font-medium rounded-md transition-colors touch-target flex items-center",
+                "px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium rounded-md transition-colors touch-target flex items-center",
                 activeTab === "edit"
                   ? "bg-white text-blue-600 shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
@@ -239,7 +239,7 @@ export default function PostForm({
               type="button"
               onClick={() => setActiveTab("preview")}
               className={cn(
-                "px-3 sm:px-4 py-1.5 text-xs font-medium rounded-md transition-colors touch-target flex items-center",
+                "px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium rounded-md transition-colors touch-target flex items-center",
                 activeTab === "preview"
                   ? "bg-white text-blue-600 shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
@@ -265,18 +265,18 @@ export default function PostForm({
               placeholder="请输入帖子内容...（支持 Markdown 格式）"
               rows={10}
               className={cn(
-                "w-full px-3 sm:px-4 py-3 text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:border-transparent transition-shadow font-mono",
+                "w-full px-3 sm:px-4 py-3 text-[13px] sm:text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:border-transparent transition-shadow font-mono",
                 errors.content
                   ? "border-red-300 focus:ring-red-500"
                   : "border-gray-300 focus:ring-blue-500"
               )}
             />
-            <p className="mt-1.5 text-xs text-gray-400 hidden sm:block">
+            <p className="mt-1.5 text-[11px] sm:text-xs text-gray-400 hidden sm:block">
               💡 插入 GitHub 代码：直接粘贴文件链接自动识别，或使用上方搜索框引用
             </p>
           </>
         ) : (
-          <div className="w-full min-h-[250px] sm:min-h-[300px] px-3 sm:px-4 py-3 text-sm border border-gray-300 rounded-lg bg-gray-50 overflow-auto">
+          <div className="w-full min-h-[250px] sm:min-h-[300px] px-3 sm:px-4 py-3 text-[13px] sm:text-sm border border-gray-300 rounded-lg bg-gray-50 overflow-auto">
             {content.trim() ? (
               <div className="prose prose-sm max-w-none markdown-body">
                 <ReactMarkdown
@@ -309,8 +309,8 @@ export default function PostForm({
             )}
           </div>
         )}
-        {errors.content && <p className="mt-1 text-xs text-red-500">{errors.content}</p>}
-        <p className="mt-1 text-xs text-gray-400 sm:hidden">
+        {errors.content && <p className="mt-1 text-[11px] sm:text-xs text-red-500">{errors.content}</p>}
+        <p className="mt-1 text-[11px] sm:text-xs text-gray-400 sm:hidden">
           💡 支持 Markdown，可粘贴 GitHub 链接
         </p>
       </div>
@@ -320,13 +320,13 @@ export default function PostForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors touch-target"
+          className="px-5 py-2.5 text-[13px] sm:text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors touch-target"
         >
           取消
         </button>
         <button
           type="submit"
-          className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors touch-target"
+          className="px-5 py-2.5 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors touch-target"
         >
           {initialData ? "保存修改" : postType === "question" ? "发布问题" : "发表帖子"}
         </button>
