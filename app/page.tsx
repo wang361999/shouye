@@ -43,23 +43,28 @@ async function getSiteSettings() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const { siteName, siteDescription } = await getSiteSettings();
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://et-studio.vercel.app';
 
-  const title = '首页';
+  const title = `${siteName} - ${siteDescription}`;
 
   return {
     title,
-    description: siteDescription,
-    keywords: [siteName, '开发者社区', '技术交流', '开源项目', '代码分享'],
+    description: `${siteDescription}。技术交流、工具分享、开源协作、AI 辅助开发，连接开发者共建工具生态。`,
+    keywords: [siteName, '开发者社区', '技术交流', '开源项目', '代码分享', '在线工具', 'AI开发', 'GitHub协作', '开发者工具'],
+    alternates: {
+      canonical: '/',
+    },
     openGraph: {
-      title: `首页 | ${siteName}`,
+      title,
       description: siteDescription,
       type: 'website',
       locale: 'zh_CN',
       siteName,
+      url: baseUrl,
     },
     twitter: {
       card: 'summary_large_image',
-      title: `首页 | ${siteName}`,
+      title,
       description: siteDescription,
     },
   };

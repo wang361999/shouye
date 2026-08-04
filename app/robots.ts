@@ -6,7 +6,7 @@ import { MetadataRoute } from 'next';
  * Next.js 会自动在 /robots.txt 暴露此文件
  */
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.gitd.cn';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://et-studio.vercel.app';
 
   return {
     rules: [

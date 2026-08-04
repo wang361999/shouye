@@ -300,6 +300,7 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
   const [data, setData] = useState<CommunityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [postTab, setPostTab] = useState<'latest' | 'hot'>('latest');
   const forumRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -342,7 +343,7 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
         <div className="absolute -bottom-40 -right-32 h-[28rem] w-[28rem] rounded-full bg-indigo-500/30 blur-3xl" />
         <div className="absolute top-1/3 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-purple-500/20 blur-3xl" />
 
-        <Container className="relative py-24 text-center md:py-32">
+        <Container className="relative py-16 text-center sm:py-20 md:py-28">
           {/* 活跃状态徽标 */}
           <div className="mb-7 inline-flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100 backdrop-blur sm:gap-2 sm:px-4 sm:text-sm">
             <OnlineCounter variant="hero" />
@@ -461,26 +462,61 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* 左侧：最新帖子 */}
+              {/* 左侧：最新帖子 / 热门讨论（可切换） */}
               <div className="lg:col-span-2">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900">
-                    <span>🆕</span> 最新发布
-                  </h3>
+                  {/* Tab 切换 */}
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setPostTab('latest')}
+                      className={cn(
+                        "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+                        postTab === 'latest'
+                          ? "bg-white text-gray-900 shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                      )}
+                    >
+                      🆕 最新发布
+                    </button>
+                    <button
+                      onClick={() => setPostTab('hot')}
+                      className={cn(
+                        "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+                        postTab === 'hot'
+                          ? "bg-white text-gray-900 shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                      )}
+                    >
+                      🔥 热门讨论
+                    </button>
+                  </div>
                   <Link href="/forum" className="text-sm text-blue-600 hover:text-blue-700 transition-colors">
                     查看全部 →
                   </Link>
                 </div>
                 <div className="space-y-3">
-                  {data?.latestPosts.length ? (
-                    data.latestPosts.map((post) => (
-                      <PostCard key={post.id} post={post} />
-                    ))
+                  {postTab === 'latest' ? (
+                    data?.latestPosts.length ? (
+                      data.latestPosts.map((post) => (
+                        <PostCard key={post.id} post={post} />
+                      ))
+                    ) : (
+                      <div className="text-center py-12 text-gray-400">
+                        <p className="text-4xl mb-3">📭</p>
+                        <p>还没有帖子，快来抢沙发吧~</p>
+                      </div>
+                    )
                   ) : (
-                    <div className="text-center py-12 text-gray-400">
-                      <p className="text-4xl mb-3">📭</p>
-                      <p>还没有帖子，快来抢沙发吧~</p>
-                    </div>
+                    data?.hotPosts.length ? (
+                      data.hotPosts.map((post, index) => (
+                        <PostCard key={post.id} post={post} rank={index} />
+                      ))
+                    ) : (
+                      <div className="text-center py-12 text-gray-400">
+                        <p className="text-4xl mb-3">🔥</p>
+                        <p>暂无热门讨论，快来参与讨论吧~</p>
+                      </div>
+                    )
                   )}
                 </div>
               </div>

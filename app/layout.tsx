@@ -110,13 +110,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const defaultTitle = `${siteName} - ${siteDescription}`;
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://et-studio.vercel.app';
+
   return {
     title: {
       template: `%s | ${siteName}`,
       default: defaultTitle,
     },
     description: siteDescription,
-    keywords: [siteName, '开发者工具', 'GitHub', 'AI', '技术社区'],
+    keywords: [siteName, '开发者工具', 'GitHub', 'AI', '技术社区', '开发者社区', '开源项目', '代码分享', '在线工具'],
+    metadataBase: new URL(baseUrl),
+    alternates: {
+      canonical: '/',
+    },
     icons,
     openGraph: {
       title: defaultTitle,
@@ -124,6 +130,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: 'website',
       locale: 'zh_CN',
       siteName,
+      url: baseUrl,
     },
     twitter: {
       card: 'summary_large_image',
@@ -135,9 +142,45 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { siteName, siteDescription } = await getSiteSettings();
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://et-studio.vercel.app';
+
+  // JSON-LD 结构化数据 — 帮助搜索引擎理解站点
+  const websiteSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: siteName,
+    description: siteDescription,
+    url: baseUrl,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${baseUrl}/search?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
+  const orgSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: siteName,
+    url: baseUrl,
+    description: siteDescription,
+  };
 
   return (
     <html lang="zh-CN">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+        />
+      </head>
       <body className="min-h-screen flex flex-col bg-gray-50">
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {

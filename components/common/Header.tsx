@@ -172,13 +172,13 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100">
+    <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100 dark:bg-slate-800 dark:border-slate-700 dark:shadow-none">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center space-x-2 text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
+            className="flex items-center space-x-2 text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors dark:text-white"
           >
             <span>🛠️</span>
             <span>{siteName}</span>
@@ -215,7 +215,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
                   setForumOpen(!forumOpen);
                   setToolOpen(false);
                 }}
-                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors dark:text-gray-300 dark:hover:bg-slate-700"
               >
                 <span>社区</span>
                 <svg
@@ -237,14 +237,14 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
               </button>
               {/* 下拉面板 */}
               {forumOpen && (
-                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 animate-dropdown">
-                  <div className="absolute -top-2 left-6 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-white" />
+                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 animate-dropdown dark:bg-slate-800 dark:border-slate-600">
+                  <div className="absolute -top-2 left-6 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-white dark:border-b-slate-800" />
                   {forumLinks.map((link) => (
                     <Link
                       key={link.href}
                       href={link.href}
                       onClick={() => setForumOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors dark:text-gray-300 dark:hover:bg-slate-700 dark:hover:text-blue-400"
                     >
                       {link.name}
                     </Link>
@@ -260,7 +260,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
                   setToolOpen(!toolOpen);
                   setForumOpen(false);
                 }}
-                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors dark:text-gray-300 dark:hover:bg-slate-700"
               >
                 <span>工具</span>
                 <svg
@@ -282,15 +282,15 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
               </button>
               {/* 下拉面板 */}
               {toolOpen && (
-                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 animate-dropdown">
+                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 animate-dropdown dark:bg-slate-800 dark:border-slate-600">
                   {/* 小三角 */}
-                  <div className="absolute -top-2 left-6 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-white" />
+                  <div className="absolute -top-2 left-6 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-white dark:border-b-slate-800" />
                   {toolLinks.map((link) => (
                     <Link
                       key={link.name}
                       href={link.href}
                       onClick={() => setToolOpen(false)}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors dark:text-gray-300 dark:hover:bg-slate-700 dark:hover:text-blue-400"
                     >
                       {link.name}
                     </Link>
@@ -302,7 +302,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
             {/* 开源 */}
             <Link
               href="/products"
-              className="px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+              className="px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors dark:text-gray-300 dark:hover:bg-slate-700"
             >
               开源
             </Link>
@@ -310,7 +310,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
             {/* 文档 */}
             <Link
               href="/docs"
-              className="px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+              className="px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors dark:text-gray-300 dark:hover:bg-slate-700"
             >
               文档
             </Link>
@@ -327,7 +327,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
                 {/* 私信图标 */}
                 <Link
                   href="/messages"
-                  className="relative p-1.5 text-gray-600 hover:text-blue-600 transition-colors"
+                  className="relative p-1.5 text-gray-600 hover:text-blue-600 transition-colors dark:text-gray-400 dark:hover:text-blue-400"
                   aria-label="私信"
                 >
                   <svg
@@ -347,7 +347,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
                 {/* 通知铃铛 */}
                 <Link
                   href="/notifications"
-                  className="relative p-1.5 text-gray-600 hover:text-blue-600 transition-colors"
+                  className="relative p-1.5 text-gray-600 hover:text-blue-600 transition-colors dark:text-gray-400 dark:hover:text-blue-400"
                   aria-label="通知"
                 >
                   <svg
@@ -367,14 +367,14 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
                 {/* 用户名链接到 /profile（头像 + 用户名） */}
                 <Link
                   href="/profile"
-                  className="flex items-center space-x-2 text-sm text-gray-700 hover:text-blue-600 transition-colors"
+                  className="flex items-center space-x-2 text-sm text-gray-700 hover:text-blue-600 transition-colors dark:text-gray-300 dark:hover:text-blue-400"
                 >
                   <HeaderAvatar avatar={user.avatar} username={user.username} />
                   <span>{user.username}</span>
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1.5 text-sm text-gray-500 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+                  className="px-3 py-1.5 text-sm text-gray-500 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors dark:text-gray-400 dark:border-slate-600 dark:hover:bg-slate-700"
                 >
                   退出
                 </button>
@@ -383,7 +383,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
               <div className="flex items-center space-x-3">
                 <Link
                   href="/login"
-                  className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors dark:text-gray-300 dark:hover:text-blue-400"
                 >
                   登录
                 </Link>
@@ -400,7 +400,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
           {/* 移动端汉堡菜单 */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2.5 -mr-1 rounded-md text-gray-700 hover:bg-gray-100 transition-colors touch-target flex items-center justify-center"
+            className="md:hidden p-2.5 -mr-1 rounded-md text-gray-700 hover:bg-gray-100 transition-colors touch-target flex items-center justify-center dark:text-gray-300 dark:hover:bg-slate-700"
             aria-label="菜单"
             aria-expanded={mobileMenuOpen}
           >
@@ -419,7 +419,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
 
       {/* 移动端菜单面板 */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white animate-slide-down">
+        <div className="md:hidden border-t border-gray-100 bg-white animate-slide-down dark:bg-slate-800 dark:border-slate-700">
           <div className="px-4 py-3 space-y-2">
             {/* 工具 */}
             <div>

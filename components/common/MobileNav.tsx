@@ -1,9 +1,18 @@
 "use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/lib/store";
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  showBadge?: boolean;
+}
+
+const navItems: NavItem[] = [
   {
     href: "/",
     label: "首页",
@@ -48,48 +57,127 @@ const navItems = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
+    showBadge: true,
   },
 ];
 
+// 需要显示悬浮发帖按钮的页面
+const fabPages = ["/", "/forum", "/forum/category"];
+
 export default function MobileNav() {
   const pathname = usePathname();
+  const { user, token } = useAppStore();
+  const [hasUnread, setHasUnread] = useState(false);
+
+  // 已登录用户轮询未读消息/通知
+  useEffect(() => {
+    if (!user || !token) {
+      setHasUnread(false);
+      return;
+    }
+
+    let active = true;
+
+    const checkUnread = async () => {
+      try {
+        const headers = { Authorization: `Bearer ${token}` };
+        const [msgRes, notiRes] = await Promise.allSettled([
+          fetch("/api/messages/unread", { headers }),
+          fetch("/api/notifications", { headers }),
+        ]);
+
+        let unread = false;
+
+        if (msgRes.status === "fulfilled" && msgRes.value.ok) {
+          const data = await msgRes.value.json();
+          if (data.unreadCount > 0) unread = true;
+        }
+
+        if (!unread && notiRes.status === "fulfilled" && notiRes.value.ok) {
+          const data = await notiRes.value.json();
+          if (Array.isArray(data) && data.some((n: { read: boolean }) => !n.read)) {
+            unread = true;
+          }
+        }
+
+        if (active) setHasUnread(unread);
+      } catch {
+        // 静默降级
+      }
+    };
+
+    checkUnread();
+    // 每 60 秒轮询一次
+    const interval = setInterval(checkUnread, 60_000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [user, token]);
+
+  // 判断是否显示悬浮发帖按钮
+  const showFab =
+    user &&
+    fabPages.some(
+      (page) => pathname === page || (page !== "/" && pathname.startsWith(page)),
+    );
 
   return (
-    <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 safe-area-pb shadow-[0_-1px_8px_rgba(0,0,0,0.06)]"
-      aria-label="底部导航"
-    >
-      <div className="flex items-center justify-around h-14">
-        {navItems.map((item) => {
-          const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-label={item.label}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "relative flex flex-col items-center justify-center flex-1 h-full text-[10px] font-medium transition-all duration-200 no-select",
-                active
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-gray-400 dark:text-gray-500 active:text-gray-600"
-              )}
-            >
-              <span className={cn("mb-0.5 transition-transform duration-200", active && "scale-110")}>
-                {item.icon}
-              </span>
-              <span>{item.label}</span>
-              {/* 激活指示条 */}
-              <span
+    <>
+      {/* 悬浮发帖按钮 */}
+      {showFab && (
+        <Link
+          href="/forum/new"
+          className="md:hidden fixed right-4 bottom-20 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition-all active:scale-90 hover:bg-blue-700"
+          aria-label="发帖"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </Link>
+      )}
+
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 safe-area-pb shadow-[0_-1px_8px_rgba(0,0,0,0.06)]"
+        aria-label="底部导航"
+      >
+        <div className="flex items-center justify-around h-14">
+          {navItems.map((item) => {
+            const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-label={item.label}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "absolute bottom-0 h-0.5 w-6 rounded-full transition-opacity duration-200",
-                  active ? "opacity-100 bg-blue-600 dark:bg-blue-400" : "opacity-0"
+                  "relative flex flex-col items-center justify-center flex-1 h-full text-[10px] font-medium transition-all duration-200 no-select",
+                  active
+                    ? "text-blue-600 dark:text-blue-400"
+                    : "text-gray-400 dark:text-gray-500 active:text-gray-600"
                 )}
-              />
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+              >
+                <span className={cn("mb-0.5 transition-transform duration-200", active && "scale-110")}>
+                  {item.icon}
+                </span>
+                <span>{item.label}</span>
+                {/* 未读消息红点 */}
+                {item.showBadge && hasUnread && (
+                  <span className="absolute top-1.5 right-1/2 mr-[-14px] h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-800" />
+                )}
+                {/* 激活指示条 */}
+                <span
+                  className={cn(
+                    "absolute bottom-0 h-0.5 w-6 rounded-full transition-opacity duration-200",
+                    active ? "opacity-100 bg-blue-600 dark:bg-blue-400" : "opacity-0"
+                  )}
+                />
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 }
