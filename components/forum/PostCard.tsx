@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatTimeAgo, truncateText, stripMarkdown, cn } from "@/lib/utils";
+import { formatTimeAgo, truncateText, stripMarkdown, cn, getCategoryDisplayName } from "@/lib/utils";
 import UserAvatar from "@/components/common/UserAvatar";
 import { useAppStore } from "@/lib/store";
 import toast from "react-hot-toast";
@@ -91,9 +91,10 @@ const StarIcon = ({ className }: { className?: string }) => (
 export default function PostCard({ post, showActions = false }: PostCardProps) {
   const router = useRouter();
   const { user, token } = useAppStore();
-  const category = categoryMap[post.category] ?? {
+  const matchedCat = categoryMap[post.category];
+  const category = matchedCat ?? {
     dot: "bg-gray-400",
-    label: post.category || "其他",
+    label: getCategoryDisplayName(post.category, post.category),
     textClass: "text-gray-600",
   };
 

@@ -64,6 +64,50 @@ export function slugify(text: string): string {
 }
 
 /**
+ * slug → 中文名映射表
+ * 当数据库中分类 name 字段存的是拼音/slug 时，用作兜底显示
+ */
+const CATEGORY_SLUG_TO_CN: Record<string, string> = {
+  announcement: '公告',
+  feedback: '反馈建议',
+  tutorial: '使用教程',
+  chat: '闲聊',
+  'open-source': '开源项目',
+  opensource: '开源项目',
+  kaiyuan: '开源项目',
+  discussion: '讨论',
+  question: '问答',
+  share: '分享',
+  project: '项目',
+  devops: 'DevOps',
+  frontend: '前端',
+  backend: '后端',
+  mobile: '移动开发',
+  ai: 'AI',
+  ml: '机器学习',
+  career: '职场',
+  hiring: '招聘',
+  news: '资讯',
+};
+
+/**
+ * 获取分类显示名称
+ * 优先使用数据库中的 name，如果 name 看起来是拼音/slug 则用映射表兜底
+ */
+export function getCategoryDisplayName(name: string | null | undefined, slug: string | null | undefined): string {
+  // 有中文名直接用
+  if (name && /[\u4e00-\u9fff]/.test(name)) return name;
+  // 尝试 slug 映射
+  if (slug) {
+    const mapped = CATEGORY_SLUG_TO_CN[slug.toLowerCase()];
+    if (mapped) return mapped;
+  }
+  // name 存在就用 name（可能是英文分类名）
+  if (name) return name;
+  return '其他';
+}
+
+/**
  * 去除 Markdown 语法符号，提取纯文本
  * 用于帖子列表摘要展示
  */

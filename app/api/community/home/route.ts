@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
-import { stripMarkdown, truncateText, formatTimeAgo } from '@/lib/utils';
+import { stripMarkdown, truncateText, formatTimeAgo, getCategoryDisplayName } from '@/lib/utils';
 
 // ============ 两级缓存 ============
 // 内容数据 2 分钟，统计数据 10 分钟
@@ -230,7 +230,7 @@ export async function GET() {
       avatar: row.author_avatar || null,
     },
     category: row.cat_id
-      ? { id: row.cat_id as string, name: row.cat_name as string, slug: row.cat_slug as string }
+      ? { id: row.cat_id as string, name: getCategoryDisplayName(row.cat_name as string, row.cat_slug as string), slug: row.cat_slug as string }
       : null,
   });
 

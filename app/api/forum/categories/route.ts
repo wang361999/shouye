@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
 import { adminAuth } from '@/lib/auth';
+import { getCategoryDisplayName } from '@/lib/utils';
 
 // 分类数据需要即时可见（创建后立即显示），禁用 ISR 缓存
 export const dynamic = 'force-dynamic';
@@ -32,7 +33,7 @@ export async function GET() {
 
   const result = (rows as Record<string, unknown>[]).map((cat) => ({
     id: cat.id,
-    name: cat.name,
+    name: getCategoryDisplayName(cat.name as string, cat.slug as string),
     slug: cat.slug,
     icon: cat.icon,
     desc: cat.desc,

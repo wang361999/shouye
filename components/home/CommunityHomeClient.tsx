@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Container } from "@/components/common/Container";
-import { cn } from "@/lib/utils";
+import { cn, getCategoryDisplayName } from "@/lib/utils";
 import UserAvatar from "@/components/common/UserAvatar";
 import OnlineCounter from "@/components/common/OnlineCounter";
 import CheckInLeaderboard from "./CheckInLeaderboard";
@@ -181,7 +181,7 @@ function PostCard({ post, rank }: { post: CommunityPost; rank?: number }) {
           <div className="flex items-center gap-1.5 mb-1.5">
             {post.category && (
               <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-                {post.category.name}
+                {getCategoryDisplayName(post.category.name, post.category.slug)}
               </span>
             )}
             {post.isPinned && (
