@@ -3,6 +3,9 @@ import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
 import { stripMarkdown, truncateText, formatTimeAgo, getCategoryDisplayName } from '@/lib/utils';
 
+// 社区首页数据必须运行时读取数据库，不能在构建期静态化，否则移动端会拿到空数据
+export const dynamic = 'force-dynamic';
+
 // ============ 两级缓存 ============
 // 内容数据 2 分钟，统计数据 10 分钟；移动端和桌面端分开缓存，避免互相覆盖
 let contentCache: Record<string, object | null> = {};
@@ -54,7 +57,7 @@ export async function GET(request: Request) {
     db = getDb();
   } catch {
     const fallbackContent = cachedContent || {
-      latestPosts: [], hotPosts: [], activeMembers: [], collabProjects: [],
+      latestPosts: [], hotPosts: [], activeMembers: [], collabProjects: [], featuredTools: [],
     };
     const fallbackStats = statsCache || {
       stats: { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 },
