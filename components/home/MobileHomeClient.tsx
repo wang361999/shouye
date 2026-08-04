@@ -178,11 +178,6 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
         <div className="absolute inset-0 bg-[linear-gradient(rgba(96,165,250,0.10)_1px,transparent_1px),linear-gradient(90deg,rgba(96,165,250,0.10)_1px,transparent_1px)] bg-[length:26px_26px] [mask-image:radial-gradient(circle_at_50%_25%,black,transparent_78%)]" />
         <div className="absolute -right-20 top-10 h-44 w-44 rounded-full bg-blue-600/30 blur-3xl" />
         <div className="relative">
-          <div className="mb-2 flex items-center justify-between text-[11px] font-semibold leading-4 text-white/70">
-            <span>9:41</span>
-            <span>5G 100%</span>
-          </div>
-
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <GitdSourceLogo className="h-[34px] w-[34px] drop-shadow-[0_8px_14px_rgba(37,99,235,0.24)]" />

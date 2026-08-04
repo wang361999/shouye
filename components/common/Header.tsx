@@ -172,7 +172,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100 dark:bg-slate-800 dark:border-slate-700 dark:shadow-none">
+    <header className="hidden md:block sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100 dark:bg-slate-800 dark:border-slate-700 dark:shadow-none">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
