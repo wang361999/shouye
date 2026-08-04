@@ -521,14 +521,14 @@ function inlineFormat(text: string): string {
   result = result.replace(
     /!\[([^\]]*)\]\(([^)]+)\)/g,
     (_m, alt, url) =>
-      `<img src="${url.trim()}" alt="${escapeHtml(alt)}" style="max-width:100%;border-radius:6px;margin:12px 0;display:block;" />`,
+      `<img src="${url.trim()}" alt="${escapeHtml(alt)}" style="max-width:100%;border-radius:10px;margin:18px auto;display:block;box-shadow:0 6px 18px rgba(15,23,42,0.08);" />`,
   );
 
   // 链接 [text](url)
   result = result.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
     (_m, linkText, url) =>
-      `<a href="${url.trim()}" style="color:#0969da;text-decoration:none;border-bottom:1px solid #0969da;">${escapeHtml(
+      `<a href="${url.trim()}" style="color:#2563eb;text-decoration:none;border-bottom:1px solid rgba(37,99,235,0.35);font-weight:500;">${escapeHtml(
         linkText,
       )}</a>`,
   );
@@ -548,7 +548,7 @@ function inlineFormat(text: string): string {
   // 行内代码 `code`
   result = result.replace(
     /`([^`]+)`/g,
-    '<code style="background:#f6f8fa;padding:2px 6px;border-radius:4px;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;color:#d63384;">$1</code>',
+    '<code style="background:#f1f5f9;padding:2px 6px;border-radius:5px;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;color:#be123c;">$1</code>',
   );
 
   return result;
@@ -585,7 +585,7 @@ export function markdownToWechatHtml(markdown: string): string {
     (_m, lang, code) => {
       const idx = codeBlocks.length;
       const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : '';
-      const styled = `<pre style="background:#f6f8fa;border:1px solid #e1e4e8;border-radius:6px;padding:16px;overflow:auto;line-height:1.5;font-size:14px;margin:16px 0;"${langAttr}><code style="font-family:Menlo,Monaco,Consolas,monospace;color:#24292e;">${escapeHtml(
+      const styled = `<pre style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:16px;overflow:auto;line-height:1.7;font-size:13px;margin:18px 0;color:#e2e8f0;"${langAttr}><code style="font-family:Menlo,Monaco,Consolas,monospace;color:#e2e8f0;">${escapeHtml(
         code.replace(/\n$/, ''),
       )}</code></pre>`;
       codeBlocks.push(styled);
@@ -639,7 +639,7 @@ export function markdownToWechatHtml(markdown: string): string {
       closeLists();
       closeBlockquote();
       htmlLines.push(
-        '<hr style="border:none;border-top:1px solid #e1e4e8;margin:20px 0;" />',
+        '<hr style="border:none;border-top:1px dashed #cbd5e1;margin:26px 0;" />',
       );
       continue;
     }
@@ -650,9 +650,9 @@ export function markdownToWechatHtml(markdown: string): string {
       closeLists();
       closeBlockquote();
       const level = headingMatch[1].length;
-      const sizes = ['28px', '24px', '22px', '20px', '18px', '16px'];
+      const sizes = ['22px', '20px', '18px', '17px', '16px', '15px'];
       htmlLines.push(
-        `<h${level} style="font-size:${sizes[level - 1]};font-weight:bold;margin:20px 0 12px;color:#24292e;line-height:1.4;">${inlineFormat(
+        `<h${level} style="font-size:${sizes[level - 1]};font-weight:700;margin:28px 0 14px;color:#111827;line-height:1.45;padding-left:12px;border-left:4px solid #2563eb;letter-spacing:0.2px;">${inlineFormat(
           headingMatch[2],
         )}</h${level}>`,
       );
@@ -665,12 +665,12 @@ export function markdownToWechatHtml(markdown: string): string {
       closeLists();
       if (!inBlockquote) {
         htmlLines.push(
-          '<blockquote style="border-left:4px solid #dfe2e5;padding:4px 16px;margin:16px 0;color:#6a737d;background:#f6f8fa;">',
+          '<blockquote style="border-left:4px solid #93c5fd;padding:10px 16px;margin:18px 0;color:#475569;background:#f8fafc;border-radius:0 8px 8px 0;">',
         );
         inBlockquote = true;
       }
       htmlLines.push(
-        `<p style="margin:4px 0;">${inlineFormat(quoteMatch[1])}</p>`,
+        `<p style="margin:4px 0;line-height:1.8;font-size:14px;">${inlineFormat(quoteMatch[1])}</p>`,
       );
       continue;
     }
@@ -684,11 +684,11 @@ export function markdownToWechatHtml(markdown: string): string {
       }
       if (!inUnorderedList) {
         htmlLines.push(
-          '<ul style="padding-left:24px;margin:12px 0;line-height:1.8;">',
+          '<ul style="padding-left:22px;margin:14px 0;line-height:1.9;color:#1f2937;">',
         );
         inUnorderedList = true;
       }
-      htmlLines.push(`<li>${inlineFormat(ulMatch[1])}</li>`);
+      htmlLines.push(`<li style="margin:6px 0;">${inlineFormat(ulMatch[1])}</li>`);
       continue;
     }
 
@@ -701,11 +701,11 @@ export function markdownToWechatHtml(markdown: string): string {
       }
       if (!inOrderedList) {
         htmlLines.push(
-          '<ol style="padding-left:24px;margin:12px 0;line-height:1.8;">',
+          '<ol style="padding-left:22px;margin:14px 0;line-height:1.9;color:#1f2937;">',
         );
         inOrderedList = true;
       }
-      htmlLines.push(`<li>${inlineFormat(olMatch[1])}</li>`);
+      htmlLines.push(`<li style="margin:6px 0;">${inlineFormat(olMatch[1])}</li>`);
       continue;
     }
 
@@ -713,7 +713,7 @@ export function markdownToWechatHtml(markdown: string): string {
     closeLists();
     closeBlockquote();
     htmlLines.push(
-      `<p style="margin:12px 0;line-height:1.8;font-size:15px;color:#24292e;">${inlineFormat(
+      `<p style="margin:15px 0;line-height:1.95;font-size:15px;color:#1f2937;letter-spacing:0.2px;">${inlineFormat(
         line,
       )}</p>`,
     );

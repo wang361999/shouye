@@ -10,6 +10,7 @@ import {
   downloadAndUploadThumb,
   getOrCreateDefaultThumbMediaId,
   addDraft,
+  deleteDraft,
 } from '@/lib/wechat';
 
 const PAGE_SIZE_DEFAULT = 20;
@@ -29,10 +30,13 @@ export async function GET(request: NextRequest) {
       parseInt(searchParams.get('limit') || String(PAGE_SIZE_DEFAULT), 10),
     );
 
+    const where = { status: { not: 'deleted' } };
+
     // 并发查询记录列表、总数、配置状态
     const [total, records, config] = await Promise.all([
-      prisma.wechatSync.count(),
+      prisma.wechatSync.count({ where }),
       prisma.wechatSync.findMany({
+        where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -70,6 +74,79 @@ export async function GET(request: NextRequest) {
     console.error('[WECHAT SYNC LIST ERROR]', error);
     return NextResponse.json(
       { error: '获取同步记录失败' },
+      { status: 500 },
+    );
+  }
+}
+
+// ============ DELETE /api/wechat/sync - 一键清除可删除记录 ============
+// 清除范围：draft / failed / generated
+// - draft：如存在微信草稿 media_id，尽量调用微信 API 删除远端草稿
+// - failed/generated：只清除本地记录状态
+export async function DELETE(request: NextRequest) {
+  try {
+    const admin = adminAuth(request);
+    if (admin instanceof Response) return admin;
+
+    const records = await prisma.wechatSync.findMany({
+      where: {
+        status: { in: ['draft', 'failed', 'generated'] },
+      },
+      include: {
+        post: { select: { title: true } },
+      },
+    });
+
+    if (records.length === 0) {
+      return NextResponse.json({
+        message: '没有可清除的记录',
+        clearedCount: 0,
+        remoteDeleteFailedCount: 0,
+      });
+    }
+
+    let remoteDeleteFailedCount = 0;
+    const draftRecords = records.filter((record) => record.status === 'draft' && record.mediaId);
+
+    for (const record of draftRecords) {
+      const deleteResult = await deleteDraft(record.mediaId as string);
+      if (!deleteResult.success) {
+        remoteDeleteFailedCount += 1;
+        console.warn(
+          '[WECHAT SYNC CLEAR] 微信端草稿删除失败:',
+          record.id,
+          deleteResult.message,
+        );
+      }
+    }
+
+    const updateResult = await prisma.wechatSync.updateMany({
+      where: {
+        id: { in: records.map((record) => record.id) },
+      },
+      data: { status: 'deleted' },
+    });
+
+    await logOperation(
+      admin.userId,
+      admin.username,
+      'wechat_sync_clear',
+      'WechatSync',
+      `一键清除公众号同步/生成记录: ${updateResult.count} 条`,
+    );
+
+    return NextResponse.json({
+      message:
+        remoteDeleteFailedCount > 0
+          ? `已清除 ${updateResult.count} 条记录，其中 ${remoteDeleteFailedCount} 个微信端草稿删除失败，本地记录已清除`
+          : `已清除 ${updateResult.count} 条记录`,
+      clearedCount: updateResult.count,
+      remoteDeleteFailedCount,
+    });
+  } catch (error) {
+    console.error('[WECHAT SYNC CLEAR ERROR]', error);
+    return NextResponse.json(
+      { error: '清除记录失败' },
       { status: 500 },
     );
   }

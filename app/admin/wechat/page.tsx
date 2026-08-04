@@ -105,6 +105,31 @@ function maskAppId(appId?: string): string {
   return `${appId.slice(0, 4)}****${appId.slice(-4)}`;
 }
 
+/** 生成适合直接粘贴到微信公众号编辑器的完整图文模板 */
+function buildWechatArticleHtml(data: PreviewData): string {
+  const digestHtml = data.digest
+    ? `<section style="margin:14px 0 0;padding:12px 14px;background:#f8fafc;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;color:#475569;font-size:14px;line-height:1.8;">${data.digest}</section>`
+    : "";
+
+  return `
+<section style="max-width:677px;margin:0 auto;padding:0 0 8px;background:#ffffff;color:#1f2937;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif;">
+  <section style="padding:8px 0 18px;border-bottom:1px solid #e5e7eb;margin-bottom:22px;">
+    <h1 style="margin:0 0 12px;font-size:24px;line-height:1.45;font-weight:700;color:#111827;letter-spacing:0.2px;">${data.title}</h1>
+    <section style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:13px;line-height:1.6;">
+      <span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#eff6ff;color:#2563eb;font-weight:500;">公众号精选</span>
+      <span>${data.author || "Gitd 社区"}</span>
+    </section>
+    ${digestHtml}
+  </section>
+  <section style="font-size:15px;line-height:1.9;color:#1f2937;">
+${data.content}
+  </section>
+  <section style="margin:30px 0 6px;padding-top:16px;border-top:1px dashed #d1d5db;color:#94a3b8;font-size:12px;line-height:1.7;text-align:center;">
+    本文由 Gitd 社区内容生成工具整理排版
+  </section>
+</section>`.trim();
+}
+
 /** 从输入中解析帖子 ID，支持纯 ID 与帖子链接 */
 function parsePostId(input: string): string | null {
   const trimmed = input.trim();
@@ -152,6 +177,8 @@ export default function WeChatSyncPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SyncRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   // 预览弹窗（个人号模式）
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
@@ -171,11 +198,11 @@ export default function WeChatSyncPage() {
   const isPersonal = config.accountType === "personal";
   const isConfigured = config.configured;
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = useCallback(async (page = currentPage) => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        page: String(currentPage),
+        page: String(page),
         limit: String(PAGE_SIZE),
       });
       const res = await adminFetch(`/api/wechat/sync?${params.toString()}`);
@@ -323,8 +350,8 @@ export default function WeChatSyncPage() {
   // 复制内容到剪贴板（以 text/html 格式写入，公众号编辑器粘贴时保留格式）
   async function handleCopyContent() {
     if (!previewData) return;
-    // 构建完整的图文 HTML（标题 + 正文）
-    const fullHtml = `<h1 style="font-size:24px;font-weight:bold;margin:20px 0 12px;color:#24292e;">${previewData.title}</h1>\n${previewData.content}`;
+    // 构建完整的公众号图文 HTML（标题 + 摘要 + 正文 + 统一排版容器）
+    const fullHtml = buildWechatArticleHtml(previewData);
     // 纯文本备用（去掉标签）
     const plainText = `${previewData.title}\n\n${previewData.digest || ""}`;
 
@@ -401,19 +428,6 @@ export default function WeChatSyncPage() {
     if (!deleteTarget || deleting) return;
     try {
       setDeleting(true);
-      // 个人号模式的 generated 记录不需要调用微信 API 删除
-      if (deleteTarget.status === "generated") {
-        setRecords((prev) =>
-          prev.map((r) =>
-            r.id === deleteTarget.id
-              ? { ...r, status: "deleted" as SyncStatus }
-              : r,
-          ),
-        );
-        toast.success("记录已删除");
-        setDeleteTarget(null);
-        return;
-      }
       const res = await adminFetch(`/api/wechat/sync/${deleteTarget.id}`, {
         method: "DELETE",
       });
@@ -421,19 +435,38 @@ export default function WeChatSyncPage() {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || "删除失败");
       }
-      toast.success("草稿已删除");
-      setRecords((prev) =>
-        prev.map((r) =>
-          r.id === deleteTarget.id
-            ? { ...r, status: "deleted" as SyncStatus }
-            : r,
-        ),
-      );
+      const data = await res.json().catch(() => ({}));
+      toast.success(data.message || "记录已删除");
+      setRecords((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setTotalCount((prev) => Math.max(0, prev - 1));
       setDeleteTarget(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "删除失败，请稍后重试");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  // 一键清除可删除记录
+  async function handleClearRecords() {
+    if (clearing) return;
+    try {
+      setClearing(true);
+      const res = await adminFetch("/api/wechat/sync", {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "清除失败");
+      }
+      toast.success(data.message || "记录已清除");
+      setClearConfirmOpen(false);
+      setCurrentPage(1);
+      await fetchHistory(1);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "清除失败，请稍后重试");
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -640,9 +673,20 @@ export default function WeChatSyncPage() {
             title="同步记录"
             subtitle={`共 ${totalCount} 条记录`}
             action={
-              <Button variant="ghost" size="sm" onClick={fetchHistory}>
-                <Icons.Search className="w-4 h-4" /> 刷新
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setClearConfirmOpen(true)}
+                  disabled={totalCount === 0 || clearing}
+                  loading={clearing}
+                >
+                  <Icons.Trash className="w-4 h-4" /> 清空记录
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => fetchHistory()}>
+                  <Icons.Search className="w-4 h-4" /> 刷新
+                </Button>
+              </div>
             }
           />
           {loading ? (
@@ -790,6 +834,20 @@ export default function WeChatSyncPage() {
         onConfirm={handleDeleteDraft}
         onCancel={() => {
           if (!deleting) setDeleteTarget(null);
+        }}
+        danger
+      />
+
+      {/* 一键清空确认 */}
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        title="确认清空记录"
+        message="确定要清空所有可删除的公众号同步/生成记录吗？草稿会尝试同时从微信端删除，已发布记录不会被清除。"
+        confirmText={clearing ? "清空中..." : "确认清空"}
+        cancelText="取消"
+        onConfirm={handleClearRecords}
+        onCancel={() => {
+          if (!clearing) setClearConfirmOpen(false);
         }}
         danger
       />

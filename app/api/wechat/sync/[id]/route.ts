@@ -4,7 +4,7 @@ import { adminAuth } from '@/lib/auth';
 import { logOperation } from '@/lib/admin-log';
 import { deleteDraft } from '@/lib/wechat';
 
-// ============ DELETE /api/wechat/sync/[id] - 删除微信草稿 ============
+// ============ DELETE /api/wechat/sync/[id] - 删除微信同步/生成记录 ============
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } },
@@ -36,18 +36,19 @@ export async function DELETE(
       );
     }
 
-    // 只有草稿状态才能删除
-    if (record.status !== 'draft') {
+    // 草稿、失败、个人号已生成记录允许删除；已发布记录不允许在这里删除
+    if (!['draft', 'failed', 'generated'].includes(record.status)) {
       return NextResponse.json(
         {
-          error: `当前状态为「${record.status}」，仅草稿状态可删除`,
+          error: `当前状态为「${record.status}」，不能删除`,
         },
         { status: 400 },
       );
     }
 
-    // 如果有 media_id，调用微信 API 删除草稿
-    if (record.mediaId) {
+    // 企业号草稿有真实 media_id 时，先尝试调用微信 API 删除草稿。
+    // 个人号 generated 记录的 mediaId 为 manual，不需要调用微信 API。
+    if (record.status === 'draft' && record.mediaId) {
       const deleteResult = await deleteDraft(record.mediaId);
       if (!deleteResult.success) {
         // 微信端删除失败，记录警告但仍更新本地状态
@@ -58,7 +59,7 @@ export async function DELETE(
       }
     }
 
-    // 更新本地记录状态为 deleted
+    // 更新本地记录状态为 deleted，列表接口默认不再返回
     await prisma.wechatSync.update({
       where: { id },
       data: { status: 'deleted' },
@@ -70,14 +71,14 @@ export async function DELETE(
       admin.username,
       'wechat_sync_delete',
       'WechatSync',
-      `删除微信草稿: ${record.post?.title || record.postId}`,
+      `删除微信同步记录: ${record.post?.title || record.postId}`,
     );
 
-    return NextResponse.json({ message: '草稿已删除' });
+    return NextResponse.json({ message: '记录已删除' });
   } catch (error) {
     console.error('[WECHAT SYNC DELETE ERROR]', error);
     return NextResponse.json(
-      { error: '删除草稿失败' },
+      { error: '删除记录失败' },
       { status: 500 },
     );
   }
