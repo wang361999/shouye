@@ -69,7 +69,7 @@ export default function MobileNav() {
               aria-label={item.label}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-col items-center justify-center flex-1 h-full text-[10px] font-medium transition-all duration-200 no-select",
+                "relative flex flex-col items-center justify-center flex-1 h-full text-[10px] font-medium transition-all duration-200 no-select",
                 active
                   ? "text-blue-600 dark:text-blue-400"
                   : "text-gray-400 dark:text-gray-500 active:text-gray-600"

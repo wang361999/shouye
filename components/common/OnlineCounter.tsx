@@ -104,8 +104,8 @@ export default function OnlineCounter({
 
   if (variant === "hero") {
     return (
-      <span className={cn("inline-flex items-center gap-1.5", className)}>
-        <span className="relative flex h-2 w-2">
+      <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", className)}>
+        <span className="relative flex h-2 w-2 shrink-0">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
         </span>
