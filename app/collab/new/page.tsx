@@ -278,7 +278,7 @@ export default function NewCollabPage() {
       {/* 顶部导航 */}
       <Link
         href="/collab"
-        className="inline-block text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-6"
+        className="inline-block text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-6"
       >
         &larr; 返回召集令列表
       </Link>
@@ -339,7 +339,7 @@ export default function NewCollabPage() {
               type="button"
               onClick={() => setRepoSourceMode('existing')}
               className={cn(
-                'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                'flex-1 px-3 py-2 text-[13px] sm:text-sm font-medium rounded-md transition-colors',
                 repoSourceMode === 'existing'
                   ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
@@ -351,7 +351,7 @@ export default function NewCollabPage() {
               type="button"
               onClick={() => setRepoSourceMode('create')}
               className={cn(
-                'flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                'flex-1 px-3 py-2 text-[13px] sm:text-sm font-medium rounded-md transition-colors',
                 repoSourceMode === 'create'
                   ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
@@ -392,7 +392,7 @@ export default function NewCollabPage() {
                 <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <span className="text-lg">⚠️</span>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                    <p className="text-[13px] sm:text-sm font-medium text-amber-800 dark:text-amber-400">
                       请先绑定 GitHub 账号
                     </p>
                     <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
@@ -449,7 +449,7 @@ export default function NewCollabPage() {
                     onChange={(e) => setNewRepoPrivate(e.target.checked)}
                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">私有仓库</span>
+                  <span className="text-[11px] sm:text-sm text-gray-700 dark:text-gray-300">私有仓库</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -458,7 +458,7 @@ export default function NewCollabPage() {
                     onChange={(e) => setNewRepoInitReadme(e.target.checked)}
                     className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">初始化 README</span>
+                  <span className="text-[11px] sm:text-sm text-gray-700 dark:text-gray-300">初始化 README</span>
                 </label>
               </div>
 
@@ -466,7 +466,7 @@ export default function NewCollabPage() {
                 type="button"
                 onClick={handleCreateRepo}
                 disabled={creatingRepo || !newRepoName.trim()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-800 dark:bg-gray-700 rounded-lg hover:bg-gray-900 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium text-white bg-gray-800 dark:bg-gray-700 rounded-lg hover:bg-gray-900 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {creatingRepo ? (
                   <>
@@ -563,7 +563,7 @@ export default function NewCollabPage() {
               onChange={(e) => setMaxMembers(Number(e.target.value))}
               className="flex-1 accent-blue-600"
             />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-8 text-center">
+            <span className="text-[13px] sm:text-sm font-medium text-gray-700 dark:text-gray-300 w-8 text-center">
               {maxMembers}
             </span>
           </div>
@@ -575,14 +575,14 @@ export default function NewCollabPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="px-5 py-2.5 text-[13px] sm:text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             取消
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {submitting ? (
               <>
@@ -616,7 +616,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+      <label className="block text-[13px] sm:text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}
@@ -630,7 +630,7 @@ function Field({
 // ============ 输入框样式 ============
 function inputClass(hasError: boolean): string {
   return cn(
-    'w-full px-4 py-2.5 text-sm border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-shadow',
+    'w-full px-4 py-2.5 text-[13px] sm:text-sm border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-shadow',
     hasError
       ? 'border-red-300 dark:border-red-700 focus:ring-red-500'
       : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
@@ -678,7 +678,7 @@ function RepoPreview({
           href={repoInfo.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+          className="inline-flex items-center gap-1.5 text-[13px] sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
@@ -797,7 +797,7 @@ function TagInput({
         onKeyDown={handleKeyDown}
         onBlur={addTag}
         placeholder={tags.length === 0 ? placeholder : ''}
-        className="flex-1 min-w-[120px] px-2 py-1 text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
+        className="flex-1 min-w-[120px] px-2 py-1 text-[13px] sm:text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
       />
     </div>
   );

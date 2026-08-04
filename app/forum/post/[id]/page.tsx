@@ -312,7 +312,7 @@ export default function PostDetailPage({
       {/* 返回链接 */}
       <Link
         href="/forum"
-        className="inline-block text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
+        className="inline-block text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
       >
         &larr; 返回列表
       </Link>
@@ -329,7 +329,7 @@ export default function PostDetailPage({
       </h1>
 
       {/* 帖子元信息 */}
-      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-4">
+      <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-sm text-gray-500 mb-4">
         <UserAvatar username={post.author.username} avatar={post.author.avatar} size="sm" />
         <span className="font-medium text-gray-700">{post.author.username}</span>
         {post.author.reputation !== undefined && (
@@ -417,7 +417,7 @@ export default function PostDetailPage({
         {/* 点赞 */}
         <button
           onClick={handleLike}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+          className={`inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border transition-colors ${
             liked
               ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
               : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -433,7 +433,7 @@ export default function PostDetailPage({
               behavior: 'smooth',
             });
           }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
         >
           💬 {isQuestion ? '回答' : '评论'}({post.commentCount})
         </button>
@@ -441,7 +441,7 @@ export default function PostDetailPage({
         {/* 收藏 */}
         <button
           onClick={handleFavorite}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+          className={`inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border transition-colors ${
             favorited
               ? 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100'
               : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -453,7 +453,7 @@ export default function PostDetailPage({
         {/* 分享 */}
         <button
           onClick={handleShare}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
         >
           🔗 分享
         </button>
@@ -467,7 +467,7 @@ export default function PostDetailPage({
         {user && post.author.id !== user.id && (
           <button
             onClick={() => setShowReportModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-400 hover:text-orange-500 hover:border-orange-200 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-400 hover:text-orange-500 hover:border-orange-200 transition-colors"
           >
             🚩 举报
           </button>
@@ -478,13 +478,13 @@ export default function PostDetailPage({
           <>
             <Link
               href={`/forum/post/${id}/edit`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
             >
               ✏️ 编辑
             </Link>
             <button
               onClick={handleDelete}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
             >
               🗑️ 删除
             </button>
@@ -495,7 +495,7 @@ export default function PostDetailPage({
       {/* 问答帖采纳提示 */}
       {isQuestion && post.acceptedCommentId && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-sm text-green-700 flex items-center gap-2">
+          <p className="text-[11px] sm:text-sm text-green-700 flex items-center gap-2">
             ✓ 该问题已有采纳答案，请查看下方标记为「已采纳」的回答
           </p>
         </div>
@@ -550,13 +550,13 @@ function ReportForm({ onSubmit, onCancel }: { onSubmit: (reason: string, descrip
           <button
             key={r.value}
             onClick={() => setReason(r.value)}
-            className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors text-left ${
+            className={`flex items-center gap-2 px-3 py-2.5 text-[13px] sm:text-sm font-medium rounded-lg border transition-colors text-left ${
               reason === r.value
                 ? "bg-orange-50 text-orange-600 border-orange-300"
                 : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
             }`}
           >
-            <span className="text-base">{r.icon}</span>
+            <span className="text-[15px]">{r.icon}</span>
             <span>{r.label}</span>
           </button>
         ))}
@@ -566,19 +566,19 @@ function ReportForm({ onSubmit, onCancel }: { onSubmit: (reason: string, descrip
         onChange={(e) => setDescription(e.target.value)}
         placeholder="补充说明（可选）"
         rows={3}
-        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
       />
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 text-[13px] sm:text-sm font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
         >
           取消
         </button>
         <button
           onClick={() => reason && onSubmit(reason, description)}
           disabled={!reason}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+          className={`px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg transition-colors ${
             reason
               ? "text-white bg-orange-500 hover:bg-orange-600"
               : "text-gray-300 bg-gray-200 cursor-not-allowed"

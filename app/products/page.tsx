@@ -56,7 +56,7 @@ export default function ProductsPage() {
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
             开源项目
           </h1>
-          <p className="text-base text-gray-500 max-w-2xl leading-relaxed">
+          <p className="text-[13px] sm:text-base text-gray-500 max-w-2xl leading-relaxed">
             精选优质开源项目，免费授权、免费下载，欢迎赞助支持持续开发
           </p>
         </div>
@@ -120,14 +120,14 @@ export default function ProductsPage() {
                 <div className="p-5">
                   {/* 标题行 + Star 徽章 */}
                   <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <h3 className="text-base font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
+                    <h3 className="text-[15px] sm:text-base font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
                       {product.name}
                     </h3>
                     <GithubStarBadge slug={product.slug} />
                   </div>
 
                   {/* 一句话描述 */}
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2 leading-relaxed">
+                  <p className="text-[11px] sm:text-sm text-gray-500 mb-4 line-clamp-2 leading-relaxed">
                     {product.tagline}
                   </p>
 
@@ -179,7 +179,7 @@ export default function ProductsPage() {
               </svg>
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">暂无开源项目</h3>
-            <p className="text-sm text-gray-400">目前还没有上架的开源项目，请稍后再来</p>
+            <p className="text-[13px] sm:text-sm text-gray-400">目前还没有上架的开源项目，请稍后再来</p>
           </div>
         )}
       </Container>

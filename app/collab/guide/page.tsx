@@ -21,7 +21,7 @@ const SECTIONS = [
 // 代码块组件
 function CodeBlock({ children }: { children: string }) {
   return (
-    <div className="bg-gray-900 dark:bg-gray-800 rounded-lg p-4 text-sm text-gray-300 font-mono overflow-x-auto my-3">
+    <div className="bg-gray-900 dark:bg-gray-800 rounded-lg p-4 text-[11px] sm:text-sm text-gray-300 font-mono overflow-x-auto my-3">
       <pre className="whitespace-pre-wrap break-all">{children}</pre>
     </div>
   );
@@ -31,12 +31,12 @@ function CodeBlock({ children }: { children: string }) {
 function Step({ num, title, children }: { num: number; title: string; children: ReactNode }) {
   return (
     <div className="flex gap-4">
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-sm font-bold">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[13px] sm:text-sm font-bold">
         {num}
       </div>
       <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">{title}</h4>
-        <div className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{children}</div>
+        <h4 className="text-[13px] sm:text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">{title}</h4>
+        <div className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{children}</div>
       </div>
     </div>
   );
@@ -54,7 +54,7 @@ function Callout({ type = "info", title, children }: { type?: "info" | "warning"
     <div className={`rounded-xl border p-4 my-4 ${styles[type]}`}>
       <div className="flex items-start gap-2">
         <span className="text-lg flex-shrink-0">{icons[type]}</span>
-        <div className="flex-1 text-sm">
+        <div className="flex-1 text-[11px] sm:text-sm">
           {title && <p className="font-semibold mb-1">{title}</p>}
           <div className="leading-relaxed opacity-90">{children}</div>
         </div>
@@ -67,7 +67,7 @@ function Callout({ type = "info", title, children }: { type?: "info" | "warning"
 function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
     <div className="overflow-x-auto my-4">
-      <table className="w-full text-sm border-collapse">
+      <table className="w-full text-[11px] sm:text-sm border-collapse">
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             {headers.map((h, i) => (
@@ -128,14 +128,14 @@ export default function CollabGuidePage() {
         <div className="absolute -bottom-40 -left-32 h-[28rem] w-[28rem] rounded-full bg-indigo-500/30 blur-3xl" />
 
         <Container className="relative py-16 md:py-24">
-          <Link href="/collab" className="inline-flex items-center gap-2 text-sm text-blue-200 hover:text-white transition-colors mb-6">
+          <Link href="/collab" className="inline-flex items-center gap-2 text-[11px] sm:text-sm text-blue-200 hover:text-white transition-colors mb-6">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             返回召集令列表
           </Link>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-blue-100 backdrop-blur mb-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[11px] sm:text-sm text-blue-100 backdrop-blur mb-6">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
@@ -147,7 +147,7 @@ export default function CollabGuidePage() {
             🐙 GitHub 协同创作召集令
           </h1>
           <p className="text-xl text-blue-100 mb-3">使用教程 & 完全指南</p>
-          <p className="max-w-2xl text-base leading-relaxed text-blue-200/80">
+          <p className="max-w-2xl text-[13px] sm:text-base leading-relaxed text-blue-200/80">
             从发起召集令到团队协作开发，手把手教你使用平台的 GitHub 协同创作功能。
             创建项目仓库、邀请开发者、管理任务清单、提交代码贡献，一站式完成开源协作。
           </p>
@@ -181,7 +181,7 @@ export default function CollabGuidePage() {
                   <li key={section.id}>
                     <button
                       onClick={() => scrollToSection(section.id)}
-                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                      className={`w-full text-left px-3 py-2 text-[11px] sm:text-sm rounded-lg transition-colors ${
                         activeSection === section.id
                           ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium"
                           : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -202,16 +202,16 @@ export default function CollabGuidePage() {
             <section id="overview" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">📋 功能介绍</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   <strong className="text-gray-900 dark:text-gray-100">GitHub 协同创作召集令</strong> 是平台的核心功能之一，
                   旨在帮助开发者发起开源协作项目，邀请社区成员共同参与代码编写和项目开发。
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   你可以将其理解为一个「开源项目招募板」—— 发布项目需求，吸引开发者加入，
                   通过任务分配、贡献提交、代码审核等机制，有序地完成项目开发。
                 </p>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">核心能力</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">核心能力</h3>
                 <Table
                   headers={["功能", "说明"]}
                   rows={[
@@ -225,8 +225,8 @@ export default function CollabGuidePage() {
                   ]}
                 />
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">适用场景</h3>
-                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1.5 ml-4 list-disc">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">适用场景</h3>
+                <ul className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 space-y-1.5 ml-4 list-disc">
                   <li>发起开源项目，寻找志同道合的开发者一起协作</li>
                   <li>组织黑客松或编程比赛，管理参赛队伍和任务</li>
                   <li>社区共建工具库、组件库、文档项目</li>
@@ -239,17 +239,17 @@ export default function CollabGuidePage() {
             <section id="create" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">🚀 发起召集令</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   登录后访问 <Link href="/collab/new" className="text-blue-600 dark:text-blue-400 underline">/collab/new</Link> 页面，
                   填写项目信息并关联 GitHub 仓库即可发起召集令。
                 </p>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">方式一：手动添加已有仓库</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100">方式一：手动添加已有仓库</h3>
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                   如果你已经在 GitHub 上创建了仓库，直接输入仓库 URL 即可：
                 </p>
                 <CodeBlock>{`https://github.com/your-username/your-repo`}</CodeBlock>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                   系统会自动解析 URL，提取仓库所有者和仓库名，并调用 GitHub API 获取仓库信息（描述、默认分支、语言、star 数等）进行预览展示。
                 </p>
 
@@ -281,8 +281,8 @@ export default function CollabGuidePage() {
                   创建成功后，你将自动成为项目的 <strong>owner</strong>（所有者），拥有最高管理权限。
                 </Callout>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-6">方式二：登录 GitHub 创建新仓库</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-6">方式二：登录 GitHub 创建新仓库</h3>
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                   如果你还没有创建仓库，可以在创建召集令的同时直接通过 GitHub API 创建新仓库：
                 </p>
                 <div className="space-y-4">
@@ -317,20 +317,20 @@ export default function CollabGuidePage() {
             <section id="join" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">🤝 加入项目</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   在召集令列表页 (<Link href="/collab" className="text-blue-600 dark:text-blue-400 underline">/collab</Link>)
                   浏览所有进行中的项目，找到感兴趣的项目后点击进入详情页。
                 </p>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">加入条件</h3>
-                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1.5 ml-4 list-disc">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100">加入条件</h3>
+                <ul className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 space-y-1.5 ml-4 list-disc">
                   <li>项目状态为 <Badge color="green">招募中</Badge> 或 <Badge color="blue">进行中</Badge></li>
                   <li>当前成员数未达到最大成员数限制</li>
                   <li>你尚未加入该项目（不能重复加入）</li>
                   <li>需要登录账号</li>
                 </ul>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">加入流程</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">加入流程</h3>
                 <div className="space-y-4">
                   <Step num={1} title="浏览召集令列表">
                     在列表页使用筛选条件（状态、关键词）快速找到感兴趣的项目。
@@ -357,11 +357,11 @@ export default function CollabGuidePage() {
             <section id="tasks" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">📝 任务管理</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   任务清单是协作开发的核心。通过任务分配，避免多人重复开发同一功能，确保团队有序推进。
                 </p>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">任务状态流转</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100">任务状态流转</h3>
                 <div className="flex flex-wrap items-center gap-2 my-4">
                   <Badge color="gray">待认领 (open)</Badge>
                   <span className="text-gray-400">→</span>
@@ -383,7 +383,7 @@ export default function CollabGuidePage() {
                   ]}
                 />
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">任务优先级</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">任务优先级</h3>
                 <div className="flex flex-wrap gap-2 my-3">
                   <Badge color="red">紧急 (urgent)</Badge>
                   <Badge color="orange">高 (high)</Badge>
@@ -391,8 +391,8 @@ export default function CollabGuidePage() {
                   <Badge color="gray">低 (low)</Badge>
                 </div>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">认领任务</h3>
-                <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4 list-decimal">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">认领任务</h3>
+                <ol className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4 list-decimal">
                   <li>进入项目详情页，切换到「任务清单」Tab</li>
                   <li>找到状态为 <Badge color="gray">待认领</Badge> 的任务</li>
                   <li>点击「认领」按钮，任务指派人变为你的用户名</li>
@@ -400,8 +400,8 @@ export default function CollabGuidePage() {
                   <li>开发完成后，将状态改为 <Badge color="orange">待审核</Badge>，等待 owner/maintainer 审核</li>
                 </ol>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">创建任务（owner/maintainer）</h3>
-                <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4 list-decimal">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">创建任务（owner/maintainer）</h3>
+                <ol className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4 list-decimal">
                   <li>在任务清单 Tab 底部，点击「新建任务」</li>
                   <li>填写任务标题、描述（Markdown）、优先级</li>
                   <li>可选：设置截止日期、指派给特定成员、添加标签</li>
@@ -419,12 +419,12 @@ export default function CollabGuidePage() {
             <section id="contribute" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">📤 提交贡献</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   当你在 GitHub 仓库中提交了代码（commit、PR、issue 等），可以在平台上记录这次贡献，
                   方便团队追踪每个人的贡献情况。
                 </p>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">贡献类型</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100">贡献类型</h3>
                 <Table
                   headers={["类型", "图标", "说明"]}
                   rows={[
@@ -436,7 +436,7 @@ export default function CollabGuidePage() {
                   ]}
                 />
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">提交步骤</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">提交步骤</h3>
                 <div className="space-y-4">
                   <Step num={1} title="切换到「提交贡献」Tab">
                     在项目详情页点击「提交贡献」标签页。
@@ -473,28 +473,28 @@ export default function CollabGuidePage() {
             <section id="review" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">✅ 审核流程</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   贡献审核是保证代码质量的关键环节。owner 和 maintainer 负责审核成员提交的贡献记录。
                 </p>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">审核状态</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100">审核状态</h3>
                 <div className="space-y-2 my-3">
                   <div className="flex items-center gap-3">
                     <Badge color="gray">待审核 (pending)</Badge>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">刚提交，等待审核</span>
+                    <span className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400">刚提交，等待审核</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge color="green">已通过 (approved)</Badge>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">审核通过，贡献已确认</span>
+                    <span className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400">审核通过，贡献已确认</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge color="red">已拒绝 (rejected)</Badge>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">审核未通过，需修改后重新提交</span>
+                    <span className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400">审核未通过，需修改后重新提交</span>
                   </div>
                 </div>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">审核操作（owner/maintainer）</h3>
-                <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4 list-decimal">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">审核操作（owner/maintainer）</h3>
+                <ol className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4 list-decimal">
                   <li>进入「提交贡献」Tab，查看待审核的贡献</li>
                   <li>点击贡献右侧的「通过」或「拒绝」按钮</li>
                   <li>通过后贡献状态变为 <Badge color="green">已通过</Badge></li>
@@ -517,64 +517,64 @@ export default function CollabGuidePage() {
             <section id="norms" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">📐 协作规范</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   公共仓库的提交必须有序管理，否则会出现代码冲突、质量参差不齐、权限混乱的问题。
                   以下规范确保团队协作高效有序。
                 </p>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">分支策略</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100">分支策略</h3>
                 <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2">
                   <div className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400"><strong>主分支（main）受保护</strong>，任何人都不能直接推送</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400"><strong>主分支（main）受保护</strong>，任何人都不能直接推送</p>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">所有代码通过 <strong>Pull Request</strong> 提交</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">所有代码通过 <strong>Pull Request</strong> 提交</p>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">管理员审核通过后才能合并到主分支</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">管理员审核通过后才能合并到主分支</p>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">审核时检查代码质量、是否包含敏感信息、是否破坏已有功能</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">审核时检查代码质量、是否包含敏感信息、是否破坏已有功能</p>
                   </div>
                 </div>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">代码规范</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">代码规范</h3>
                 <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2">
                   <div className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">制定统一的代码风格指南（如 ESLint、Prettier 规则）</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">制定统一的代码风格指南（如 ESLint、Prettier 规则）</p>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">每次提交必须通过 <strong>CI 自动检查</strong>（语法、格式、测试）</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">每次提交必须通过 <strong>CI 自动检查</strong>（语法、格式、测试）</p>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-green-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">审核不通过的 PR 退回修改，修改后重新提交</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">审核不通过的 PR 退回修改，修改后重新提交</p>
                   </div>
                 </div>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">任务分配机制</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">任务分配机制</h3>
                 <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2">
                   <div className="flex items-start gap-2">
                     <span className="text-orange-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">任务需要有人认领，避免多人同时做同一件事</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">任务需要有人认领，避免多人同时做同一件事</p>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-orange-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">任务状态清晰：待认领 → 进行中 → 待审核 → 已完成</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">任务状态清晰：待认领 → 进行中 → 待审核 → 已完成</p>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-orange-500 mt-0.5">▸</span>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">认领后需在指定时间内完成，超时可由 owner 释放任务</p>
+                    <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">认领后需在指定时间内完成，超时可由 owner 释放任务</p>
                   </div>
                 </div>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">问题与解决方案</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">问题与解决方案</h3>
                 <Table
                   headers={["问题", "解决方案"]}
                   rows={[
@@ -597,25 +597,25 @@ export default function CollabGuidePage() {
             <section id="github" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">🐙 GitHub 集成</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   平台通过 GitHub API 实现了深度集成，包括仓库创建、信息获取、提交动态拉取等。
                 </p>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">GitHub 动态 Tab</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100">GitHub 动态 Tab</h3>
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                   在项目详情页的「GitHub 动态」Tab 中，可以查看：
                 </p>
-                <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1.5 ml-4 list-disc">
+                <ul className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 space-y-1.5 ml-4 list-disc">
                   <li><strong>最近提交</strong>：仓库最近 5 条 commit 记录，包括提交信息、作者、SHA 和时间</li>
                   <li><strong>贡献者统计</strong>：仓库的贡献者列表，包括提交次数和增删行数</li>
                   <li><strong>仓库概览</strong>：star 数、fork 数、open issues 数、默认分支、主要语言</li>
                 </ul>
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">GitHub Token 配置</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">GitHub Token 配置</h3>
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                   平台调用 GitHub API 需要 Token，配置方式：
                 </p>
-                <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4 list-decimal">
+                <ol className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 space-y-2 ml-4 list-decimal">
                   <li>登录 GitHub → Settings → Developer settings → Personal access tokens</li>
                   <li>创建 Fine-grained token，权限选择 <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">repo</code>（完整仓库访问）</li>
                   <li>在平台后台 → 安全设置 → GitHub Token 中粘贴保存</li>
@@ -637,7 +637,7 @@ export default function CollabGuidePage() {
             <section id="roles" className="scroll-mt-20">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">👥 角色与权限</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   项目中有三种角色，权限从高到低：
                 </p>
 
@@ -650,7 +650,7 @@ export default function CollabGuidePage() {
                   ]}
                 />
 
-                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">权限对照表</h3>
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mt-4">权限对照表</h3>
                 <Table
                   headers={["操作", "Owner", "Maintainer", "Member"]}
                   rows={[
@@ -678,60 +678,60 @@ export default function CollabGuidePage() {
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">❓ 常见问题</h2>
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 space-y-4">
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 创建召集令需要绑定 GitHub 账号吗？</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 创建召集令需要绑定 GitHub 账号吗？</h3>
+                  <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                     不需要。使用「手动添加已有仓库」方式只需输入仓库 URL。但如果想通过平台创建新仓库，
                     则需要配置 GitHub Token。
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 一个用户可以加入多少个项目？</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 一个用户可以加入多少个项目？</h3>
+                  <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                     没有限制。你可以加入任意多个项目，但建议专注于 1-3 个项目，保证开发质量。
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: Owner 可以离开自己的项目吗？</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: Owner 可以离开自己的项目吗？</h3>
+                  <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                     不可以。Owner 需要先将项目转让给其他成员（后续版本支持），或删除项目。
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 贡献提交后多久能审核？</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 贡献提交后多久能审核？</h3>
+                  <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                     取决于 Owner/Maintainer 的活跃程度。建议在贡献描述中 @相关审核者，加快审核速度。
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: GitHub 动态 Tab 显示的数据是实时的吗？</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: GitHub 动态 Tab 显示的数据是实时的吗？</h3>
+                  <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                     是的。每次打开项目详情页时，系统会实时调用 GitHub API 获取最近 5 条提交和贡献者统计。
                     受 GitHub API 速率限制，频繁访问可能会有延迟。
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 项目可以设为私有吗？</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 项目可以设为私有吗？</h3>
+                  <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                     项目本身在平台上是公开的（所有用户可见）。但关联的 GitHub 仓库可以是私有的。
                     如果仓库是私有的，GitHub 动态 Tab 可能无法获取数据（取决于 Token 权限）。
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 如何举报不遵守规范的项目？</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 如何举报不遵守规范的项目？</h3>
+                  <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                     可以在论坛发帖举报，或联系平台管理员。管理员有权关闭违规项目。
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 任务认领后可以退回吗？</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Q: 任务认领后可以退回吗？</h3>
+                  <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400">
                     可以。将任务状态从「进行中」改回「待认领」即可释放任务，其他成员可以重新认领。
                   </p>
                 </div>

@@ -426,7 +426,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
       {/* 返回链接 */}
       <Link
         href="/collab"
-        className="inline-block text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-4"
+        className="inline-block text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors mb-4"
       >
         &larr; 返回召集令列表
       </Link>
@@ -461,7 +461,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
               href={project.repoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
+              className="inline-flex items-center gap-2 text-[13px] sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
             >
               <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
@@ -531,7 +531,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
           <div className="flex items-center gap-2.5">
             <UserAvatar username={project.owner?.username || '未知用户'} avatar={project.owner?.avatar} size="md" />
             <div>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              <p className="text-[13px] sm:text-sm font-medium text-gray-900 dark:text-gray-100">
                 {project.owner?.username || '未知用户'}
                 {project.owner?.githubUsername && (
                   <span className="ml-1.5 text-xs text-gray-400 dark:text-gray-500">
@@ -549,7 +549,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
             {isOwner ? (
               <button
                 onClick={() => setShowEditModal(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
               >
                 ✏️ 编辑项目
               </button>
@@ -557,7 +557,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
               <button
                 onClick={handleLeave}
                 disabled={joining}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
               >
                 {joining ? '处理中...' : '离开项目'}
               </button>
@@ -565,7 +565,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
               <button
                 onClick={handleJoin}
                 disabled={joining || project.status === 'archived'}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
                 {joining ? '处理中...' : '+ 加入项目'}
               </button>
@@ -581,7 +581,7 @@ export default function CollabDetailPage({ params }: { params: { id: string } })
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              'flex-1 min-w-fit px-3 sm:px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-all duration-200',
+              'flex-1 min-w-fit px-3 sm:px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg whitespace-nowrap transition-all duration-200',
               activeTab === tab.key
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -693,18 +693,18 @@ function OverviewTab({
         </SectionCard>
       ) : (
         <SectionCard title="🎯 项目目标">
-          <p className="text-sm text-gray-400 dark:text-gray-500">暂未设置项目目标</p>
+          <p className="text-[11px] sm:text-sm text-gray-400 dark:text-gray-500">暂未设置项目目标</p>
         </SectionCard>
       )}
 
       {/* 参与要求 */}
       <SectionCard title="📋 参与要求">
         {project.requirements ? (
-          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+          <p className="text-[11px] sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
             {project.requirements}
           </p>
         ) : (
-          <p className="text-sm text-gray-400 dark:text-gray-500">暂未设置参与要求，欢迎所有开发者加入</p>
+          <p className="text-[11px] sm:text-sm text-gray-400 dark:text-gray-500">暂未设置参与要求，欢迎所有开发者加入</p>
         )}
       </SectionCard>
 
@@ -732,7 +732,7 @@ function OverviewTab({
             >
               <span className="text-xl flex-shrink-0">{norm.icon}</span>
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{norm.title}</p>
+                <p className="text-[13px] sm:text-sm font-medium text-gray-900 dark:text-gray-100">{norm.title}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
                   {norm.desc}
                 </p>
@@ -826,12 +826,12 @@ function TasksTab({
       {/* 头部操作 */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          任务清单 <span className="text-sm font-normal text-gray-400">({tasks.length})</span>
+          任务清单 <span className="text-[11px] sm:text-sm font-normal text-gray-400">({tasks.length})</span>
         </h3>
         {canManage && (
           <button
             onClick={() => setShowCreateForm((v) => !v)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
           >
             {showCreateForm ? '取消' : '+ 新建任务'}
           </button>
@@ -947,7 +947,7 @@ function TaskItem({
           </div>
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="text-left text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="text-left text-[13px] sm:text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
           >
             {task.title}
             {task.description && (
@@ -955,7 +955,7 @@ function TaskItem({
             )}
           </button>
           {expanded && task.description && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-relaxed whitespace-pre-wrap">
+            <p className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400 mt-2 leading-relaxed whitespace-pre-wrap">
               {task.description}
             </p>
           )}
@@ -1075,7 +1075,7 @@ function TaskCreateForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="简要描述任务..."
-          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
       <div>
@@ -1087,7 +1087,7 @@ function TaskCreateForm({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="详细说明任务要求..."
           rows={3}
-          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+          className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1098,7 +1098,7 @@ function TaskCreateForm({
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as TaskPriority)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="low">低</option>
             <option value="medium">中</option>
@@ -1114,7 +1114,7 @@ function TaskCreateForm({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
@@ -1122,14 +1122,14 @@ function TaskCreateForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+          className="px-3 py-1.5 text-[13px] sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
         >
           取消
         </button>
         <button
           type="submit"
           disabled={submitting}
-          className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="px-3 py-1.5 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {submitting ? '创建中...' : '创建任务'}
         </button>
@@ -1145,9 +1145,9 @@ function MembersTab({ project }: { project: ProjectDetail }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          团队成员 <span className="text-sm font-normal text-gray-400">({members.length})</span>
+          团队成员 <span className="text-[11px] sm:text-sm font-normal text-gray-400">({members.length})</span>
         </h3>
-        <span className="text-sm text-gray-400 dark:text-gray-500">
+        <span className="text-[11px] sm:text-sm text-gray-400 dark:text-gray-500">
           {project.memberCount} / {project.maxMembers} 人
         </span>
       </div>
@@ -1166,7 +1166,7 @@ function MembersTab({ project }: { project: ProjectDetail }) {
                 <UserAvatar username={member.username} avatar={member.avatar} size="lg" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <p className="text-[13px] sm:text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                       {member.username}
                     </p>
                     <span className={cn('inline-flex items-center px-2 py-0.5 text-xs font-medium rounded', role.badge)}>
@@ -1249,12 +1249,12 @@ function ContributionsTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          提交贡献 <span className="text-sm font-normal text-gray-400">({contributions.length})</span>
+          提交贡献 <span className="text-[11px] sm:text-sm font-normal text-gray-400">({contributions.length})</span>
         </h3>
         {isMember && (
           <button
             onClick={() => setShowForm((v) => !v)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
           >
             {showForm ? '取消' : '+ 提交贡献'}
           </button>
@@ -1304,7 +1304,7 @@ function ContributionsTab({
               >
                 <div className="flex items-start gap-3">
                   {/* 类型图标 */}
-                  <span className={cn('inline-flex items-center justify-center w-9 h-9 rounded-lg text-base flex-shrink-0', typeCfg.color)}>
+                  <span className={cn('inline-flex items-center justify-center w-9 h-9 rounded-lg text-[15px] flex-shrink-0', typeCfg.color)}>
                     {typeCfg.icon}
                   </span>
 
@@ -1325,12 +1325,12 @@ function ContributionsTab({
                             href={contrib.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            className="text-[13px] sm:text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
                             {contrib.title}
                           </a>
                         ) : (
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{contrib.title}</p>
+                          <p className="text-[13px] sm:text-sm font-medium text-gray-900 dark:text-gray-100">{contrib.title}</p>
                         )}
                       </div>
                     </div>
@@ -1474,7 +1474,7 @@ function ContributionForm({
     }
   };
 
-  const inputCls = 'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  const inputCls = 'w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
 
   return (
     <form
@@ -1607,14 +1607,14 @@ function ContributionForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+          className="px-3 py-1.5 text-[13px] sm:text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
         >
           取消
         </button>
         <button
           type="submit"
           disabled={submitting}
-          className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="px-3 py-1.5 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
           {submitting ? '提交中...' : '提交贡献'}
         </button>
@@ -1667,7 +1667,7 @@ function GithubTab({
       {/* 最近提交记录 */}
       <SectionCard title="📜 最近提交">
         {commits.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500">暂无提交记录</p>
+          <p className="text-[11px] sm:text-sm text-gray-400 dark:text-gray-500">暂无提交记录</p>
         ) : (
           <div className="space-y-2">
             {commits.map((commit) => (
@@ -1679,7 +1679,7 @@ function GithubTab({
                   {commit.author?.charAt(0).toUpperCase() || '?'}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2">{commit.message}</p>
+                  <p className="text-[11px] sm:text-sm text-gray-900 dark:text-gray-100 line-clamp-2">{commit.message}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-400 dark:text-gray-500">
                     <span>{commit.author}</span>
                     <span className="font-mono">{commit.sha.slice(0, 7)}</span>
@@ -1705,10 +1705,10 @@ function GithubTab({
       {/* 贡献者统计 */}
       <SectionCard title="🏆 贡献者统计">
         {contributors.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500">暂无贡献者数据</p>
+          <p className="text-[11px] sm:text-sm text-gray-400 dark:text-gray-500">暂无贡献者数据</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-[11px] sm:text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-700">
                   <th className="pb-2 pr-4 font-medium">贡献者</th>
@@ -1756,7 +1756,7 @@ function GithubTab({
           <StatCard label="默认分支" value={repoInfo.defaultBranch || '-'} icon="🌿" />
         </div>
         {repoInfo.description && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">{repoInfo.description}</p>
+          <p className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400 mt-4">{repoInfo.description}</p>
         )}
       </SectionCard>
         </>
@@ -1765,7 +1765,7 @@ function GithubTab({
       {/* GitHub 动态获取失败时的提示 */}
       {!repoInfo && hasRepo && (
         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-4 text-center">
-          <p className="text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-[11px] sm:text-sm text-gray-400 dark:text-gray-500">
             ⚠️ 无法获取 GitHub 仓库动态信息（可能是仓库私有或 API 限流），但您仍可使用下方在线代码编辑器
           </p>
         </div>
@@ -1778,13 +1778,13 @@ function GithubTab({
             <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center mb-4">
               <svg className="w-8 h-8 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md">
+            <p className="text-[11px] sm:text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md">
               浏览仓库文件、在线编辑代码、创建分支和发起 PR
             </p>
             <button
               type="button"
               onClick={() => setShowCodeExplorer(true)}
-              className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-[13px] sm:text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
               打开在线编辑器
@@ -1879,7 +1879,7 @@ function GithubTab({
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">{title}</h3>
+      <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">{title}</h3>
       {children}
     </div>
   );
@@ -1924,7 +1924,7 @@ function EmptyBox({
       <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-3xl mb-3">
         {icon}
       </div>
-      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{text}</p>
+      <p className="text-[13px] sm:text-sm font-medium text-gray-700 dark:text-gray-300">{text}</p>
       {subText && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{subText}</p>}
     </div>
   );
@@ -2030,7 +2030,7 @@ function EditProjectModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={100}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -2043,7 +2043,7 @@ function EditProjectModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
+              className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
             />
           </div>
 
@@ -2056,7 +2056,7 @@ function EditProjectModal({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as ProjectStatus)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="recruiting">招募中</option>
                 <option value="active">进行中</option>
@@ -2074,7 +2074,7 @@ function EditProjectModal({
                 min={2}
                 max={50}
                 onChange={(e) => setMaxMembers(Number(e.target.value))}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -2112,7 +2112,7 @@ function EditProjectModal({
               value={goals}
               onChange={(e) => setGoals(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
+              className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
             />
           </div>
 
@@ -2125,7 +2125,7 @@ function EditProjectModal({
               value={requirements}
               onChange={(e) => setRequirements(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+              className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
             />
           </div>
         </form>
@@ -2134,14 +2134,14 @@ function EditProjectModal({
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 dark:border-gray-700">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="px-4 py-2 text-[13px] sm:text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             取消
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-1.5 px-5 py-2 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? '保存中...' : '保存修改'}
           </button>
@@ -2213,7 +2213,7 @@ function TagInputField({
         onKeyDown={handleKeyDown}
         onBlur={addTag}
         placeholder={tags.length === 0 ? placeholder : ''}
-        className="flex-1 min-w-[120px] px-2 py-1 text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
+        className="flex-1 min-w-[120px] px-2 py-1 text-[13px] sm:text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
       />
     </div>
   );

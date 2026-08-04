@@ -338,7 +338,7 @@ export default function MessagesPage() {
     return (
       <Container className="py-16 text-center">
         <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
-        <p className="text-sm text-gray-500">加载中...</p>
+        <p className="text-[13px] sm:text-sm text-gray-500">加载中...</p>
       </Container>
     );
   }
@@ -350,12 +350,12 @@ export default function MessagesPage() {
         <div className="max-w-sm mx-auto bg-white rounded-xl border border-gray-200 p-8">
           <div className="text-5xl mb-4">💬</div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">请先登录</h2>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-[13px] sm:text-sm text-gray-500 mb-6">
             登录后即可使用私信功能与其他用户交流
           </p>
           <Link
             href="/login"
-            className="inline-block px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-block px-6 py-2.5 bg-blue-600 text-white text-[13px] sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             前往登录
           </Link>
@@ -370,7 +370,7 @@ export default function MessagesPage() {
       {/* 返回链接 */}
       <Link
         href="/"
-        className="inline-block text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
+        className="inline-block text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
       >
         &larr; 返回首页
       </Link>
@@ -391,7 +391,7 @@ export default function MessagesPage() {
         >
           {/* 列表头部 */}
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-sm font-semibold text-gray-700">
+            <h2 className="text-[13px] sm:text-sm font-semibold text-gray-700">
               会话列表
               {conversations.length > 0 && (
                 <span className="ml-2 text-xs text-gray-400">
@@ -423,7 +423,7 @@ export default function MessagesPage() {
               // 空状态
               <div className="flex flex-col items-center justify-center h-full px-6 text-center py-12">
                 <p className="text-4xl mb-3">📭</p>
-                <p className="text-sm text-gray-500 mb-1">暂无私信会话</p>
+                <p className="text-[13px] sm:text-sm text-gray-500 mb-1">暂无私信会话</p>
                 <p className="text-xs text-gray-400">
                   访问其他用户的资料页，点击「发私信」即可开始对话
                 </p>
@@ -461,7 +461,7 @@ export default function MessagesPage() {
                     <div className="flex items-center justify-between gap-2">
                       <span
                         className={cn(
-                          'text-sm font-medium truncate',
+                          'text-[13px] sm:text-sm font-medium truncate',
                           conv.unreadCount > 0
                             ? 'text-gray-900 font-semibold'
                             : 'text-gray-700',
@@ -536,7 +536,7 @@ export default function MessagesPage() {
                   size="md"
                 />
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-gray-900 truncate">
+                  <h3 className="text-[13px] sm:text-sm font-semibold text-gray-900 truncate">
                     {selectedConversation.otherUser.username}
                   </h3>
                   <p className="text-xs text-gray-400">私信对话</p>
@@ -569,7 +569,7 @@ export default function MessagesPage() {
                   // 空状态
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <p className="text-4xl mb-3">👋</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-[11px] sm:text-sm text-gray-500">
                       还没有消息，发送第一条消息开始对话吧
                     </p>
                   </div>
@@ -603,7 +603,7 @@ export default function MessagesPage() {
                         >
                           <div
                             className={cn(
-                              'px-4 py-2 rounded-2xl text-sm break-words whitespace-pre-wrap',
+                              'px-4 py-2 rounded-2xl text-[13px] sm:text-sm break-words whitespace-pre-wrap',
                               isOwn
                                 ? 'bg-purple-600 text-white rounded-br-md'
                                 : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md',
@@ -634,13 +634,13 @@ export default function MessagesPage() {
                     onKeyDown={handleKeyDown}
                     placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
                     rows={1}
-                    className="flex-1 resize-none px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-[120px] min-h-[40px] dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                    className="flex-1 resize-none px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-[120px] min-h-[40px] dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                     style={{ height: '40px' }}
                   />
                   <button
                     onClick={handleSendMessage}
                     disabled={!input.trim() || sending}
-                    className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                    className="px-4 py-2 text-[13px] sm:text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                   >
                     {sending ? '...' : '发送'}
                   </button>
@@ -666,7 +666,7 @@ export default function MessagesPage() {
             // 未选择会话时的占位
             <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
               <p className="text-5xl mb-4">💬</p>
-              <p className="text-sm text-gray-500 mb-1">选择一个会话开始聊天</p>
+              <p className="text-[13px] sm:text-sm text-gray-500 mb-1">选择一个会话开始聊天</p>
               <p className="text-xs text-gray-400">
                 从左侧列表选择一个会话，或从其他用户资料页发起私信
               </p>

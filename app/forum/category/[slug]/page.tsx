@@ -199,21 +199,21 @@ export default function CategoryPage({
       <div className="flex items-center justify-between mb-2">
         <Link
           href="/forum"
-          className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+          className="text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors"
         >
           &larr; 返回论坛
         </Link>
         {user ? (
           <Link
             href="/forum/new"
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
           >
             + 发布新帖
           </Link>
         ) : (
           <Link
             href="/login"
-            className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+            className="px-4 py-2 text-[13px] sm:text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
           >
             登录后发帖
           </Link>
@@ -224,7 +224,7 @@ export default function CategoryPage({
       <h1 className="text-2xl font-bold text-gray-900 mb-1">
         💬 社区论坛
       </h1>
-      <p className="text-sm text-blue-600 font-medium mb-8">
+      <p className="text-[13px] sm:text-sm text-blue-600 font-medium mb-8">
         分类：{categoryName || slug}
       </p>
 

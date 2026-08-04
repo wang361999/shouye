@@ -133,13 +133,13 @@ export default function RegisterPage() {
           <div className="text-center mb-8">
             <div className="text-5xl mb-3">📝</div>
             <h1 className="text-2xl font-bold text-gray-900">注册账号</h1>
-            <p className="text-gray-500 text-sm mt-1">加入 Gitd 社区</p>
+            <p className="text-gray-500 text-[11px] sm:text-sm mt-1">加入 Gitd 社区</p>
           </div>
 
           {/* 表单 */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                 用户名
               </label>
               <input
@@ -147,13 +147,13 @@ export default function RegisterPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="3-20 个字符"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 autoComplete="username"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                 邮箱
               </label>
               <input
@@ -161,14 +161,14 @@ export default function RegisterPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="请输入邮箱"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 autoComplete="email"
               />
             </div>
 
             {emailVerifyEnabled && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                   邮箱验证码
                 </label>
                 <div className="flex gap-2">
@@ -177,7 +177,7 @@ export default function RegisterPage() {
                     value={emailCode}
                     onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="6 位验证码"
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                     autoComplete="one-time-code"
                     inputMode="numeric"
                   />
@@ -185,7 +185,7 @@ export default function RegisterPage() {
                     type="button"
                     onClick={handleSendCode}
                     disabled={sendingCode || codeCountdown > 0}
-                    className="px-4 py-2.5 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="px-4 py-2.5 bg-blue-50 text-blue-600 text-[13px] sm:text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {sendingCode
                       ? "发送中..."
@@ -201,7 +201,7 @@ export default function RegisterPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                 密码
               </label>
               <input
@@ -209,13 +209,13 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="至少 6 位"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 autoComplete="new-password"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                 确认密码
               </label>
               <input
@@ -223,7 +223,7 @@ export default function RegisterPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="请再次输入密码"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 autoComplete="new-password"
               />
             </div>
@@ -265,7 +265,7 @@ export default function RegisterPage() {
           </a>
 
           {/* 登录链接 */}
-          <div className="mt-6 text-center text-sm text-gray-500">
+          <div className="mt-6 text-center text-[11px] sm:text-sm text-gray-500">
             已有账号？
             <Link
               href="/login"
@@ -279,7 +279,7 @@ export default function RegisterPage() {
           <div className="mt-4 text-center">
             <Link
               href="/"
-              className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-[11px] sm:text-sm text-gray-400 hover:text-gray-600 transition-colors"
             >
               返回首页
             </Link>

@@ -202,13 +202,13 @@ export default function Sidebar({ stats, hotPosts, tags: propTags }: SidebarProp
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <FireIcon className="w-4 h-4 text-orange-500" />
-            <h3 className="text-sm font-semibold text-gray-700">热门话题</h3>
+            <h3 className="text-[13px] sm:text-sm font-semibold text-gray-700">热门话题</h3>
           </div>
         </div>
 
         {hotPosts.length === 0 ? (
           <div className="text-center py-6">
-            <p className="text-sm text-gray-300">暂无热门话题</p>
+            <p className="text-[13px] sm:text-sm text-gray-300">暂无热门话题</p>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -229,10 +229,10 @@ export default function Sidebar({ stats, hotPosts, tags: propTags }: SidebarProp
                     {index + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-600 group-hover:text-indigo-600 transition-colors line-clamp-2 leading-snug">
+                    <p className="text-[13px] sm:text-sm text-gray-600 group-hover:text-indigo-600 transition-colors line-clamp-2 leading-snug">
                       {post.title}
                     </p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                    <div className="flex items-center gap-3 mt-1 text-[11px] sm:text-xs text-gray-400">
                       <span>{post.likeCount} 赞</span>
                       <span>{post.viewCount} 浏览</span>
                       <span>{post.commentCount} 评论</span>

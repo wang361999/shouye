@@ -174,7 +174,7 @@ function LoginContent() {
             <h1 className="text-2xl font-bold text-gray-900">
               {resetMode ? "找回密码" : "用户登录"}
             </h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <p className="text-gray-500 text-[11px] sm:text-sm mt-1">
               {resetMode ? "通过邮箱验证码重置账号密码" : "登录后享受更多功能"}
             </p>
           </div>
@@ -183,7 +183,7 @@ function LoginContent() {
           {resetMode ? (
             <form onSubmit={handleResetPassword} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                   注册邮箱
                 </label>
                 <input
@@ -191,13 +191,13 @@ function LoginContent() {
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="请输入注册邮箱"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   autoComplete="email"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                   邮箱验证码
                 </label>
                 <div className="flex gap-2">
@@ -206,7 +206,7 @@ function LoginContent() {
                     value={resetCode}
                     onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="6 位验证码"
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                     autoComplete="one-time-code"
                     inputMode="numeric"
                   />
@@ -214,7 +214,7 @@ function LoginContent() {
                     type="button"
                     onClick={handleSendResetCode}
                     disabled={sendingResetCode || resetCountdown > 0}
-                    className="px-4 py-2.5 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="px-4 py-2.5 bg-blue-50 text-blue-600 text-[13px] sm:text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {sendingResetCode
                       ? "发送中..."
@@ -226,7 +226,7 @@ function LoginContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                   新密码
                 </label>
                 <input
@@ -234,13 +234,13 @@ function LoginContent() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="至少 6 位"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   autoComplete="new-password"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                   确认新密码
                 </label>
                 <input
@@ -248,7 +248,7 @@ function LoginContent() {
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   placeholder="请再次输入新密码"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   autoComplete="new-password"
                 />
               </div>
@@ -264,7 +264,7 @@ function LoginContent() {
               <button
                 type="button"
                 onClick={() => setResetMode(false)}
-                className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                className="w-full text-[11px] sm:text-sm text-gray-500 hover:text-gray-700 transition-colors"
               >
                 返回登录
               </button>
@@ -272,7 +272,7 @@ function LoginContent() {
           ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                 用户名
               </label>
               <input
@@ -280,13 +280,13 @@ function LoginContent() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="请输入用户名"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 autoComplete="username"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                 密码
               </label>
               <input
@@ -294,7 +294,7 @@ function LoginContent() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="请输入密码"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 autoComplete="current-password"
               />
             </div>
@@ -314,7 +314,7 @@ function LoginContent() {
                   setResetEmail(username.includes("@") ? username : "");
                   setResetMode(true);
                 }}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-[13px] sm:text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
                 忘记密码？
               </button>
@@ -350,7 +350,7 @@ function LoginContent() {
           </a>}
 
           {/* 注册链接 */}
-          {!resetMode && <div className="mt-6 text-center text-sm text-gray-500">
+          {!resetMode && <div className="mt-6 text-center text-[11px] sm:text-sm text-gray-500">
             没有账号？
             <Link
               href="/register"
@@ -364,7 +364,7 @@ function LoginContent() {
           <div className="mt-4 text-center">
             <Link
               href="/"
-              className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-[11px] sm:text-sm text-gray-400 hover:text-gray-600 transition-colors"
             >
               返回首页
             </Link>

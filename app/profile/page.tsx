@@ -397,7 +397,7 @@ export default function ProfilePage() {
     return (
       <Container className="py-16 text-center">
         <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
-        <p className="text-sm text-gray-500">加载中...</p>
+        <p className="text-[11px] sm:text-sm text-gray-500">加载中...</p>
       </Container>
     );
   }
@@ -411,12 +411,12 @@ export default function ProfilePage() {
             🔒
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">请先登录</h2>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-[11px] sm:text-sm text-gray-500 mb-6">
             登录后即可查看个人中心、管理帖子和评论
           </p>
           <Link
             href="/login"
-            className="inline-block px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-block px-6 py-2.5 bg-blue-600 text-white text-[13px] sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             前往登录
           </Link>
@@ -431,7 +431,7 @@ export default function ProfilePage() {
       {/* 返回链接 */}
       <Link
         href="/"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
+        className="inline-flex items-center gap-1 text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -492,7 +492,7 @@ export default function ProfilePage() {
                   </>
                 )}
               </div>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-[11px] sm:text-sm text-gray-500 mt-1">
                 {profile?.email || '—'} · 注册于 {profile ? formatDate(profile.createdAt) : '—'}
               </p>
             </div>
@@ -535,7 +535,7 @@ export default function ProfilePage() {
 
               {profile.bio && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 leading-relaxed">{profile.bio}</p>
+                  <p className="text-[11px] sm:text-sm text-gray-600 leading-relaxed">{profile.bio}</p>
                 </div>
               )}
             </div>
@@ -566,13 +566,13 @@ export default function ProfilePage() {
                 key={item.key}
                 onClick={() => setActiveTab(item.key)}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left',
+                  'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] sm:text-sm font-medium transition-colors text-left',
                   activeTab === item.key
                     ? 'bg-blue-50 text-blue-700 border border-blue-200'
                     : 'text-gray-600 hover:bg-gray-50 border border-transparent',
                 )}
               >
-                <span className="text-base">{item.icon}</span>
+                <span className="text-[15px]">{item.icon}</span>
                 {item.label}
               </button>
             ))}
@@ -580,23 +580,23 @@ export default function ProfilePage() {
             <div className="pt-2 mt-2 border-t border-gray-200 space-y-1">
               <Link
                 href="/profile/licenses"
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] sm:text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent transition-colors"
               >
-                <span className="text-base">🔑</span>
+                <span className="text-[15px]">🔑</span>
                 我的授权
               </Link>
               <Link
                 href="/profile/orders"
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] sm:text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent transition-colors"
               >
-                <span className="text-base">🛒</span>
+                <span className="text-[15px]">🛒</span>
                 我的订单
               </Link>
               <Link
                 href="/products"
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] sm:text-sm font-medium text-gray-600 hover:bg-gray-50 border border-transparent transition-colors"
               >
-                <span className="text-base">📦</span>
+                <span className="text-[15px]">📦</span>
                 产品中心
               </Link>
             </div>
@@ -612,7 +612,7 @@ export default function ProfilePage() {
                 key={item.key}
                 onClick={() => setActiveTab(item.key)}
                 className={cn(
-                  'px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+                  'px-3 py-2 text-[13px] sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
                   activeTab === item.key
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700',
@@ -636,7 +636,7 @@ export default function ProfilePage() {
                       href={`#${section.id}`}
                       onClick={() => setActiveProfileSection(section.id)}
                       className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        'flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] sm:text-sm font-medium transition-colors',
                         activeProfileSection === section.id
                           ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                           : 'text-gray-600 hover:bg-gray-50 border border-transparent',
@@ -657,14 +657,14 @@ export default function ProfilePage() {
                     <span className="text-lg">✏️</span>
                     <h2 className="text-lg font-semibold text-gray-900">编辑资料</h2>
                   </div>
-                  <p className="text-sm text-gray-500 mb-6">
+                  <p className="text-[11px] sm:text-sm text-gray-500 mb-6">
                     修改你的头像、用户名和个人简介
                   </p>
 
                   <form onSubmit={handleSaveProfile} className="space-y-5">
                     {/* 头像 */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                         头像
                       </label>
                       <AvatarPicker
@@ -676,7 +676,7 @@ export default function ProfilePage() {
 
                     {/* 用户名 */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                         用户名
                       </label>
                       <input
@@ -685,13 +685,13 @@ export default function ProfilePage() {
                         onChange={(e) => setEditUsername(e.target.value)}
                         placeholder="请输入用户名"
                         maxLength={20}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
 
                     {/* 个人简介 */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                         个人简介
                       </label>
                       <textarea
@@ -700,7 +700,7 @@ export default function ProfilePage() {
                         placeholder="介绍一下自己吧..."
                         maxLength={200}
                         rows={4}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                       />
                       <p className="mt-1 text-xs text-gray-400 text-right">
                         {editBio.length}/200
@@ -712,7 +712,7 @@ export default function ProfilePage() {
                       <button
                         type="submit"
                         disabled={savingProfile}
-                        className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-2.5 bg-blue-600 text-white text-[13px] sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {savingProfile ? '保存中...' : '保存资料'}
                       </button>
@@ -726,13 +726,13 @@ export default function ProfilePage() {
                     <span className="text-lg">🔑</span>
                     <h2 className="text-lg font-semibold text-gray-900">修改密码</h2>
                   </div>
-                  <p className="text-sm text-gray-500 mb-6">
+                  <p className="text-[11px] sm:text-sm text-gray-500 mb-6">
                     定期更换密码有助于保护账户安全
                   </p>
 
                   <form onSubmit={handleChangePassword} className="space-y-5">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                         当前密码
                       </label>
                       <input
@@ -740,11 +740,11 @@ export default function ProfilePage() {
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         placeholder="请输入当前密码"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                         新密码
                       </label>
                       <input
@@ -752,14 +752,14 @@ export default function ProfilePage() {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="请输入新密码（至少 6 位）"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       {newPassword.length > 0 && newPassword.length < 6 && (
                         <p className="mt-1 text-xs text-red-500">密码长度不能少于 6 位</p>
                       )}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
                         确认新密码
                       </label>
                       <input
@@ -767,7 +767,7 @@ export default function ProfilePage() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="请再次输入新密码"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       {confirmPassword.length > 0 && newPassword !== confirmPassword && (
                         <p className="mt-1 text-xs text-red-500">两次输入的密码不一致</p>
@@ -777,7 +777,7 @@ export default function ProfilePage() {
                       <button
                         type="submit"
                         disabled={savingPassword}
-                        className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-6 py-2.5 bg-blue-600 text-white text-[13px] sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {savingPassword ? '提交中...' : '确认修改'}
                       </button>
@@ -796,7 +796,7 @@ export default function ProfilePage() {
                       <div className="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-3 group-hover:bg-blue-100 transition-colors">
                         🔑
                       </div>
-                      <h3 className="text-sm font-bold text-gray-900">我的授权码</h3>
+                      <h3 className="text-[13px] sm:text-sm font-bold text-gray-900">我的授权码</h3>
                       <p className="text-xs text-gray-500 mt-0.5">查看授权状态、绑定域名</p>
                     </Link>
                     <Link
@@ -806,7 +806,7 @@ export default function ProfilePage() {
                       <div className="w-11 h-11 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center text-xl mb-3 group-hover:bg-orange-100 transition-colors">
                         🛒
                       </div>
-                      <h3 className="text-sm font-bold text-gray-900">我的订单</h3>
+                      <h3 className="text-[13px] sm:text-sm font-bold text-gray-900">我的订单</h3>
                       <p className="text-xs text-gray-500 mt-0.5">查看订单、支付购买</p>
                     </Link>
                     <Link
@@ -816,7 +816,7 @@ export default function ProfilePage() {
                       <div className="w-11 h-11 rounded-lg bg-green-50 text-green-600 flex items-center justify-center text-xl mb-3 group-hover:bg-green-100 transition-colors">
                         📦
                       </div>
-                      <h3 className="text-sm font-bold text-gray-900">产品中心</h3>
+                      <h3 className="text-[13px] sm:text-sm font-bold text-gray-900">产品中心</h3>
                       <p className="text-xs text-gray-500 mt-0.5">浏览所有产品</p>
                     </Link>
                   </div>
@@ -846,7 +846,7 @@ export default function ProfilePage() {
                   <p className="text-gray-500 mb-4">还没有发布过帖子</p>
                   <Link
                     href="/forum/new"
-                    className="inline-block px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-block px-5 py-2.5 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     发布第一篇帖子
                   </Link>
@@ -877,7 +877,7 @@ export default function ProfilePage() {
                           )}
                         </div>
 
-                        <h3 className="text-base sm:text-lg font-semibold mb-1.5">
+                        <h3 className="text-[15px] sm:text-lg font-semibold mb-1.5">
                           <Link
                             href={`/forum/post/${post.id}`}
                             className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
@@ -886,7 +886,7 @@ export default function ProfilePage() {
                           </Link>
                         </h3>
 
-                        <p className="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                        <p className="text-[11px] sm:text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
                           {post.summary}
                         </p>
 
@@ -925,7 +925,7 @@ export default function ProfilePage() {
                         onClick={() => setPostsPage((p) => Math.max(1, p - 1))}
                         disabled={postsPage <= 1}
                         className={cn(
-                          'px-3 py-1.5 text-sm rounded-md border transition-colors',
+                          'px-3 py-1.5 text-[11px] sm:text-sm rounded-md border transition-colors',
                           postsPage <= 1
                             ? 'text-gray-300 border-gray-200 cursor-not-allowed'
                             : 'text-gray-600 border-gray-300 hover:bg-gray-50',
@@ -933,14 +933,14 @@ export default function ProfilePage() {
                       >
                         上一页
                       </button>
-                      <span className="px-3 py-1.5 text-sm text-gray-600">
+                      <span className="px-3 py-1.5 text-[11px] sm:text-sm text-gray-600">
                         {postsPage} / {postsTotalPages}
                       </span>
                       <button
                         onClick={() => setPostsPage((p) => Math.min(postsTotalPages, p + 1))}
                         disabled={postsPage >= postsTotalPages}
                         className={cn(
-                          'px-3 py-1.5 text-sm rounded-md border transition-colors',
+                          'px-3 py-1.5 text-[11px] sm:text-sm rounded-md border transition-colors',
                           postsPage >= postsTotalPages
                             ? 'text-gray-300 border-gray-200 cursor-not-allowed'
                             : 'text-gray-600 border-gray-300 hover:bg-gray-50',
@@ -976,7 +976,7 @@ export default function ProfilePage() {
                   <p className="text-gray-500 mb-4">还没有发表过评论</p>
                   <Link
                     href="/forum"
-                    className="inline-block px-5 py-2.5 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                    className="inline-block px-5 py-2.5 text-[13px] sm:text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
                   >
                     去论坛看看
                   </Link>
@@ -988,7 +988,7 @@ export default function ProfilePage() {
                       key={comment.id}
                       className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow"
                     >
-                      <p className="text-sm text-gray-800 leading-relaxed mb-3 line-clamp-3">
+                      <p className="text-[11px] sm:text-sm text-gray-800 leading-relaxed mb-3 line-clamp-3">
                         {comment.content}
                       </p>
                       <div className="flex items-center justify-between">
@@ -1030,7 +1030,7 @@ export default function ProfilePage() {
                   <p className="text-gray-500 mb-4">还没有点赞过帖子</p>
                   <Link
                     href="/forum"
-                    className="inline-block px-5 py-2.5 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                    className="inline-block px-5 py-2.5 text-[13px] sm:text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
                   >
                     去论坛看看
                   </Link>
@@ -1061,7 +1061,7 @@ export default function ProfilePage() {
                           )}
                         </div>
 
-                        <h3 className="text-base sm:text-lg font-semibold mb-1.5">
+                        <h3 className="text-[15px] sm:text-lg font-semibold mb-1.5">
                           <Link
                             href={`/forum/post/${post.id}`}
                             className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
@@ -1070,7 +1070,7 @@ export default function ProfilePage() {
                           </Link>
                         </h3>
 
-                        <p className="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                        <p className="text-[11px] sm:text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
                           {post.summary}
                         </p>
 
@@ -1093,7 +1093,7 @@ export default function ProfilePage() {
                         onClick={() => setLikesPage((p) => Math.max(1, p - 1))}
                         disabled={likesPage <= 1}
                         className={cn(
-                          'px-3 py-1.5 text-sm rounded-md border transition-colors',
+                          'px-3 py-1.5 text-[11px] sm:text-sm rounded-md border transition-colors',
                           likesPage <= 1
                             ? 'text-gray-300 border-gray-200 cursor-not-allowed'
                             : 'text-gray-600 border-gray-300 hover:bg-gray-50',
@@ -1101,14 +1101,14 @@ export default function ProfilePage() {
                       >
                         上一页
                       </button>
-                      <span className="px-3 py-1.5 text-sm text-gray-600">
+                      <span className="px-3 py-1.5 text-[11px] sm:text-sm text-gray-600">
                         {likesPage} / {likesTotalPages}
                       </span>
                       <button
                         onClick={() => setLikesPage((p) => Math.min(likesTotalPages, p + 1))}
                         disabled={likesPage >= likesTotalPages}
                         className={cn(
-                          'px-3 py-1.5 text-sm rounded-md border transition-colors',
+                          'px-3 py-1.5 text-[11px] sm:text-sm rounded-md border transition-colors',
                           likesPage >= likesTotalPages
                             ? 'text-gray-300 border-gray-200 cursor-not-allowed'
                             : 'text-gray-600 border-gray-300 hover:bg-gray-50',
@@ -1129,7 +1129,7 @@ export default function ProfilePage() {
                 <h2 className="text-lg font-semibold text-gray-900">我的收藏夹</h2>
                 <Link
                   href="/forum/my/favorites"
-                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  className="text-[11px] sm:text-sm text-blue-600 hover:text-blue-800 hover:underline"
                 >
                   管理收藏夹 →
                 </Link>
@@ -1198,7 +1198,7 @@ function FavoritesTab({ token, user }: { token: string | null; user: any }) {
         <p className="text-gray-500 mb-4">还没有创建收藏夹</p>
         <Link
           href="/forum/my/favorites"
-          className="inline-block px-5 py-2.5 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+          className="inline-block px-5 py-2.5 text-[13px] sm:text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
         >
           创建收藏夹
         </Link>
@@ -1221,7 +1221,7 @@ function FavoritesTab({ token, user }: { token: string | null; user: any }) {
             </span>
           </div>
           {col.description && (
-            <p className="text-sm text-gray-500 mb-2">{col.description}</p>
+            <p className="text-[11px] sm:text-sm text-gray-500 mb-2">{col.description}</p>
           )}
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <span>📄 {col.itemCount || 0} 篇帖子</span>
@@ -1275,7 +1275,7 @@ function BadgesTab({ token, user }: { token: string | null; user: any }) {
           🏅
         </div>
         <p className="text-gray-500 mb-2">还没有获得徽章</p>
-        <p className="text-sm text-gray-400">
+        <p className="text-[11px] sm:text-sm text-gray-400">
           多发帖、多评论、多互动即可自动获得徽章
         </p>
       </div>
@@ -1290,7 +1290,7 @@ function BadgesTab({ token, user }: { token: string | null; user: any }) {
           className="bg-white rounded-xl border border-gray-200 p-5 text-center hover:shadow-sm transition-shadow"
         >
           <div className="text-4xl mb-2">{ub.badge?.icon || '🏅'}</div>
-          <h3 className="font-semibold text-gray-900 text-sm mb-1">
+          <h3 className="font-semibold text-gray-900 text-[13px] sm:text-sm mb-1">
             {ub.badge?.name}
           </h3>
           <p className="text-xs text-gray-400 line-clamp-2">

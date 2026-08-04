@@ -332,20 +332,20 @@ export default function MyFavoritesPage() {
       <div className="flex items-center justify-between mb-6">
         <Link
           href="/forum"
-          className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+          className="text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors"
         >
           &larr; 返回论坛
         </Link>
         <div className="flex items-center gap-4">
           <Link
             href="/forum/my/posts"
-            className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+            className="text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors"
           >
             我的帖子
           </Link>
           <Link
             href="/forum/my/comments"
-            className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+            className="text-[11px] sm:text-sm text-blue-600 hover:text-blue-700 transition-colors"
           >
             我的评论 &rarr;
           </Link>
@@ -364,12 +364,12 @@ export default function MyFavoritesPage() {
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             {/* 列表头部 */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-700">
+              <h2 className="text-[13px] sm:text-sm font-semibold text-gray-700">
                 收藏夹 ({collections.length})
               </h2>
               <button
                 onClick={() => setShowCreateForm((v) => !v)}
-                className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                className="text-[11px] sm:text-sm text-blue-600 hover:text-blue-700 transition-colors"
               >
                 {showCreateForm ? '取消' : '+ 新建'}
               </button>
@@ -391,7 +391,7 @@ export default function MyFavoritesPage() {
                     onChange={(e) => setNewName(e.target.value)}
                     maxLength={50}
                     placeholder="收藏夹名称"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -404,10 +404,10 @@ export default function MyFavoritesPage() {
                     maxLength={200}
                     rows={2}
                     placeholder="收藏夹描述"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   />
                 </div>
-                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                <label className="flex items-center gap-2 text-[11px] sm:text-sm text-gray-600 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={newIsPublic}
@@ -419,7 +419,7 @@ export default function MyFavoritesPage() {
                 <button
                   type="submit"
                   disabled={creating}
-                  className="w-full py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {creating ? '创建中...' : '创建收藏夹'}
                 </button>
@@ -439,10 +439,10 @@ export default function MyFavoritesPage() {
             ) : collections.length === 0 ? (
               <div className="p-6 text-center">
                 <p className="text-3xl mb-2">📁</p>
-                <p className="text-sm text-gray-400 mb-3">还没有收藏夹</p>
+                <p className="text-[13px] sm:text-sm text-gray-400 mb-3">还没有收藏夹</p>
                 <button
                   onClick={() => setShowCreateForm(true)}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-[11px] sm:text-sm text-blue-600 hover:text-blue-700"
                 >
                   创建第一个收藏夹
                 </button>
@@ -462,7 +462,7 @@ export default function MyFavoritesPage() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-800 truncate">
+                          <span className="text-[13px] sm:text-sm font-medium text-gray-800 truncate">
                             {c.name}
                           </span>
                           {!c.isPublic && (
@@ -546,7 +546,7 @@ export default function MyFavoritesPage() {
                       </span>
                     </div>
                     {detail.collection.description && (
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-[11px] sm:text-sm text-gray-500 mt-1">
                         {detail.collection.description}
                       </p>
                     )}
@@ -567,12 +567,12 @@ export default function MyFavoritesPage() {
                     value={addPostInput}
                     onChange={(e) => setAddPostInput(e.target.value)}
                     placeholder="输入帖子 ID 或帖子链接，加入收藏夹"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
                     type="submit"
                     disabled={addingPost}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="px-4 py-2 text-[13px] sm:text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {addingPost ? '添加中...' : '加入'}
                   </button>
@@ -583,7 +583,7 @@ export default function MyFavoritesPage() {
               {detail.posts.length === 0 ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                   <p className="text-4xl mb-3">📭</p>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-[11px] sm:text-sm text-gray-400">
                     这个收藏夹还没有收藏帖子
                   </p>
                 </div>
@@ -615,7 +615,7 @@ export default function MyFavoritesPage() {
                             )}
                             <Link
                               href={`/forum/post/${post.id}`}
-                              className="text-base font-semibold text-gray-900 hover:text-blue-600 transition-colors truncate"
+                              className="text-[15px] sm:text-base font-semibold text-gray-900 hover:text-blue-600 transition-colors truncate"
                             >
                               {post.title}
                             </Link>
@@ -623,7 +623,7 @@ export default function MyFavoritesPage() {
 
                           {/* 摘要 */}
                           {post.summary && (
-                            <p className="text-sm text-gray-500 line-clamp-2 mb-2">
+                            <p className="text-[11px] sm:text-sm text-gray-500 line-clamp-2 mb-2">
                               {post.summary}
                             </p>
                           )}
@@ -666,7 +666,7 @@ export default function MyFavoritesPage() {
                         onClick={() => handlePageChange(page - 1)}
                         disabled={page <= 1}
                         className={cn(
-                          'px-3 py-1.5 text-sm rounded-md border transition-colors',
+                          'px-3 py-1.5 text-[13px] sm:text-sm rounded-md border transition-colors',
                           page <= 1
                             ? 'text-gray-300 border-gray-200 cursor-not-allowed'
                             : 'text-gray-600 border-gray-300 hover:bg-gray-50',
@@ -674,14 +674,14 @@ export default function MyFavoritesPage() {
                       >
                         上一页
                       </button>
-                      <span className="px-3 py-1.5 text-sm text-gray-500">
+                      <span className="px-3 py-1.5 text-[13px] sm:text-sm text-gray-500">
                         {page} / {detail.totalPages}
                       </span>
                       <button
                         onClick={() => handlePageChange(page + 1)}
                         disabled={page >= detail.totalPages}
                         className={cn(
-                          'px-3 py-1.5 text-sm rounded-md border transition-colors',
+                          'px-3 py-1.5 text-[13px] sm:text-sm rounded-md border transition-colors',
                           page >= detail.totalPages
                             ? 'text-gray-300 border-gray-200 cursor-not-allowed'
                             : 'text-gray-600 border-gray-300 hover:bg-gray-50',

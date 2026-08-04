@@ -450,8 +450,8 @@ export default function ForumPage() {
         </Container>
       </div>
 
-      {/* Tab 切换栏 — 下划线风格 */}
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-30 dark:bg-slate-800 dark:border-slate-700">
+      {/* Tab 切换栏 — 下划线风格（移动端不固定，随页面滚动） */}
+      <div className="bg-white border-b border-gray-200 dark:bg-slate-800 dark:border-slate-700">
         <Container className="px-0 sm:px-4">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide px-4 sm:px-0">
             {tabs.map((tab) => (
@@ -480,7 +480,7 @@ export default function ForumPage() {
       <Container className="py-6">
         {/* 标签筛选提示 */}
         {tagFilter && (
-          <div className="flex items-center gap-2 mb-4 text-sm">
+          <div className="flex items-center gap-2 mb-4 text-[11px] sm:text-sm">
             <span className="text-gray-500">当前标签:</span>
             <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-indigo-50 text-indigo-600 rounded-full">
               {tagFilter}
@@ -508,11 +508,11 @@ export default function ForumPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </div>
-            <p className="text-sm text-gray-500 mb-1">登录后查看关注动态</p>
+            <p className="text-[13px] sm:text-sm text-gray-500 mb-1">登录后查看关注动态</p>
             <p className="text-xs text-gray-400 mb-4">关注其他用户，实时获取他们的最新帖子</p>
             <Link
               href="/login"
-              className="inline-block px-5 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
+              className="inline-block px-5 py-2 text-[13px] sm:text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
             >
               去登录
             </Link>
@@ -527,7 +527,7 @@ export default function ForumPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <p className="text-sm text-gray-500 mb-1">还没有关注的动态</p>
+            <p className="text-[13px] sm:text-sm text-gray-500 mb-1">还没有关注的动态</p>
             <p className="text-xs text-gray-400">关注其他用户或分类后，这里会显示他们的最新帖子</p>
           </div>
         )}
@@ -566,13 +566,13 @@ export default function ForumPage() {
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-red-50 rounded-full mb-3">
                     <RefreshIcon className="w-6 h-6 text-red-400" />
                   </div>
-                  <p className="text-sm text-gray-500 mb-1">数据加载超时</p>
+                  <p className="text-[13px] sm:text-sm text-gray-500 mb-1">数据加载超时</p>
                   <p className="text-xs text-gray-400 mb-4">
                     {retryCount > 0 ? `已重试 ${retryCount} 次，请稍后再试` : '请检查网络后重试'}
                   </p>
                   <button
                     onClick={handleRetry}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-5 py-2 text-[13px] sm:text-sm font-medium text-white hover:bg-gray-800 transition-colors"
                   >
                     <RefreshIcon className="w-4 h-4" />
                     重新加载

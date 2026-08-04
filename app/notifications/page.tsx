@@ -210,7 +210,7 @@ export default function NotificationsPage() {
     return (
       <Container className="py-16 text-center">
         <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
-        <p className="text-sm text-gray-500">加载中...</p>
+        <p className="text-[13px] sm:text-sm text-gray-500">加载中...</p>
       </Container>
     );
   }
@@ -222,12 +222,12 @@ export default function NotificationsPage() {
         <div className="max-w-sm mx-auto bg-white rounded-xl border border-gray-200 p-8">
           <div className="text-5xl mb-4">🔒</div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">请先登录</h2>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-[13px] sm:text-sm text-gray-500 mb-6">
             登录后即可查看你的通知消息
           </p>
           <Link
             href="/login"
-            className="inline-block px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-block px-6 py-2.5 bg-blue-600 text-white text-[13px] sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
             前往登录
           </Link>
@@ -242,7 +242,7 @@ export default function NotificationsPage() {
       {/* 返回链接 */}
       <Link
         href="/"
-        className="inline-block text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
+        className="inline-block text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
       >
         &larr; 返回首页
       </Link>
@@ -261,7 +261,7 @@ export default function NotificationsPage() {
           <button
             onClick={handleMarkAllRead}
             disabled={markingAll}
-            className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-[13px] sm:text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {markingAll ? '处理中...' : '全部已读'}
           </button>
@@ -288,7 +288,7 @@ export default function NotificationsPage() {
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
           <p className="text-5xl mb-3">🔔</p>
           <p className="text-gray-400">暂无通知</p>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-[11px] sm:text-sm text-gray-400 mt-1">
             当有人回复或点赞你的内容时，会在这里提醒你
           </p>
         </div>
@@ -324,7 +324,7 @@ export default function NotificationsPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <h3
                         className={cn(
-                          'text-sm font-medium truncate',
+                          'text-[13px] sm:text-sm font-medium truncate',
                           notification.isRead
                             ? 'text-gray-700'
                             : 'text-gray-900',
@@ -338,7 +338,7 @@ export default function NotificationsPage() {
                       )}
                     </div>
                     {notification.content && (
-                      <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] sm:text-sm text-gray-500 line-clamp-2 leading-relaxed">
                         {notification.content}
                       </p>
                     )}
@@ -404,7 +404,7 @@ export default function NotificationsPage() {
               <button
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="px-6 py-2.5 text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2.5 text-[13px] sm:text-sm font-medium text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loadingMore ? '加载中...' : '加载更多'}
               </button>

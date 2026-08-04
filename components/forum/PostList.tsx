@@ -199,8 +199,8 @@ export default function PostList({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <p className="text-sm text-gray-400">暂无帖子</p>
-            <p className="text-xs text-gray-300 mt-1">成为第一个发帖的人吧</p>
+            <p className="text-[13px] sm:text-sm text-gray-400">暂无帖子</p>
+            <p className="text-[11px] sm:text-xs text-gray-300 mt-1">成为第一个发帖的人吧</p>
           </div>
         ) : (
           sortedPosts.map((post) => (
@@ -217,7 +217,7 @@ export default function PostList({
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
             className={cn(
-              "flex items-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors",
+              "flex items-center gap-1 px-3 py-2 text-[13px] sm:text-sm rounded-lg transition-colors",
               currentPage <= 1
                 ? "text-gray-300 cursor-not-allowed"
                 : "text-gray-600 hover:bg-gray-100",
@@ -232,7 +232,7 @@ export default function PostList({
           {/* 页码 */}
           {getPageNumbers().map((page, idx) =>
             typeof page === "string" ? (
-              <span key={`ellipsis-${idx}`} className="px-2 py-2 text-sm text-gray-300">
+              <span key={`ellipsis-${idx}`} className="px-2 py-2 text-[13px] sm:text-sm text-gray-300">
                 ...
               </span>
             ) : (
@@ -240,7 +240,7 @@ export default function PostList({
                 key={page}
                 onClick={() => onPageChange(page)}
                 className={cn(
-                  "w-9 h-9 text-sm rounded-lg transition-all font-medium",
+                  "w-9 h-9 text-[13px] sm:text-sm rounded-lg transition-all font-medium",
                   page === currentPage
                     ? "bg-gray-900 text-white"
                     : "text-gray-600 hover:bg-gray-100",
@@ -256,7 +256,7 @@ export default function PostList({
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
             className={cn(
-              "flex items-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors",
+              "flex items-center gap-1 px-3 py-2 text-[13px] sm:text-sm rounded-lg transition-colors",
               currentPage >= totalPages
                 ? "text-gray-300 cursor-not-allowed"
                 : "text-gray-600 hover:bg-gray-100",

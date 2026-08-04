@@ -45,7 +45,7 @@ export default function SponsorPage() {
         {/* 返回链接 */}
         <Link
           href="/"
-          className="inline-block text-sm text-gray-500 hover:text-blue-600 transition-colors mb-6"
+          className="inline-block text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors mb-6"
         >
           ← 返回首页
         </Link>
@@ -54,7 +54,7 @@ export default function SponsorPage() {
         <div className="text-center mb-10">
           <div className="text-5xl mb-4">❤️</div>
           <h1 className="text-3xl font-bold text-gray-900 mb-3">赞助支持</h1>
-          <p className="text-base text-gray-500 max-w-md mx-auto leading-relaxed">
+          <p className="text-[13px] sm:text-base text-gray-500 max-w-md mx-auto leading-relaxed">
             {settings.sponsor_text}
           </p>
         </div>
@@ -85,7 +85,7 @@ export default function SponsorPage() {
                     }}
                   />
                 </div>
-                <p className="text-sm text-gray-500 mt-4">扫码微信赞助</p>
+                <p className="text-[11px] sm:text-sm text-gray-500 mt-4">扫码微信赞助</p>
               </div>
             )}
 
@@ -108,7 +108,7 @@ export default function SponsorPage() {
                     }}
                   />
                 </div>
-                <p className="text-sm text-gray-500 mt-4">扫码支付宝赞助</p>
+                <p className="text-[11px] sm:text-sm text-gray-500 mt-4">扫码支付宝赞助</p>
               </div>
             )}
           </div>
@@ -118,7 +118,7 @@ export default function SponsorPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-2">
               赞助功能即将开放
             </h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-[11px] sm:text-sm text-gray-500">
               赞助二维码正在配置中，请稍后再来
             </p>
           </div>
@@ -126,12 +126,12 @@ export default function SponsorPage() {
 
         {/* 底部信息 */}
         <div className="text-center mt-10">
-          <p className="text-sm text-gray-400">
+          <p className="text-[11px] sm:text-sm text-gray-400">
             您的赞助将用于服务器维护和项目持续开发
           </p>
           <Link
             href="/products"
-            className="inline-block mt-4 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+            className="inline-block mt-4 text-[11px] sm:text-sm text-blue-600 hover:text-blue-800 transition-colors"
           >
             浏览产品 →
           </Link>
