@@ -85,6 +85,15 @@ export interface WechatArticleParam {
   contentSourceUrl?: string;
 }
 
+export type WechatArticleTemplate = 'technical' | 'open-source';
+
+export interface WechatArticleRenderInput {
+  title: string;
+  content: string;
+  digest?: string;
+  author?: string;
+}
+
 // ============ 凭证获取 ============
 
 /**
@@ -509,26 +518,149 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
+interface WechatMarkdownStyles {
+  image: string;
+  link: string;
+  strong: string;
+  em: string;
+  inlineCode: string;
+  codeBlock: string;
+  code: string;
+  hr: string;
+  heading: string;
+  blockquote: string;
+  quoteParagraph: string;
+  unorderedList: string;
+  orderedList: string;
+  listItem: string;
+  paragraph: string;
+}
+
+interface WechatTemplateConfig {
+  label: string;
+  badge: string;
+  container: string;
+  header: string;
+  title: string;
+  meta: string;
+  badgeStyle: string;
+  digest: string;
+  body: string;
+  copyrightWrap: string;
+  copyrightCard: string;
+  copyrightIcon: string;
+  copyrightTitle: string;
+  copyrightText: string;
+  copyrightBrand: string;
+  footer: string;
+  markdown: WechatMarkdownStyles;
+}
+
+const WECHAT_TEMPLATE_CONFIGS: Record<WechatArticleTemplate, WechatTemplateConfig> = {
+  technical: {
+    label: '技术风格',
+    badge: '技术精选',
+    container: "max-width:677px;margin:0 auto;padding:0 0 8px;background:#ffffff;color:#1f2937;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif;",
+    header: 'padding:8px 0 18px;border-bottom:1px solid #e5e7eb;margin-bottom:22px;',
+    title: 'margin:0 0 12px;font-size:24px;line-height:1.45;font-weight:700;color:#111827;letter-spacing:0.2px;',
+    meta: 'display:flex;align-items:center;gap:8px;color:#64748b;font-size:13px;line-height:1.6;',
+    badgeStyle: 'display:inline-block;padding:2px 8px;border-radius:999px;background:#eff6ff;color:#2563eb;font-weight:500;',
+    digest: 'margin:14px 0 0;padding:12px 14px;background:#f8fafc;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;color:#475569;font-size:14px;line-height:1.8;',
+    body: 'font-size:15px;line-height:1.9;color:#1f2937;',
+    copyrightWrap: 'margin:40px 0 0;',
+    copyrightCard: 'padding:22px 20px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;',
+    copyrightIcon: 'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#1e293b;color:#ffffff;font-size:11px;font-weight:700;',
+    copyrightTitle: 'font-size:15px;font-weight:600;color:#1e293b;letter-spacing:0.3px;',
+    copyrightText: 'font-size:13px;line-height:2;color:#475569;',
+    copyrightBrand: 'color:#2563eb;',
+    footer: 'margin:14px 0 0;text-align:center;color:#94a3b8;font-size:12px;line-height:1.7;letter-spacing:0.2px;',
+    markdown: {
+      image: 'max-width:100%;border-radius:10px;margin:18px auto;display:block;box-shadow:0 6px 18px rgba(15,23,42,0.08);',
+      link: 'color:#2563eb;text-decoration:none;border-bottom:1px solid rgba(37,99,235,0.35);font-weight:500;',
+      strong: 'font-weight:bold;',
+      em: 'font-style:italic;',
+      inlineCode: 'background:#f1f5f9;padding:2px 6px;border-radius:5px;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;color:#be123c;',
+      codeBlock: 'background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:16px;overflow:auto;line-height:1.7;font-size:13px;margin:18px 0;color:#e2e8f0;',
+      code: 'font-family:Menlo,Monaco,Consolas,monospace;color:#e2e8f0;',
+      hr: 'border:none;border-top:1px dashed #cbd5e1;margin:26px 0;',
+      heading: 'font-size:{size};font-weight:700;margin:28px 0 14px;color:#111827;line-height:1.45;padding-left:12px;border-left:4px solid #2563eb;letter-spacing:0.2px;',
+      blockquote: 'border-left:4px solid #93c5fd;padding:10px 16px;margin:18px 0;color:#475569;background:#f8fafc;border-radius:0 8px 8px 0;',
+      quoteParagraph: 'margin:4px 0;line-height:1.8;font-size:14px;',
+      unorderedList: 'padding-left:22px;margin:14px 0;line-height:1.9;color:#1f2937;',
+      orderedList: 'padding-left:22px;margin:14px 0;line-height:1.9;color:#1f2937;',
+      listItem: 'margin:6px 0;',
+      paragraph: 'margin:15px 0;line-height:1.95;font-size:15px;color:#1f2937;letter-spacing:0.2px;',
+    },
+  },
+  'open-source': {
+    label: '开源风格',
+    badge: '开源共创',
+    container: "max-width:677px;margin:0 auto;padding:0 0 8px;background:#fffdf7;color:#243127;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif;",
+    header: 'padding:10px 0 18px;border-bottom:1px solid #d9ead3;margin-bottom:22px;',
+    title: 'margin:0 0 12px;font-size:24px;line-height:1.45;font-weight:800;color:#12351f;letter-spacing:0.2px;',
+    meta: 'display:flex;align-items:center;gap:8px;color:#5f725f;font-size:13px;line-height:1.6;',
+    badgeStyle: 'display:inline-block;padding:2px 8px;border-radius:999px;background:#eaf7e8;color:#238636;font-weight:600;',
+    digest: 'margin:14px 0 0;padding:12px 14px;background:#f3fbf1;border-left:4px solid #2da44e;border-radius:0 8px 8px 0;color:#42634a;font-size:14px;line-height:1.8;',
+    body: 'font-size:15px;line-height:1.9;color:#243127;',
+    copyrightWrap: 'margin:40px 0 0;',
+    copyrightCard: 'padding:22px 20px;border-radius:12px;background:#f6fbf4;border:1px solid #cfe8c8;',
+    copyrightIcon: 'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#238636;color:#ffffff;font-size:11px;font-weight:700;',
+    copyrightTitle: 'font-size:15px;font-weight:700;color:#12351f;letter-spacing:0.3px;',
+    copyrightText: 'font-size:13px;line-height:2;color:#42634a;',
+    copyrightBrand: 'color:#238636;',
+    footer: 'margin:14px 0 0;text-align:center;color:#7d947d;font-size:12px;line-height:1.7;letter-spacing:0.2px;',
+    markdown: {
+      image: 'max-width:100%;border-radius:12px;margin:18px auto;display:block;border:1px solid #d9ead3;box-shadow:0 6px 16px rgba(35,134,54,0.08);',
+      link: 'color:#238636;text-decoration:none;border-bottom:1px solid rgba(35,134,54,0.35);font-weight:600;',
+      strong: 'font-weight:bold;color:#12351f;',
+      em: 'font-style:italic;color:#42634a;',
+      inlineCode: 'background:#eaf7e8;padding:2px 6px;border-radius:5px;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;color:#0f5132;',
+      codeBlock: 'background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:16px;overflow:auto;line-height:1.7;font-size:13px;margin:18px 0;color:#c9d1d9;',
+      code: 'font-family:Menlo,Monaco,Consolas,monospace;color:#c9d1d9;',
+      hr: 'border:none;border-top:1px dashed #b7d7ae;margin:26px 0;',
+      heading: 'font-size:{size};font-weight:800;margin:28px 0 14px;color:#12351f;line-height:1.45;padding-left:12px;border-left:4px solid #2da44e;letter-spacing:0.2px;',
+      blockquote: 'border-left:4px solid #2da44e;padding:10px 16px;margin:18px 0;color:#42634a;background:#f3fbf1;border-radius:0 8px 8px 0;',
+      quoteParagraph: 'margin:4px 0;line-height:1.8;font-size:14px;',
+      unorderedList: 'padding-left:22px;margin:14px 0;line-height:1.9;color:#243127;',
+      orderedList: 'padding-left:22px;margin:14px 0;line-height:1.9;color:#243127;',
+      listItem: 'margin:6px 0;',
+      paragraph: 'margin:15px 0;line-height:1.95;font-size:15px;color:#243127;letter-spacing:0.2px;',
+    },
+  },
+};
+
+export const WECHAT_ARTICLE_TEMPLATES = Object.entries(WECHAT_TEMPLATE_CONFIGS).map(
+  ([value, config]) => ({
+    value: value as WechatArticleTemplate,
+    label: config.label,
+  }),
+);
+
+export function normalizeWechatTemplate(template?: string | null): WechatArticleTemplate {
+  return template === 'open-source' ? 'open-source' : 'technical';
+}
+
 /**
  * 行内格式化：图片、链接、粗体、斜体、行内代码
  *
  * 处理顺序：图片 → 链接 → 粗体 → 斜体 → 行内代码
  */
-function inlineFormat(text: string): string {
+function inlineFormat(text: string, template: WechatArticleTemplate): string {
+  const styles = WECHAT_TEMPLATE_CONFIGS[template].markdown;
   let result = text;
 
   // 图片 ![alt](url)
   result = result.replace(
     /!\[([^\]]*)\]\(([^)]+)\)/g,
     (_m, alt, url) =>
-      `<img src="${url.trim()}" alt="${escapeHtml(alt)}" style="max-width:100%;border-radius:10px;margin:18px auto;display:block;box-shadow:0 6px 18px rgba(15,23,42,0.08);" />`,
+      `<img src="${url.trim()}" alt="${escapeHtml(alt)}" style="${styles.image}" />`,
   );
 
   // 链接 [text](url)
   result = result.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
     (_m, linkText, url) =>
-      `<a href="${url.trim()}" style="color:#2563eb;text-decoration:none;border-bottom:1px solid rgba(37,99,235,0.35);font-weight:500;">${escapeHtml(
+      `<a href="${url.trim()}" style="${styles.link}">${escapeHtml(
         linkText,
       )}</a>`,
   );
@@ -536,19 +668,19 @@ function inlineFormat(text: string): string {
   // 粗体 **text**
   result = result.replace(
     /\*\*([^*]+)\*\*/g,
-    '<strong style="font-weight:bold;">$1</strong>',
+    `<strong style="${styles.strong}">$1</strong>`,
   );
 
   // 斜体 *text*（粗体已替换，剩余单个 * 不会与 ** 冲突）
   result = result.replace(
     /\*([^*]+)\*/g,
-    '<em style="font-style:italic;">$1</em>',
+    `<em style="${styles.em}">$1</em>`,
   );
 
   // 行内代码 `code`
   result = result.replace(
     /`([^`]+)`/g,
-    '<code style="background:#f1f5f9;padding:2px 6px;border-radius:5px;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;color:#be123c;">$1</code>',
+    `<code style="${styles.inlineCode}">$1</code>`,
   );
 
   return result;
@@ -573,19 +705,25 @@ function inlineFormat(text: string): string {
  * 所有标签均附带内联样式以适配微信渲染环境。
  *
  * @param markdown Markdown 原文
+ * @param template 模板风格，technical 为技术风格，open-source 为开源风格
  * @returns 适合微信公众号渲染的 HTML 字符串
  */
-export function markdownToWechatHtml(markdown: string): string {
+export function markdownToWechatHtml(
+  markdown: string,
+  template: WechatArticleTemplate = 'technical',
+): string {
   if (!markdown) return '';
+  const normalizedTemplate = normalizeWechatTemplate(template);
+  const styles = WECHAT_TEMPLATE_CONFIGS[normalizedTemplate].markdown;
 
   // 先提取代码块，避免内部内容被其他规则误处理
   const codeBlocks: string[] = [];
-  let text = markdown.replace(
+  const text = markdown.replace(
     /```(\w*)\n?([\s\S]*?)```/g,
     (_m, lang, code) => {
       const idx = codeBlocks.length;
       const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : '';
-      const styled = `<pre style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:16px;overflow:auto;line-height:1.7;font-size:13px;margin:18px 0;color:#e2e8f0;"${langAttr}><code style="font-family:Menlo,Monaco,Consolas,monospace;color:#e2e8f0;">${escapeHtml(
+      const styled = `<pre style="${styles.codeBlock}"${langAttr}><code style="${styles.code}">${escapeHtml(
         code.replace(/\n$/, ''),
       )}</code></pre>`;
       codeBlocks.push(styled);
@@ -639,7 +777,7 @@ export function markdownToWechatHtml(markdown: string): string {
       closeLists();
       closeBlockquote();
       htmlLines.push(
-        '<hr style="border:none;border-top:1px dashed #cbd5e1;margin:26px 0;" />',
+        `<hr style="${styles.hr}" />`,
       );
       continue;
     }
@@ -652,8 +790,9 @@ export function markdownToWechatHtml(markdown: string): string {
       const level = headingMatch[1].length;
       const sizes = ['22px', '20px', '18px', '17px', '16px', '15px'];
       htmlLines.push(
-        `<h${level} style="font-size:${sizes[level - 1]};font-weight:700;margin:28px 0 14px;color:#111827;line-height:1.45;padding-left:12px;border-left:4px solid #2563eb;letter-spacing:0.2px;">${inlineFormat(
+        `<h${level} style="${styles.heading.replace('{size}', sizes[level - 1])}">${inlineFormat(
           headingMatch[2],
+          normalizedTemplate,
         )}</h${level}>`,
       );
       continue;
@@ -665,12 +804,12 @@ export function markdownToWechatHtml(markdown: string): string {
       closeLists();
       if (!inBlockquote) {
         htmlLines.push(
-          '<blockquote style="border-left:4px solid #93c5fd;padding:10px 16px;margin:18px 0;color:#475569;background:#f8fafc;border-radius:0 8px 8px 0;">',
+          `<blockquote style="${styles.blockquote}">`,
         );
         inBlockquote = true;
       }
       htmlLines.push(
-        `<p style="margin:4px 0;line-height:1.8;font-size:14px;">${inlineFormat(quoteMatch[1])}</p>`,
+        `<p style="${styles.quoteParagraph}">${inlineFormat(quoteMatch[1], normalizedTemplate)}</p>`,
       );
       continue;
     }
@@ -684,11 +823,11 @@ export function markdownToWechatHtml(markdown: string): string {
       }
       if (!inUnorderedList) {
         htmlLines.push(
-          '<ul style="padding-left:22px;margin:14px 0;line-height:1.9;color:#1f2937;">',
+          `<ul style="${styles.unorderedList}">`,
         );
         inUnorderedList = true;
       }
-      htmlLines.push(`<li style="margin:6px 0;">${inlineFormat(ulMatch[1])}</li>`);
+      htmlLines.push(`<li style="${styles.listItem}">${inlineFormat(ulMatch[1], normalizedTemplate)}</li>`);
       continue;
     }
 
@@ -701,11 +840,11 @@ export function markdownToWechatHtml(markdown: string): string {
       }
       if (!inOrderedList) {
         htmlLines.push(
-          '<ol style="padding-left:22px;margin:14px 0;line-height:1.9;color:#1f2937;">',
+          `<ol style="${styles.orderedList}">`,
         );
         inOrderedList = true;
       }
-      htmlLines.push(`<li style="margin:6px 0;">${inlineFormat(olMatch[1])}</li>`);
+      htmlLines.push(`<li style="${styles.listItem}">${inlineFormat(olMatch[1], normalizedTemplate)}</li>`);
       continue;
     }
 
@@ -713,8 +852,9 @@ export function markdownToWechatHtml(markdown: string): string {
     closeLists();
     closeBlockquote();
     htmlLines.push(
-      `<p style="margin:15px 0;line-height:1.95;font-size:15px;color:#1f2937;letter-spacing:0.2px;">${inlineFormat(
+      `<p style="${styles.paragraph}">${inlineFormat(
         line,
+        normalizedTemplate,
       )}</p>`,
     );
   }
@@ -723,6 +863,55 @@ export function markdownToWechatHtml(markdown: string): string {
   closeBlockquote();
 
   return htmlLines.join('\n');
+}
+
+export function buildWechatArticleHtml(
+  data: WechatArticleRenderInput,
+  template: WechatArticleTemplate = 'technical',
+): string {
+  const normalizedTemplate = normalizeWechatTemplate(template);
+  const config = WECHAT_TEMPLATE_CONFIGS[normalizedTemplate];
+  const year = new Date().getFullYear();
+  const author = data.author || 'Gitd 社区';
+  const title = escapeHtml(data.title || 'Gitd 社区文章');
+  const digest = data.digest
+    ? `<section style="${config.digest}">${escapeHtml(data.digest)}</section>`
+    : '';
+
+  const copyrightBlock = `
+  <section style="${config.copyrightWrap}">
+    <section style="height:1px;background:#cbd5e1;margin:0 0 24px;"></section>
+    <section style="${config.copyrightCard}">
+      <section style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span style="${config.copyrightIcon}">&copy;</span>
+        <span style="${config.copyrightTitle}">内容与版权声明</span>
+      </section>
+      <section style="${config.copyrightText}">
+        <p style="margin:0 0 4px;">本文由 <strong style="${config.copyrightBrand}">Gitd 社区</strong> 进行选题、整理与编辑，部分内容由 AI 辅助生成，并已进行人工校对。</p>
+        <p style="margin:0 0 4px;">作者 / 编辑：<strong style="color:#1e293b;">${escapeHtml(author)}</strong>。&copy; ${year} Gitd 社区，排版与整理版权归 Gitd 社区所有。</p>
+        <p style="margin:0;">转载请注明来源「Gitd 社区」；如涉及版权或署名问题，请联系我们修正。</p>
+      </section>
+    </section>
+    <section style="${config.footer}">
+      排版工具 · Gitd 社区 内容同步平台 · ${config.label}
+    </section>
+  </section>`.trim();
+
+  return `
+<section style="${config.container}">
+  <section style="${config.header}">
+    <h1 style="${config.title}">${title}</h1>
+    <section style="${config.meta}">
+      <span style="${config.badgeStyle}">${config.badge}</span>
+      <span>${escapeHtml(author)}</span>
+    </section>
+    ${digest}
+  </section>
+  <section style="${config.body}">
+${data.content}
+  </section>
+  ${copyrightBlock}
+</section>`.trim();
 }
 
 // ============ 图片处理工具 ============

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
-import { markdownToWechatHtml } from '@/lib/wechat';
+import {
+  buildWechatArticleHtml,
+  markdownToWechatHtml,
+  normalizeWechatTemplate,
+} from '@/lib/wechat';
 
 // ============ POST /api/wechat/preview - 生成微信格式 HTML（个人号模式） ============
-// body: { postId: string }
+// body: { postId: string, template?: 'technical' | 'open-source' }
 // 不调用微信 API，仅将帖子 Markdown 转为微信公众号适配的 HTML 返回给前端
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +17,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { postId } = body;
+    const template = normalizeWechatTemplate(body.template);
 
     if (!postId || typeof postId !== 'string') {
       return NextResponse.json(
@@ -40,21 +45,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 转换 Markdown 为微信 HTML
-    const htmlContent = markdownToWechatHtml(post.content);
-
     // 生成摘要
     const digest = post.content
       .replace(/[#*`>\-\[\]!()]/g, '')
       .replace(/\n+/g, ' ')
       .trim()
       .slice(0, 120);
+    const title = post.title.slice(0, 64);
+    const author = post.authorName || 'Gitd 社区';
 
-    return NextResponse.json({
-      title: post.title.slice(0, 64),
+    // 转换 Markdown 为微信 HTML，并套用完整公众号模板
+    const htmlContent = markdownToWechatHtml(post.content, template);
+    const fullContent = buildWechatArticleHtml({
+      title,
       content: htmlContent,
       digest: digest || '',
-      author: post.authorName || 'Gitd 社区',
+      author,
+    }, template);
+
+    return NextResponse.json({
+      title,
+      content: htmlContent,
+      fullContent,
+      digest: digest || '',
+      author,
+      template,
       message: '内容已生成，请复制到微信公众号后台手动发布',
     });
   } catch (error) {

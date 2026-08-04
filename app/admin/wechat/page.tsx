@@ -27,6 +27,7 @@ import toast from "react-hot-toast";
 // ============ Types ============
 type SyncStatus = "draft" | "published" | "failed" | "deleted" | "generated";
 type AccountType = "personal" | "enterprise";
+type WechatTemplate = "technical" | "open-source";
 
 interface WeChatConfig {
   configured: boolean;
@@ -56,8 +57,10 @@ interface SyncHistoryResponse {
 interface PreviewData {
   title: string;
   content: string;
+  fullContent?: string;
   digest: string;
   author: string;
+  template?: WechatTemplate;
 }
 
 interface ForumPostItem {
@@ -75,6 +78,23 @@ interface ForumPostItem {
 
 // ============ Constants ============
 const PAGE_SIZE = 20;
+
+const WECHAT_TEMPLATES: Array<{
+  value: WechatTemplate;
+  label: string;
+  desc: string;
+}> = [
+  {
+    value: "technical",
+    label: "技术风格",
+    desc: "蓝灰配色，适合教程、架构分析、技术复盘",
+  },
+  {
+    value: "open-source",
+    label: "开源风格",
+    desc: "绿色社区感，适合开源项目、共创公告、社区精选",
+  },
+];
 
 const STATUS_META: Record<
   SyncStatus,
@@ -103,52 +123,6 @@ function maskAppId(appId?: string): string {
   if (!appId) return "-";
   if (appId.length <= 8) return appId.replace(/.(?=.{2})/g, "*");
   return `${appId.slice(0, 4)}****${appId.slice(-4)}`;
-}
-
-/** 生成适合直接粘贴到微信公众号编辑器的完整图文模板 */
-function buildWechatArticleHtml(data: PreviewData): string {
-  const digestHtml = data.digest
-    ? `<section style="margin:14px 0 0;padding:12px 14px;background:#f8fafc;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;color:#475569;font-size:14px;line-height:1.8;">${data.digest}</section>`
-    : "";
-
-  const year = new Date().getFullYear();
-  const author = data.author || "Gitd 社区";
-
-  // 专业版权信息块
-  const copyrightBlock = `
-  <section style="margin:40px 0 0;">
-    <section style="height:1px;background:#cbd5e1;margin:0 0 24px;"></section>
-    <section style="padding:22px 20px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;">
-      <section style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#1e293b;color:#ffffff;font-size:11px;font-weight:700;">&copy;</span>
-        <span style="font-size:15px;font-weight:600;color:#1e293b;letter-spacing:0.3px;">内容与版权声明</span>
-      </section>
-      <section style="font-size:13px;line-height:2;color:#475569;">
-        <p style="margin:0 0 4px;">本文由 <strong style="color:#2563eb;">Gitd 社区</strong> 进行选题、整理与编辑，部分内容由 AI 辅助生成，并已进行人工校对。</p>
-        <p style="margin:0 0 4px;">作者 / 编辑：<strong style="color:#1e293b;">${author}</strong>。&copy; ${year} Gitd 社区，排版与整理版权归 Gitd 社区所有。</p>
-        <p style="margin:0;">转载请注明来源「Gitd 社区」；如涉及版权或署名问题，请联系我们修正。</p>
-      </section>
-    </section>
-    <section style="margin:14px 0 0;text-align:center;color:#94a3b8;font-size:12px;line-height:1.7;letter-spacing:0.2px;">
-      排版工具 · Gitd 社区 内容同步平台
-    </section>
-  </section>`.trim();
-
-  return `
-<section style="max-width:677px;margin:0 auto;padding:0 0 8px;background:#ffffff;color:#1f2937;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif;">
-  <section style="padding:8px 0 18px;border-bottom:1px solid #e5e7eb;margin-bottom:22px;">
-    <h1 style="margin:0 0 12px;font-size:24px;line-height:1.45;font-weight:700;color:#111827;letter-spacing:0.2px;">${data.title}</h1>
-    <section style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:13px;line-height:1.6;">
-      <span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#eff6ff;color:#2563eb;font-weight:500;">公众号精选</span>
-      <span>${author}</span>
-    </section>
-    ${digestHtml}
-  </section>
-  <section style="font-size:15px;line-height:1.9;color:#1f2937;">
-${data.content}
-  </section>
-  ${copyrightBlock}
-</section>`.trim();
 }
 
 /** 从输入中解析帖子 ID，支持纯 ID 与帖子链接 */
@@ -193,6 +167,7 @@ export default function WeChatSyncPage() {
   // 手动同步
   const [syncInput, setSyncInput] = useState("");
   const [syncing, setSyncing] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<WechatTemplate>("technical");
 
   // 行操作
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -273,7 +248,7 @@ export default function WeChatSyncPage() {
       setSelectedPostId(postId);
       const res = await adminFetch("/api/wechat/sync", {
         method: "POST",
-        body: JSON.stringify({ postId }),
+        body: JSON.stringify({ postId, template: selectedTemplate }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -348,7 +323,7 @@ export default function WeChatSyncPage() {
       setPreviewLoading(true);
       const res = await adminFetch("/api/wechat/preview", {
         method: "POST",
-        body: JSON.stringify({ postId: record.postId }),
+        body: JSON.stringify({ postId: record.postId, template: selectedTemplate }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -357,8 +332,10 @@ export default function WeChatSyncPage() {
       setPreviewData({
         title: data.title,
         content: data.content,
+        fullContent: data.fullContent,
         digest: data.digest,
         author: data.author,
+        template: data.template,
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "获取内容失败");
@@ -371,8 +348,8 @@ export default function WeChatSyncPage() {
   // 复制内容到剪贴板（以 text/html 格式写入，公众号编辑器粘贴时保留格式）
   async function handleCopyContent() {
     if (!previewData) return;
-    // 构建完整的公众号图文 HTML（标题 + 摘要 + 正文 + 统一排版容器）
-    const fullHtml = buildWechatArticleHtml(previewData);
+    // 后端已按当前模板生成完整的公众号图文 HTML
+    const fullHtml = previewData.fullContent || previewData.content;
     // 纯文本备用（去掉标签）
     const plainText = `${previewData.title}\n\n${previewData.digest || ""}`;
 
@@ -593,6 +570,31 @@ export default function WeChatSyncPage() {
             }
           />
           <CardBody>
+            <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              {WECHAT_TEMPLATES.map((template) => {
+                const active = selectedTemplate === template.value;
+                return (
+                  <button
+                    key={template.value}
+                    type="button"
+                    onClick={() => setSelectedTemplate(template.value)}
+                    className={`text-left rounded-lg border px-4 py-3 transition-colors ${
+                      active
+                        ? "border-brand-500 bg-brand-50 ring-1 ring-brand-200"
+                        : "border-gray-200 bg-white hover:border-brand-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {template.label}
+                      </span>
+                      {active && <Badge color="blue">当前</Badge>}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">{template.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Input
                 type="text"
@@ -913,6 +915,12 @@ export default function WeChatSyncPage() {
                     <span className="text-gray-500">作者：</span>
                     <span className="font-medium text-gray-900">{previewData.author}</span>
                   </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-500">模板：</span>
+                    <span className="font-medium text-gray-900">
+                      {WECHAT_TEMPLATES.find((item) => item.value === previewData.template)?.label || "技术风格"}
+                    </span>
+                  </div>
                   {previewData.digest && (
                     <div className="col-span-2">
                       <span className="text-gray-500">摘要：</span>
@@ -929,7 +937,9 @@ export default function WeChatSyncPage() {
               </div>
               <div
                 className="rounded-lg border border-gray-200 p-4 bg-gray-50 overflow-x-auto select-text cursor-text"
-                dangerouslySetInnerHTML={{ __html: previewData.content }}
+                dangerouslySetInnerHTML={{
+                  __html: previewData.fullContent || previewData.content,
+                }}
               />
 
               {/* HTML 源码 */}
@@ -938,7 +948,7 @@ export default function WeChatSyncPage() {
                   查看 HTML 源码（如粘贴后格式异常，可复制源码到公众号编辑器「源码模式」）
                 </summary>
                 <pre className="mt-2 p-3 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-x-auto max-h-48 select-text cursor-text">
-                  {previewData.content}
+                  {previewData.fullContent || previewData.content}
                 </pre>
               </details>
             </div>
