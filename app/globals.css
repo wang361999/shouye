@@ -135,6 +135,15 @@ body {
 .markdown-body p, .markdown-body li { word-break: break-word; overflow-wrap: anywhere; }
 .markdown-body a { word-break: break-all; }
 
+@media (max-width: 640px) {
+  .markdown-body { font-size: 13px; }
+  .markdown-body h1 { font-size: 1.2rem; line-height: 1.35; margin: 0.75rem 0; }
+  .markdown-body h2 { font-size: 1.08rem; line-height: 1.4; margin: 0.7rem 0; }
+  .markdown-body h3 { font-size: 1rem; line-height: 1.45; margin: 0.55rem 0; }
+  .markdown-body p { line-height: 1.65; margin: 0.45rem 0; }
+  .markdown-body blockquote { padding-left: 0.75rem; margin: 0.45rem 0; }
+}
+
 /* ============ Animations ============ */
 @keyframes dropdown {
   from { opacity: 0; transform: translateY(-4px); }

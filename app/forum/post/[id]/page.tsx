@@ -309,7 +309,7 @@ export default function PostDetailPage({
       </Link>
 
       {/* 帖子标题 */}
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+      <h1 className="text-[21px] sm:text-3xl font-bold leading-[1.32] text-gray-900 mb-3">
         {post.isPinned && (
           <span className="text-red-500 mr-2">📌</span>
         )}
@@ -373,7 +373,7 @@ export default function PostDetailPage({
       <hr className="border-gray-200 mb-6" />
 
       {/* 帖子正文 - Markdown 渲染（统一代码块样式：macOS 风格 + 语言标签 + 复制按钮） */}
-      <MarkdownRenderer content={post.content} className="mb-6" />
+      <MarkdownRenderer content={post.content} className="mb-6 text-[13px] sm:text-base" />
 
       {/* 分割线 */}
       <hr className="border-gray-200 mb-6" />
