@@ -327,11 +327,11 @@ export default function PostDetailPage({
           <ReputationBadge reputation={post.author.reputation} badge={post.author.badge} size="xs" />
         )}
         <span>·</span>
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[11px] sm:text-sm font-medium">
           {post.category.name}
         </span>
         {/* 帖子类型标识 */}
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] sm:text-sm font-medium border ${
           isQuestion
             ? 'bg-green-50 text-green-700 border-green-200'
             : 'bg-gray-50 text-gray-600 border-gray-200'
@@ -341,7 +341,7 @@ export default function PostDetailPage({
 
         {/* AI 创作标识 */}
         {post.isAIGenerated && (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border bg-violet-50 text-violet-700 border-violet-200">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] sm:text-sm font-medium border bg-violet-50 text-violet-700 border-violet-200">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
@@ -361,7 +361,7 @@ export default function PostDetailPage({
             <Link
               key={tag.id}
               href={`/forum?tag=${encodeURIComponent(tag.slug)}`}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] sm:text-sm font-medium bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
             >
               🏷️ {tag.name}
             </Link>
@@ -383,7 +383,7 @@ export default function PostDetailPage({
         {/* 点赞 */}
         <button
           onClick={handleLike}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border transition-colors ${
+          className={`inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-base font-medium rounded-lg border transition-colors ${
             liked
               ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
               : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -399,7 +399,7 @@ export default function PostDetailPage({
               behavior: 'smooth',
             });
           }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-base font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
         >
           💬 {isQuestion ? '回答' : '评论'}({post.commentCount})
         </button>
@@ -407,7 +407,7 @@ export default function PostDetailPage({
         {/* 收藏 */}
         <button
           onClick={handleFavorite}
-          className={`inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border transition-colors ${
+          className={`inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-base font-medium rounded-lg border transition-colors ${
             favorited
               ? 'bg-yellow-50 text-yellow-600 border-yellow-200 hover:bg-yellow-100'
               : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -419,7 +419,7 @@ export default function PostDetailPage({
         {/* 分享 */}
         <button
           onClick={handleShare}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-base font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
         >
           🔗 分享
         </button>
@@ -433,7 +433,7 @@ export default function PostDetailPage({
         {user && post.author.id !== user.id && (
           <button
             onClick={() => setShowReportModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-400 hover:text-orange-500 hover:border-orange-200 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-base font-medium rounded-lg border border-gray-200 bg-white text-gray-400 hover:text-orange-500 hover:border-orange-200 transition-colors"
           >
             🚩 举报
           </button>
@@ -444,13 +444,13 @@ export default function PostDetailPage({
           <>
             <Link
               href={`/forum/post/${id}/edit`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-base font-medium rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
             >
               ✏️ 编辑
             </Link>
             <button
               onClick={handleDelete}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-[13px] sm:text-base font-medium rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
             >
               🗑️ 删除
             </button>
@@ -516,7 +516,7 @@ function ReportForm({ onSubmit, onCancel }: { onSubmit: (reason: string, descrip
           <button
             key={r.value}
             onClick={() => setReason(r.value)}
-            className={`flex items-center gap-2 px-3 py-2.5 text-[13px] sm:text-sm font-medium rounded-lg border transition-colors text-left ${
+            className={`flex items-center gap-2 px-3 py-2.5 text-[13px] sm:text-base font-medium rounded-lg border transition-colors text-left ${
               reason === r.value
                 ? "bg-orange-50 text-orange-600 border-orange-300"
                 : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
@@ -537,14 +537,14 @@ function ReportForm({ onSubmit, onCancel }: { onSubmit: (reason: string, descrip
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="px-4 py-2 text-[13px] sm:text-sm font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 text-[13px] sm:text-base font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
         >
           取消
         </button>
         <button
           onClick={() => reason && onSubmit(reason, description)}
           disabled={!reason}
-          className={`px-4 py-2 text-[13px] sm:text-sm font-medium rounded-lg transition-colors ${
+          className={`px-4 py-2 text-[13px] sm:text-base font-medium rounded-lg transition-colors ${
             reason
               ? "text-white bg-orange-500 hover:bg-orange-600"
               : "text-gray-300 bg-gray-200 cursor-not-allowed"

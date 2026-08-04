@@ -1,0 +1,81 @@
+name: Auto category bots
+
+on:
+  schedule:
+    # 每天 4 次（UTC 02:00 / 08:00 / 14:00 / 20:00，即北京时间 10:00 / 16:00 / 22:00 / 04:00）
+    - cron: '0 2,8,14,20 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "dry-run 预览（只生成不发布）"
+        required: false
+        default: 'false'
+      force:
+        description: "强制执行"
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-category-bots
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check schedule and config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+    steps:
+      - name: Check if it's time to run
+        id: check
+        run: |
+          FORCE="${{ github.event.inputs.force || 'false' }}"
+          if [ "$FORCE" = "true" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$SITE_URL" ]; then
+            echo "SITE_URL 未配置，跳过"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+
+  post:
+    name: Generate and publish posts
+    needs: check
+    if: needs.check.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+      AI_MODEL: gemini-3.6-flash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate and publish posts
+        run: |
+          if [ "${{ github.event.inputs.dry_run || 'false' }}" = "true" ]; then
+            node scripts/auto-category-bots.mjs --dry-run
+          else
+            node scripts/auto-category-bots.mjs
+          fi
