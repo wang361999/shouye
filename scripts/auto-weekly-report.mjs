@@ -12,6 +12,7 @@
 import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
 import {
   appendProfessionalFooter,
+  assertGeneratedPostQuality,
   normalizeTags,
   normalizeTitle,
 } from './lib/post-template.mjs';
@@ -147,6 +148,7 @@ ${hotPostList}
   parsed.content = appendProfessionalFooter(parsed.content, {
     discussionQuestion: '你希望下周周报重点关注哪些技术方向、工具或社区话题？欢迎留言补充。',
   });
+  assertGeneratedPostQuality(parsed);
 
   log(`周报生成完成：${parsed.title}`);
   return parsed;
@@ -155,6 +157,15 @@ ${hotPostList}
 // ===== 发布周报到论坛 =====
 async function publishReport(token, report) {
   log('发布周报到论坛...');
+  const content = appendProfessionalFooter(report.content, {
+    discussionQuestion: '你希望下周周报重点关注哪些技术方向、工具或社区话题？欢迎留言补充。',
+  });
+  const tags = normalizeTags(report.tags, ['周报', '社区动态']);
+  assertGeneratedPostQuality({
+    title: report.title,
+    content,
+    tags,
+  });
 
   const res = await siteFetch(`${SITE_URL}/api/forum/posts`, {
     method: 'POST',
@@ -164,11 +175,9 @@ async function publishReport(token, report) {
     },
     body: JSON.stringify({
       title: normalizeTitle(report.title),
-      content: appendProfessionalFooter(report.content, {
-        discussionQuestion: '你希望下周周报重点关注哪些技术方向、工具或社区话题？欢迎留言补充。',
-      }),
+      content,
       postType: report.postType || 'discussion',
-      tags: normalizeTags(report.tags, ['周报', '社区动态']),
+      tags,
       isAIGenerated: true,
       ...(AUTHOR_NAME && { authorName: AUTHOR_NAME }),
     }),

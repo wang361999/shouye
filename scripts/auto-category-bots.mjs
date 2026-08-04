@@ -17,6 +17,7 @@ import { callAI, checkAIHealth, siteFetch, robustJSONParse, extractPostFromText 
 import {
   appendProfessionalFooter,
   appendWechatOpenSourceFooter,
+  assertGeneratedPostQuality,
   buildProfessionalPromptRules,
   buildWechatOpenSourcePromptRules,
   normalizeTags,
@@ -318,6 +319,7 @@ ${promptRules}
           : appendProfessionalFooter(parsed.content, {
               discussionQuestion: bot.discussionQuestion,
             });
+        assertGeneratedPostQuality(parsed);
         log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
         return parsed;
       }
@@ -343,6 +345,7 @@ ${promptRules}
           : appendProfessionalFooter(fallback.content, {
               discussionQuestion: bot.discussionQuestion,
             });
+        assertGeneratedPostQuality(fallback);
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
         return fallback;
       }

@@ -11,6 +11,7 @@
 import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
 import {
   appendProfessionalFooter,
+  assertGeneratedPostQuality,
   normalizeTags,
   normalizeTitle,
 } from './lib/post-template.mjs';
@@ -223,6 +224,7 @@ ${categoryNames}
   parsed.content = appendProfessionalFooter(parsed.content, {
     discussionQuestion: '你希望社区接下来优先完善哪些内容或功能？欢迎在评论区留下建议。',
   });
+  assertGeneratedPostQuality(parsed);
 
   log(`公告生成完成：${parsed.title}`);
   return parsed;
@@ -248,6 +250,11 @@ async function publishAnnouncement(token, announcement, categories) {
     tags: normalizeTags(announcement.tags, ['公告', '社区动态']),
     isAIGenerated: true,
   };
+  assertGeneratedPostQuality({
+    title: body.title,
+    content: body.content,
+    tags: body.tags,
+  });
 
   if (AUTHOR_NAME) body.authorName = AUTHOR_NAME;
   if (categoryId) body.categoryId = categoryId;

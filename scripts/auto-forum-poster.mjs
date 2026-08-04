@@ -11,6 +11,7 @@
 import { callAI, checkAIHealth, siteFetch, robustJSONParse, extractPostFromText } from './lib/ai-client.mjs';
 import {
   appendProfessionalFooter,
+  assertGeneratedPostQuality,
   buildProfessionalPromptRules,
   normalizeTags,
   normalizeTitle,
@@ -246,6 +247,7 @@ ${professionalRules}
         parsed.content = appendProfessionalFooter(parsed.content, {
           discussionQuestion: '你在实践这个方案时遇到过哪些坑？欢迎把你的环境、报错和解决方式发出来，后续可以一起整理成更完整的教程。',
         });
+        assertGeneratedPostQuality(parsed);
         log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
         return parsed;
       }
@@ -267,6 +269,7 @@ ${professionalRules}
         fallback.content = appendProfessionalFooter(fallback.content, {
           discussionQuestion: '你在实践这个方案时遇到过哪些坑？欢迎把你的环境、报错和解决方式发出来，后续可以一起整理成更完整的教程。',
         });
+        assertGeneratedPostQuality(fallback);
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
         return fallback;
       }

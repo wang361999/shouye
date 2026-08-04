@@ -22,6 +22,68 @@ export function normalizeTitle(title, fallbackTitle) {
   return `${cleanTitle.slice(0, 77)}...`;
 }
 
+const HIGH_QUALITY_ACCURACY_RULES = `
+## 准确性与反编造要求（必须遵守）
+
+1. 不得编造不存在的 API、命令、配置项、版本特性、发布日期、性能数字、Star 数、公司案例或项目数据。
+2. 不确定的信息必须明确写“以官方文档/官方仓库为准”，不要把推测写成事实。
+3. 不能虚构链接。只有在你确定链接真实且稳定时才写 URL；否则不要写链接。
+4. 不要使用“最新数据显示”“官方表示”“业内统计”等无法核验的表述，除非上下文提供了明确来源。
+5. 代码示例必须使用稳定、常见、可解释的写法；不要编造库名、方法名或参数。
+6. 如果主题依赖特定版本，必须写清楚“请以当前版本文档为准”，不要强行给出未经确认的版本号。
+7. 宁可少写，也不要为了显得丰富而补虚假细节。
+8. 输出前自检：是否有无法确认的事实、是否有占位符、是否有未解释的命令、是否有夸大结论。`;
+
+export function validateGeneratedPostQuality({ title, content, tags = [], mode = 'forum' } = {}) {
+  const issues = [];
+  const cleanTitle = String(title || '').trim();
+  const cleanContent = String(content || '').trim();
+
+  if (cleanTitle.length < 8) issues.push('标题过短，信息量不足');
+  if (cleanTitle.length > 90) issues.push('标题过长，影响阅读和 SEO');
+  if (cleanContent.length < 500) issues.push('正文过短，达不到高质量自动发帖要求');
+
+  const forbiddenPatterns = [
+    { re: /作为\s*(一个)?\s*AI|我是\s*(一个)?\s*AI|身为\s*(一个)?\s*AI/i, msg: '出现 AI 自称' },
+    { re: /TODO|TBD|待补充|占位|示例链接|your[-_ ]?(api|token|key)|example\.com/i, msg: '出现占位符或示例占位内容' },
+    { re: /随便|大概就行|水文|凑字数|编一个/i, msg: '出现低质量或编造倾向表达' },
+    { re: /最新数据显示|权威数据显示|官方数据显示|业内统计显示|据统计[,，]?目前/g, msg: '出现无法核验的数据来源表述' },
+    { re: /神器|完美解决|颠覆性|必用|秒杀|吊打/g, msg: '出现夸张营销表达' },
+    { re: /https?:\/\/(localhost|127\.0\.0\.1|example\.com|your-domain|todo)/i, msg: '出现无效或占位链接' },
+  ];
+
+  for (const { re, msg } of forbiddenPatterns) {
+    if (re.test(cleanTitle) || re.test(cleanContent)) issues.push(msg);
+  }
+
+  const codeFenceCount = (cleanContent.match(/```/g) || []).length;
+  if (codeFenceCount % 2 !== 0) issues.push('Markdown 代码块未闭合');
+
+  const headings = cleanContent.match(/^##\s+/gm) || [];
+  if (mode !== 'short' && headings.length < 3) {
+    issues.push('正文结构不足，至少需要 3 个二级标题');
+  }
+
+  if (Array.isArray(tags) && tags.some((tag) => String(tag).trim().length > 20)) {
+    issues.push('标签过长');
+  }
+
+  return { ok: issues.length === 0, issues };
+}
+
+export function assertGeneratedPostQuality(post, options = {}) {
+  const result = validateGeneratedPostQuality({
+    title: post?.title,
+    content: post?.content,
+    tags: post?.tags,
+    mode: options.mode || 'forum',
+  });
+  if (!result.ok) {
+    throw new Error(`AI 生成内容质量校验失败：${result.issues.join('；')}`);
+  }
+  return post;
+}
+
 export function appendProfessionalFooter(content, options = {}) {
   const {
     discussionQuestion = '你在实际项目中遇到过类似问题吗？欢迎在评论区补充你的经验、方案或踩坑记录。',
@@ -53,6 +115,8 @@ export function buildProfessionalPromptRules({ mode = 'forum' } = {}) {
 6. 结尾必须有「总结」和「讨论」两个部分，引导用户评论补充。
 7. 技术内容要谨慎，不能编造不存在的 API、命令、版本特性。
 8. 标签要短、准确，优先使用技术名词或场景词。
+
+${HIGH_QUALITY_ACCURACY_RULES}
 `;
 
   if (mode === 'deep') {
@@ -131,6 +195,8 @@ export function buildWechatOpenSourcePromptRules({ topicKind = 'general' } = {})
 ## 微信公众号开源风模板要求
 
 整体风格参考微信公众号「开源风格」：清爽、克制、有社区感，像一篇可以直接同步到公众号的开源/技术精选文章。
+
+${HIGH_QUALITY_ACCURACY_RULES}
 
 ### 版式结构
 

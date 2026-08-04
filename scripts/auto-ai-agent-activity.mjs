@@ -15,6 +15,7 @@
 import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
 import {
   appendProfessionalFooter,
+  assertGeneratedPostQuality,
   normalizeTags,
   normalizeTitle,
 } from './lib/post-template.mjs';
@@ -260,6 +261,7 @@ ${topic}
     discussionQuestion: '你在类似场景下会怎么处理？欢迎分享不同工具、配置或团队实践。',
     includeAiNote: false,
   });
+  assertGeneratedPostQuality(parsed);
   return parsed;
 }
 
@@ -286,6 +288,11 @@ async function publishPost(token, postData, categories) {
   if (Array.isArray(postData.tags) && postData.tags.length > 0) {
     body.tags = normalizeTags(postData.tags, ['开发经验', '技术讨论']);
   }
+  assertGeneratedPostQuality({
+    title: body.title,
+    content: body.content,
+    tags: body.tags || postData.tags,
+  });
 
   const res = await siteFetch(`${SITE_URL}/api/forum/posts`, {
     method: 'POST',

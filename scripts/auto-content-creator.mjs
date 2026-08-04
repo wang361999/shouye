@@ -18,6 +18,7 @@
 import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
 import {
   appendProfessionalFooter,
+  assertGeneratedPostQuality,
   buildProfessionalPromptRules,
   normalizeTags,
   normalizeTitle,
@@ -305,6 +306,7 @@ Markdown 格式的完整文章正文
   parsed.content = appendProfessionalFooter(parsed.content, {
     discussionQuestion: '你在真实项目里是怎么处理类似问题的？欢迎补充你的技术选型、踩坑经历或不同方案。',
   });
+  assertGeneratedPostQuality(parsed);
 
   log(`文章生成完成，标题：${parsed.title}，内容长度：${parsed.content.length}`);
   return parsed;
@@ -337,6 +339,11 @@ async function publishPost(token, article, categories) {
   if (Array.isArray(article.tags) && article.tags.length > 0) {
     body.tags = normalizeTags(article.tags, [article.postType || '技术文章']);
   }
+  assertGeneratedPostQuality({
+    title: body.title,
+    content: body.content,
+    tags: body.tags || article.tags,
+  });
 
   log(`发布文章到 ${SITE_URL}/api/forum/posts...`);
 
