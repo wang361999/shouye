@@ -231,7 +231,8 @@ async function fetchCategories(token) {
   }
 
   const data = await res.json();
-  return Array.isArray(data.categories) ? data.categories : [];
+  // API 直接返回数组，兼容 { categories: [...] } 格式
+  return Array.isArray(data) ? data : (Array.isArray(data.categories) ? data.categories : []);
 }
 
 // 按 slug 查找分类 id，找不到时回退到名称匹配
