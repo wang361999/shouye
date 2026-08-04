@@ -5,7 +5,12 @@ import { checkDbOr503 } from '@/lib/db-check';
 import type { InValue } from '@libsql/client/http';
 import { getUserFromRequest } from '@/lib/auth';
 
-const QUERY_TIMEOUT = 6000;
+const QUERY_TIMEOUT = 5000;
+
+// 模块级缓存：热门标签列表（无搜索条件时），60 秒 TTL
+let cachedTags: unknown[] | null = null;
+let tagsCacheExpiry = 0;
+const TAGS_CACHE_TTL = 60_000;
 
 // ============ 生成唯一 slug ============
 // 将 name 转小写、空格转 -，如 slug 已存在则追加随机后缀
@@ -34,6 +39,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim() || undefined;
+
+    // 无搜索条件时使用缓存
+    if (!search) {
+      const now = Date.now();
+      if (cachedTags && now < tagsCacheExpiry) {
+        return NextResponse.json(cachedTags, {
+          headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+        });
+      }
+    }
 
     let db;
     const dbError = checkDbOr503();
@@ -86,6 +101,12 @@ export async function GET(request: NextRequest) {
       postCount: Number(row.post_count) || 0,
       createdAt: row.created_at,
     }));
+
+    // 无搜索条件时写入缓存
+    if (!search) {
+      cachedTags = tags;
+      tagsCacheExpiry = Date.now() + TAGS_CACHE_TTL;
+    }
 
     return NextResponse.json(tags, {
       headers: {
@@ -155,6 +176,9 @@ export async function POST(request: NextRequest) {
         slug,
       },
     });
+
+    // 清除标签缓存
+    cachedTags = null;
 
     return NextResponse.json(tag, { status: 201 });
   } catch (error) {

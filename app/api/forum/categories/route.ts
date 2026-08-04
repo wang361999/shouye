@@ -8,8 +8,20 @@ import { getCategoryDisplayName } from '@/lib/utils';
 // 分类数据需要即时可见（创建后立即显示），禁用 ISR 缓存
 export const dynamic = 'force-dynamic';
 
+// 模块级缓存（60 秒 TTL）—— 分类变更频率低，减少数据库查询
+let cachedCategories: unknown[] | null = null;
+let cacheExpiry = 0;
+const CACHE_TTL = 60_000;
+
 // ============ GET /api/forum/categories - 获取分类列表 ============
 export async function GET() {
+  const now = Date.now();
+  if (cachedCategories && now < cacheExpiry) {
+    return NextResponse.json(cachedCategories, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+    });
+  }
+
   let db;
   const dbError = checkDbOr503();
   if (dbError) return dbError;
@@ -19,29 +31,48 @@ export async function GET() {
     return NextResponse.json([]);
   }
 
-  const rows = await queryWithTimeout(
-    db,
-    `SELECT c.id, c.name, c.slug, c.icon, c.desc, c.sort_order,
-            COUNT(p.id) as post_count
-     FROM Category c
-     LEFT JOIN Post p ON c.id = p.category_id AND p.status = 'PUBLISHED'
-     GROUP BY c.id
-     ORDER BY c.sort_order ASC`,
-    [],
-    6000,
-  );
+  try {
+    const rows = await queryWithTimeout(
+      db,
+      `SELECT c.id, c.name, c.slug, c.icon, c.desc, c.sort_order,
+              COUNT(p.id) as post_count
+       FROM Category c
+       LEFT JOIN Post p ON c.id = p.category_id AND p.status = 'PUBLISHED'
+       GROUP BY c.id
+       ORDER BY c.sort_order ASC`,
+      [],
+      5000,
+    );
 
-  const result = (rows as Record<string, unknown>[]).map((cat) => ({
-    id: cat.id,
-    name: getCategoryDisplayName(cat.name as string, cat.slug as string),
-    slug: cat.slug,
-    icon: cat.icon,
-    desc: cat.desc,
-    sortOrder: Number(cat.sort_order) || 0,
-    postCount: Number(cat.post_count) || 0,
-  }));
+    const result = (rows as Record<string, unknown>[]).map((cat) => ({
+      id: cat.id,
+      name: getCategoryDisplayName(cat.name as string, cat.slug as string),
+      slug: cat.slug,
+      icon: cat.icon,
+      desc: cat.desc,
+      sortOrder: Number(cat.sort_order) || 0,
+      postCount: Number(cat.post_count) || 0,
+    }));
 
-  return NextResponse.json(result);
+    cachedCategories = result;
+    cacheExpiry = now + CACHE_TTL;
+
+    return NextResponse.json(result, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+    });
+  } catch (err) {
+    // 查询失败时返回缓存数据（如果有）
+    if (cachedCategories) {
+      return NextResponse.json(cachedCategories, {
+        headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' },
+      });
+    }
+    console.error('[CATEGORIES GET ERROR]', err instanceof Error ? err.message : err);
+    return NextResponse.json(
+      { error: '获取分类失败', hint: '数据库查询超时，请稍后重试' },
+      { status: 503 }
+    );
+  }
 }
 
 // ============ POST /api/forum/categories - 新增分类（管理员） ============
@@ -77,6 +108,9 @@ export async function POST(request: NextRequest) {
         sortOrder: typeof sortOrder === 'number' ? sortOrder : 0,
       },
     });
+
+    // 清除缓存
+    cachedCategories = null;
 
     return NextResponse.json(category, { status: 201 });
   } catch (error) {
@@ -135,6 +169,9 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    // 清除缓存
+    cachedCategories = null;
+
     return NextResponse.json(category);
   } catch (error) {
     console.error('[CATEGORY UPDATE ERROR]', error);
@@ -181,6 +218,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     await prisma.category.delete({ where: { id } });
+
+    // 清除缓存
+    cachedCategories = null;
 
     return NextResponse.json({ message: '分类已删除' });
   } catch (error) {

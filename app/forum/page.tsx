@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
@@ -8,6 +8,7 @@ import PostList from '@/components/forum/PostList';
 import Sidebar from '@/components/forum/Sidebar';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { fetchWithRetry } from '@/lib/fetch-retry';
 
 interface Category {
   id: string;
@@ -40,7 +41,26 @@ interface ForumStats {
   todayPosts: number;
 }
 
+interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+  postCount: number;
+}
+
 type TabType = 'all' | 'discussion' | 'question' | 'following';
+
+// Bootstrap 数据接口
+interface BootstrapData {
+  categories: Category[];
+  stats: ForumStats;
+  hotPosts: Post[];
+  tags: Tag[];
+}
+
+// localStorage 缓存 key
+const BOOTSTRAP_CACHE_KEY = 'forum_bootstrap_cache';
+const BOOTSTRAP_CACHE_TTL = 60_000; // 60 秒
 
 // SVG 图标
 const PlusIcon = ({ className }: { className?: string }) => (
@@ -75,6 +95,7 @@ export default function ForumPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [retryCount, setRetryCount] = useState(0);
 
   const tagFilter = searchParams.get('tag') || '';
 
@@ -84,16 +105,47 @@ export default function ForumPage() {
     totalUsers: 0,
     todayPosts: 0,
   });
+  const [sidebarTags, setSidebarTags] = useState<Tag[]>([]);
+  const [bootstrapLoaded, setBootstrapLoaded] = useState(false);
 
-  // 获取分类列表
+  // 防止重复请求的 ref
+  const bootstrapFetchedRef = useRef(false);
+
+  // ============ 获取 Bootstrap 数据（分类+统计+热门帖+标签，单次请求）============
   useEffect(() => {
-    const fetchCategories = async () => {
+    if (bootstrapFetchedRef.current) return;
+    bootstrapFetchedRef.current = true;
+
+    const fetchBootstrap = async () => {
+      // 1. 先尝试从 localStorage 读取缓存，实现秒开
       try {
-        const res = await fetch('/api/forum/categories');
+        const cached = localStorage.getItem(BOOTSTRAP_CACHE_KEY);
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < BOOTSTRAP_CACHE_TTL) {
+            setCategories(data.categories || []);
+            setStats(data.stats || { totalPosts: 0, totalUsers: 0, todayPosts: 0 });
+            setHotPosts(data.hotPosts || []);
+            setSidebarTags(data.tags || []);
+            setBootstrapLoaded(true);
+          }
+        }
+      } catch {
+        // localStorage 读取失败，忽略
+      }
+
+      // 2. 发起 API 请求获取最新数据
+      try {
+        const res = await fetchWithRetry('/api/forum/bootstrap', {
+          timeout: 10000,
+          maxRetries: 2,
+        });
+
         if (res.ok) {
-          const data = await res.json();
+          const data: BootstrapData = await res.json();
+
           setCategories(
-            data.map((cat: any) => ({
+            (data.categories || []).map((cat) => ({
               id: String(cat.id),
               name: cat.name,
               slug: cat.slug || '',
@@ -101,40 +153,72 @@ export default function ForumPage() {
               postCount: cat.postCount || 0,
             })),
           );
-        }
-      } catch (err) {
-        console.error('获取分类失败:', err);
-      }
-    };
-    fetchCategories();
-  }, []);
 
-  // 获取统计数据
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch('/api/stats', {
-          signal: AbortSignal.timeout(8000),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setStats((prev) => ({
-            totalPosts: prev.totalPosts,
-            totalUsers: data.userCount ?? 0,
-            todayPosts: data.todayPostCount ?? 0,
+          setStats(data.stats || { totalPosts: 0, totalUsers: 0, todayPosts: 0 });
+
+          // 格式化热门帖子
+          const formattedHotPosts: Post[] = (data.hotPosts || []).map((p: any) => ({
+            id: String(p.id),
+            title: p.title,
+            content: p.summary || p.content,
+            author: { username: p.author?.username || '匿名', avatar: p.author?.avatar || null },
+            category: p.category?.slug || '',
+            viewCount: p.viewCount || 0,
+            likeCount: p.likeCount || 0,
+            commentCount: p.commentCount || 0,
+            isPinned: p.isPinned,
+            isEssence: p.isEssence,
+            createdAt: p.createdAt,
+            postType: p.postType,
+            isAIGenerated: p.isAIGenerated,
           }));
+          setHotPosts(formattedHotPosts);
+
+          setSidebarTags(
+            (data.tags || []).map((t: any) => ({
+              id: String(t.id),
+              name: t.name,
+              slug: t.slug,
+              postCount: t.postCount || 0,
+            })),
+          );
+
+          setBootstrapLoaded(true);
+
+          // 写入 localStorage 缓存
+          try {
+            localStorage.setItem(
+              BOOTSTRAP_CACHE_KEY,
+              JSON.stringify({
+                data: {
+                  categories: data.categories,
+                  stats: data.stats,
+                  hotPosts: formattedHotPosts,
+                  tags: data.tags,
+                },
+                timestamp: Date.now(),
+              }),
+            );
+          } catch {
+            // localStorage 写入失败（可能空间不足），忽略
+          }
         }
       } catch (err) {
-        console.error('获取统计数据失败:', err);
+        console.error('Bootstrap 请求失败:', err);
+        // Bootstrap 失败不影响帖子列表加载，使用空值
+        setBootstrapLoaded(true);
       }
     };
-    fetchStats();
+
+    fetchBootstrap();
   }, []);
 
-  // 获取帖子列表
+  // ============ 获取帖子列表（带重试）============
   useEffect(() => {
     const fetchPosts = async () => {
       setLoading(true);
+      setLoadError(false);
+
       try {
         const params = new URLSearchParams({
           page: String(currentPage),
@@ -159,9 +243,11 @@ export default function ForumPage() {
           params.set('postType', 'discussion');
         }
 
-        const res = await fetch(`${url}?${params}`, {
-          signal: AbortSignal.timeout(8000),
+        const res = await fetchWithRetry(`${url}?${params}`, {
+          timeout: 10000,
+          maxRetries: 2,
         });
+
         if (res.ok) {
           const data = await res.json();
           const formattedPosts: Post[] = (data.posts || []).map((p: any) => ({
@@ -187,6 +273,7 @@ export default function ForumPage() {
             totalPosts: data.total || prev.totalPosts,
           }));
           setLoadError(false);
+          setRetryCount(0);
         } else if (res.status === 401 && activeTab === 'following') {
           setPosts([]);
           setTotalPages(1);
@@ -210,15 +297,30 @@ export default function ForumPage() {
     fetchPosts();
   }, [currentPage, currentCategory, searchQuery, tagFilter, activeTab]);
 
-  // 获取热门帖子
-  const fetchHotPosts = useCallback(async () => {
-    try {
-      const res = await fetch('/api/forum/posts?limit=5&sort=hot', {
-        signal: AbortSignal.timeout(8000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const formatted: Post[] = data.posts.map((p: any) => ({
+  // 手动重试
+  const handleRetry = useCallback(() => {
+    setRetryCount((c) => c + 1);
+    setLoading(true);
+    setLoadError(false);
+    // 触发重新获取
+    const params = new URLSearchParams({ page: String(currentPage), limit: '20' });
+    if (currentCategory !== 'all') params.set('category', currentCategory);
+    if (searchQuery) params.set('search', searchQuery);
+    if (tagFilter) params.set('tag', tagFilter);
+
+    let url = '/api/forum/posts';
+    if (activeTab === 'following') {
+      url = '/api/forum/feed';
+    } else if (activeTab === 'question') {
+      params.set('postType', 'question');
+    } else if (activeTab === 'discussion') {
+      params.set('postType', 'discussion');
+    }
+
+    fetchWithRetry(`${url}?${params}`, { timeout: 10000, maxRetries: 3 })
+      .then((res) => res.json())
+      .then((data) => {
+        const formattedPosts: Post[] = (data.posts || []).map((p: any) => ({
           id: String(p.id),
           title: p.title,
           content: p.summary || p.content,
@@ -230,17 +332,21 @@ export default function ForumPage() {
           isPinned: p.isPinned,
           isEssence: p.isEssence,
           createdAt: p.createdAt,
+          postType: p.postType,
+          isAIGenerated: p.isAIGenerated,
+          tags: p.tags,
         }));
-        setHotPosts(formatted);
-      }
-    } catch (err) {
-      console.error('获取热门帖子失败:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchHotPosts();
-  }, [fetchHotPosts]);
+        setPosts(formattedPosts);
+        setTotalPages(data.totalPages || 1);
+        setLoadError(false);
+        setRetryCount(0);
+      })
+      .catch((err) => {
+        console.error('重试获取帖子失败:', err);
+        setLoadError(true);
+      })
+      .finally(() => setLoading(false));
+  }, [currentPage, currentCategory, searchQuery, tagFilter, activeTab]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -461,9 +567,11 @@ export default function ForumPage() {
                     <RefreshIcon className="w-6 h-6 text-red-400" />
                   </div>
                   <p className="text-sm text-gray-500 mb-1">数据加载超时</p>
-                  <p className="text-xs text-gray-400 mb-4">请检查网络后重试</p>
+                  <p className="text-xs text-gray-400 mb-4">
+                    {retryCount > 0 ? `已重试 ${retryCount} 次，请稍后再试` : '请检查网络后重试'}
+                  </p>
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={handleRetry}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
                   >
                     <RefreshIcon className="w-4 h-4" />
@@ -488,7 +596,7 @@ export default function ForumPage() {
             {/* 右侧侧边栏 */}
             <div className="w-full lg:w-1/3 lg:min-w-0">
               <div className="lg:sticky lg:top-16">
-                <Sidebar stats={stats} hotPosts={hotPosts} />
+                <Sidebar stats={stats} hotPosts={hotPosts} tags={sidebarTags} />
               </div>
             </div>
           </div>

@@ -33,6 +33,7 @@ interface SidebarProps {
     todayPosts: number;
   };
   hotPosts: Post[];
+  tags?: Tag[];
 }
 
 type TagsState =
@@ -108,10 +109,23 @@ const ToolIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export default function Sidebar({ stats, hotPosts }: SidebarProps) {
+export default function Sidebar({ stats, hotPosts, tags: propTags }: SidebarProps) {
   const [tagsState, setTagsState] = useState<TagsState>({ status: "loading" });
 
+  // 如果从 props 传入了 tags，直接使用，不发起 API 请求
   useEffect(() => {
+    if (propTags && propTags.length > 0) {
+      setTagsState({ status: "success", tags: propTags });
+    } else if (propTags && propTags.length === 0) {
+      setTagsState({ status: "success", tags: [] });
+    }
+  }, [propTags]);
+
+  // 仅当 props 没有传入 tags 时才自行获取
+  useEffect(() => {
+    // 如果 props 已提供 tags，跳过 API 请求
+    if (propTags !== undefined) return;
+
     const fetchTags = async () => {
       try {
         const res = await fetch("/api/forum/tags");
@@ -139,7 +153,7 @@ export default function Sidebar({ stats, hotPosts }: SidebarProps) {
       }
     };
     fetchTags();
-  }, []);
+  }, [propTags]);
 
   const tags = tagsState.status === "success" ? tagsState.tags : [];
 

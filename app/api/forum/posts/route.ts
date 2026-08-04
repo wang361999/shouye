@@ -6,7 +6,7 @@ import type { InValue } from '@libsql/client/http';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
-const QUERY_TIMEOUT = 8000;
+const QUERY_TIMEOUT = 5000;
 
 // ============ GET /api/forum/posts - 获取帖子列表 ============
 // 使用原生 SQL 替代 Prisma，支持分页/搜索/分类/排序/标签/类型过滤
@@ -102,54 +102,88 @@ export async function GET(request: NextRequest) {
     if (dbError) return dbError;
     const db = getDb();
 
-    // ---- 先查总数（顺序执行，避免 Promise.all 并发 HTTP 请求问题）----
-    let total = 0;
-    try {
-      const countRows = await queryWithTimeout(
-        db,
-        `SELECT COUNT(*) as total FROM Post p
-         LEFT JOIN Category c ON p.category_id = c.id
-         ${whereClause}`,
-        [...args],
-        QUERY_TIMEOUT,
-      );
-      total = Number((countRows as Record<string, unknown>[])[0]?.total) || 0;
-    } catch (countErr) {
-      console.error('[POSTS COUNT ERROR]', countErr instanceof Error ? countErr.message : countErr);
-      // 总数查询失败不影响列表返回，total 默认为 0
-    }
+    // 热门帖子模式：不需要总数，直接查列表，减少一次数据库查询
+    const skipCount = sort === 'hot';
 
-    // ---- 再查帖子列表 ----
-    let postRows: Record<string, unknown>[];
-    try {
-      const rows = await queryWithTimeout(
-        db,
-        `SELECT p.id, p.title, substr(p.content, 1, 200) as summary_content,
-                p.view_count, p.like_count, p.comment_count, p.is_pinned, p.is_essence,
-                p.created_at, p.post_type, p.author_name, p.status, p.is_ai_generated,
-                u.id as author_id, u.username as author_username, u.avatar as author_avatar,
-                c.id as cat_id, c.name as cat_name, c.slug as cat_slug
-         FROM Post p
-         LEFT JOIN User u ON p.author_id = u.id
-         LEFT JOIN Category c ON p.category_id = c.id
-         ${whereClause}
-         ORDER BY ${orderClause}
-         LIMIT ? OFFSET ?`,
-        [...args, limit, offset],
-        QUERY_TIMEOUT,
-      );
-      postRows = rows as Record<string, unknown>[];
-    } catch (listErr) {
-      const detail = listErr instanceof Error ? listErr.message : String(listErr);
-      console.error('[POSTS LIST QUERY ERROR]', detail);
-      return NextResponse.json(
-        {
-          error: '获取帖子列表失败',
-          detail,
-          hint: '数据库查询超时或失败，请稍后重试',
-        },
-        { status: 503 }
-      );
+    // ---- COUNT 和 LIST 并行执行（热门帖跳过 COUNT）----
+    let total = 0;
+    let postRows: Record<string, unknown>[] = [];
+
+    if (skipCount) {
+      // 热门帖子：仅查列表，跳过 COUNT
+      try {
+        const rows = await queryWithTimeout(
+          db,
+          `SELECT p.id, p.title, substr(p.content, 1, 200) as summary_content,
+                  p.view_count, p.like_count, p.comment_count, p.is_pinned, p.is_essence,
+                  p.created_at, p.post_type, p.author_name, p.status, p.is_ai_generated,
+                  u.id as author_id, u.username as author_username, u.avatar as author_avatar,
+                  c.id as cat_id, c.name as cat_name, c.slug as cat_slug
+           FROM Post p
+           LEFT JOIN User u ON p.author_id = u.id
+           LEFT JOIN Category c ON p.category_id = c.id
+           ${whereClause}
+           ORDER BY ${orderClause}
+           LIMIT ? OFFSET ?`,
+          [...args, limit, offset],
+          QUERY_TIMEOUT,
+        );
+        postRows = rows as Record<string, unknown>[];
+      } catch (listErr) {
+        const detail = listErr instanceof Error ? listErr.message : String(listErr);
+        console.error('[POSTS LIST QUERY ERROR]', detail);
+        return NextResponse.json(
+          { error: '获取帖子列表失败', detail, hint: '数据库查询超时或失败，请稍后重试' },
+          { status: 503 }
+        );
+      }
+    } else {
+      // 标准模式：COUNT 和 LIST 并行执行
+      const [countResult, listResult] = await Promise.allSettled([
+        queryWithTimeout(
+          db,
+          `SELECT COUNT(*) as total FROM Post p
+           LEFT JOIN Category c ON p.category_id = c.id
+           ${whereClause}`,
+          [...args],
+          QUERY_TIMEOUT,
+        ),
+        queryWithTimeout(
+          db,
+          `SELECT p.id, p.title, substr(p.content, 1, 200) as summary_content,
+                  p.view_count, p.like_count, p.comment_count, p.is_pinned, p.is_essence,
+                  p.created_at, p.post_type, p.author_name, p.status, p.is_ai_generated,
+                  u.id as author_id, u.username as author_username, u.avatar as author_avatar,
+                  c.id as cat_id, c.name as cat_name, c.slug as cat_slug
+           FROM Post p
+           LEFT JOIN User u ON p.author_id = u.id
+           LEFT JOIN Category c ON p.category_id = c.id
+           ${whereClause}
+           ORDER BY ${orderClause}
+           LIMIT ? OFFSET ?`,
+          [...args, limit, offset],
+          QUERY_TIMEOUT,
+        ),
+      ]);
+
+      // 处理 COUNT 结果
+      if (countResult.status === 'fulfilled') {
+        total = Number((countResult.value as Record<string, unknown>[])[0]?.total) || 0;
+      } else {
+        console.error('[POSTS COUNT ERROR]', countResult.reason?.message || countResult.reason);
+      }
+
+      // 处理 LIST 结果
+      if (listResult.status === 'fulfilled') {
+        postRows = listResult.value as Record<string, unknown>[];
+      } else {
+        const detail = listResult.reason instanceof Error ? listResult.reason.message : String(listResult.reason);
+        console.error('[POSTS LIST QUERY ERROR]', detail);
+        return NextResponse.json(
+          { error: '获取帖子列表失败', detail, hint: '数据库查询超时或失败，请稍后重试' },
+          { status: 503 }
+        );
+      }
     }
 
     // ---- 查询帖子标签（如果有帖子返回）----
