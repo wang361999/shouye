@@ -147,20 +147,20 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
         <div className={cn("absolute left-0 top-0 bottom-0 w-1", accentBar)} />
       )}
 
-      <div className="p-4 sm:p-5 pl-5 sm:pl-6">
+      <div className="p-3 sm:p-5 pl-4 sm:pl-6">
         {/* 顶部：用户信息 */}
-        <div className="flex items-center gap-2.5 mb-2">
+        <div className="flex items-center gap-2 sm:gap-2.5 mb-2">
           <UserAvatar
             username={post.author.username}
             avatar={post.author.avatar}
             size="sm"
-            className="!w-7 !h-7 !text-xs"
+            className="!w-6 !h-6 sm:!w-7 sm:!h-7 !text-[10px] sm:!text-xs"
           />
-          <span className="text-sm font-medium text-gray-700 truncate">
+          <span className="text-[11px] sm:text-sm font-medium text-gray-700 truncate">
             {post.author.username}
           </span>
-          <span className="text-gray-300 text-xs">·</span>
-          <span className="text-xs text-gray-400 shrink-0">
+          <span className="text-gray-300 text-[11px] sm:text-xs">·</span>
+          <span className="text-[11px] sm:text-xs text-gray-400 shrink-0">
             {formatTimeAgo(post.createdAt)}
           </span>
 
@@ -216,7 +216,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
 
         {/* 移动端标签行 */}
         <div className="flex sm:hidden flex-wrap items-center gap-1.5 mb-2">
-          <span className={cn("inline-flex items-center gap-1 text-xs font-medium", category.textClass)}>
+          <span className={cn("inline-flex items-center gap-1 text-[11px] font-medium", category.textClass)}>
             <span className={cn("w-1.5 h-1.5 rounded-full", category.dot)} />
             {category.label}
           </span>
@@ -255,7 +255,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
         </div>
 
         {/* 标题 */}
-        <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 mb-1.5 leading-snug">
+        <h3 className="text-[13px] sm:text-base font-semibold text-gray-900 mb-1.5 leading-snug">
           <Link
             href={`/forum/post/${post.id}`}
             className="hover:text-indigo-600 transition-colors"
@@ -265,7 +265,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
         </h3>
 
         {/* 正文预览 */}
-        <p className="text-sm text-gray-500 mb-3 leading-relaxed line-clamp-2">
+        <p className="text-[11px] sm:text-sm text-gray-500 mb-3 leading-relaxed line-clamp-2">
           {truncateText(stripMarkdown(post.content), 120)}
         </p>
 
@@ -277,7 +277,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
                 key={tag.id}
                 href={`/forum?tag=${encodeURIComponent(tag.slug)}`}
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-100 rounded hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-colors"
+                className="inline-flex items-center px-2 py-0.5 text-[11px] sm:text-xs font-medium text-gray-500 bg-gray-50 border border-gray-100 rounded hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-colors"
               >
                 {tag.name}
               </Link>
@@ -286,7 +286,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
         )}
 
         {/* 底部统计行 */}
-        <div className="flex items-center gap-3 sm:gap-4 text-xs text-gray-400">
+        <div className="flex items-center gap-3 sm:gap-4 text-[11px] sm:text-xs text-gray-400">
           <span className="inline-flex items-center gap-1">
             <EyeIcon className="w-3.5 h-3.5" />
             {post.viewCount}

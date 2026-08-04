@@ -380,9 +380,9 @@ export default function ForumPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Hero 头部 */}
       <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-indigo-900 text-white">
-        <Container className="py-6 sm:py-10">
+        <Container className="py-4 sm:py-10">
           {/* 面包屑 + 标题 */}
-          <div className="flex items-center gap-2 text-xs text-gray-400 mb-4">
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs text-gray-400 mb-3 sm:mb-4">
             <Link href="/" className="hover:text-white transition-colors">
               首页
             </Link>
@@ -390,12 +390,12 @@ export default function ForumPage() {
             <span className="text-gray-300">社区</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              <h1 className="text-[18px] sm:text-3xl font-bold tracking-tight">
                 开发者社区
               </h1>
-              <p className="text-sm text-gray-400 mt-1.5">
+              <p className="text-[11px] sm:text-sm text-gray-400 mt-1 sm:mt-1.5">
                 技术交流 · 工具反馈 · 经验分享
               </p>
             </div>
@@ -406,14 +406,14 @@ export default function ForumPage() {
                 <>
                   <Link
                     href="/forum/new?type=question"
-                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium text-white/90 border border-white/20 rounded-lg hover:bg-white/10 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 text-[11px] sm:text-sm font-medium text-white/90 border border-white/20 rounded-lg hover:bg-white/10 transition-colors"
                   >
                     <QuestionIcon className="w-4 h-4" />
                     <span className="hidden sm:inline">提问</span>
                   </Link>
                   <Link
                     href="/forum/new"
-                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 text-sm font-medium text-gray-900 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 text-[11px] sm:text-sm font-medium text-gray-900 bg-white rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <PlusIcon className="w-4 h-4" />
                     发帖
@@ -422,7 +422,7 @@ export default function ForumPage() {
               ) : (
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-900 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-[11px] sm:text-sm font-medium text-gray-900 bg-white rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   登录后发帖
                 </Link>
@@ -431,19 +431,19 @@ export default function ForumPage() {
           </div>
 
           {/* 统计数据条 */}
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-6 text-sm">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-4 sm:mt-6 text-[11px] sm:text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-xl sm:text-2xl font-bold text-white">{stats.totalPosts}</span>
+              <span className="text-[15px] sm:text-2xl font-bold text-white">{stats.totalPosts}</span>
               <span className="text-gray-400">帖子</span>
             </div>
-            <div className="w-px h-8 bg-white/10 hidden sm:block" />
+            <div className="w-px h-6 sm:h-8 bg-white/10 hidden sm:block" />
             <div className="flex items-center gap-2">
-              <span className="text-xl sm:text-2xl font-bold text-white">{stats.totalUsers}</span>
+              <span className="text-[15px] sm:text-2xl font-bold text-white">{stats.totalUsers}</span>
               <span className="text-gray-400">用户</span>
             </div>
-            <div className="w-px h-8 bg-white/10 hidden sm:block" />
+            <div className="w-px h-6 sm:h-8 bg-white/10 hidden sm:block" />
             <div className="flex items-center gap-2">
-              <span className="text-xl sm:text-2xl font-bold text-indigo-400">{stats.todayPosts}</span>
+              <span className="text-[15px] sm:text-2xl font-bold text-indigo-400">{stats.todayPosts}</span>
               <span className="text-gray-400">今日新增</span>
             </div>
           </div>
@@ -459,7 +459,7 @@ export default function ForumPage() {
                 key={tab.key}
                 onClick={() => handleTabChange(tab.key)}
                 className={cn(
-                  "relative px-4 py-3.5 text-sm font-medium whitespace-nowrap transition-colors",
+                  "relative px-4 py-3 sm:py-3.5 text-[13px] sm:text-sm font-medium whitespace-nowrap transition-colors",
                   activeTab === tab.key
                     ? "text-gray-900 dark:text-white"
                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200",

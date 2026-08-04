@@ -69,6 +69,16 @@ function formatNumber(value: number) {
   return value.toLocaleString();
 }
 
+/** Fisher-Yates 随机打乱，返回新数组 */
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function getPostSource(post?: CommunityPost | null) {
   if (!post) return "社区精选";
   if (post.category) return getCategoryDisplayName(post.category.name, post.category.slug);
@@ -142,7 +152,8 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
   const projects = data?.collabProjects ?? [];
   const tools = data?.featuredTools ?? [];
   const leadPost = latestPosts[0] ?? hotPosts[0] ?? null;
-  const discussionPosts = (hotPosts.length > 0 ? hotPosts : latestPosts).filter((post) => post.id !== leadPost?.id).slice(0, 2);
+  const discussionPosts = shuffle((hotPosts.length > 0 ? hotPosts : latestPosts).filter((post) => post.id !== leadPost?.id)).slice(0, 5);
+  const randomTools = shuffle(tools).slice(0, 4);
   const challengeProject = projects[0] ?? null;
   const heatScore = Math.min(99, Math.max(36, stats.todayPostCount * 6 + discussionPosts.length * 8 + projects.length * 5));
 
@@ -277,7 +288,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
         </div>
         <div className="space-y-2">
           {loading
-            ? Array.from({ length: 2 }).map((_, index) => (
+            ? Array.from({ length: 5 }).map((_, index) => (
                 <div key={index} className="h-16 animate-pulse rounded-xl border border-slate-200 bg-white" />
               ))
             : discussionPosts.map((post, index) => (
@@ -321,14 +332,14 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
         </div>
       </section>
 
-      {tools.length > 0 && (
+      {randomTools.length > 0 && (
         <section className="mt-4 px-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[15px] font-extrabold leading-[22px] text-slate-950">工具实践</h2>
             <Link href="/tools" className="text-[11px] font-semibold leading-4 text-blue-600">工具箱</Link>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {tools.slice(0, 2).map((tool) => (
+            {randomTools.map((tool) => (
               <Link key={tool.id} href={`/tools/${tool.id}`} className="rounded-2xl border border-slate-200 bg-white p-3">
                 <div className="mb-2 text-[11px] font-bold leading-4 text-blue-600">{tool.category || "开发工具"}</div>
                 <h3 className="line-clamp-1 text-[13px] font-extrabold leading-5 text-slate-950">{tool.name}</h3>
