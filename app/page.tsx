@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import prisma from '@/lib/prisma';
 import CommunityHomeClient from '@/components/home/CommunityHomeClient';
+import MobileHomeClient from '@/components/home/MobileHomeClient';
 
 // 首页 ISR 缓存 10 分钟，大幅减少 SSR CPU 消耗
 // 站点设置变更后可通过 revalidatePath 主动刷新
@@ -8,6 +10,15 @@ export const revalidate = 600;
 
 const DEFAULT_SITE_NAME = 'Gitd';
 const DEFAULT_SITE_DESC = '开发者交流社区';
+
+function isMobileRequest() {
+  const requestHeaders = headers();
+  const userAgent = requestHeaders.get('user-agent') || '';
+  const mobileHint = requestHeaders.get('sec-ch-ua-mobile') || '';
+
+  if (mobileHint === '?1') return true;
+  return /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(userAgent);
+}
 
 /**
  * 带超时的站点设置查询（3 秒超时，降级返回默认值）
@@ -50,7 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description: `${siteDescription}。技术交流、工具分享、开源协作、AI 辅助开发，连接开发者共建工具生态。`,
-    keywords: [siteName, '开发者社区', '技术交流', '开源项目', '代码分享', '在线工具', 'AI开发', 'GitHub协作', '开发者工具'],
+    keywords: [siteName, '开发者社区', '技术交流', '开源项目', '代码分享', '在线工具', 'AI开发', '开发者协作平台', '开发者工具'],
     alternates: {
       canonical: '/',
     },
@@ -77,6 +88,11 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function HomePage() {
   const { siteName, siteDescription } = await getSiteSettings();
+  const isMobile = isMobileRequest();
+
+  if (isMobile) {
+    return <MobileHomeClient siteName={siteName} siteDesc={siteDescription} />;
+  }
 
   return <CommunityHomeClient siteName={siteName} siteDesc={siteDescription} />;
 }

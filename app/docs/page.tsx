@@ -38,8 +38,8 @@ const SECTIONS = [
   },
   {
     id: 'github-code',
-    title: 'GitHub 代码嵌入',
-    icon: '🐙',
+    title: '代码仓库文件嵌入',
+    icon: '📄',
   },
   {
     id: 'collab',
@@ -277,19 +277,19 @@ export default function DocsPage() {
             </div>
           </section>
 
-          {/* GitHub 代码嵌入 */}
+          {/* 代码仓库文件嵌入 */}
           <section id="github-code" className="scroll-mt-20">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">🐙 GitHub 代码嵌入</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">📄 代码仓库文件嵌入</h2>
             <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
               <p className="text-sm text-gray-600 leading-relaxed">
-                在帖子中嵌入 GitHub 仓库的源代码文件，自动获取并语法高亮显示。
+                在帖子中嵌入外部代码仓库的源代码文件，自动获取并语法高亮显示。
                 支持两种方式：搜索引用和手动嵌入。
               </p>
 
               <div>
                 <h3 className="text-base font-semibold text-gray-800 mb-2">方式一：搜索引用（推荐）</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  在发帖编辑器中，点击「GitHub 代码」按钮，输入关键词搜索开源代码，
+                  在发帖编辑器中，点击「代码引用」按钮，输入关键词搜索开源代码，
                   点击搜索结果即可自动插入代码引用到帖子内容中。
                 </p>
                 <p className="text-sm text-gray-600 mb-2">
@@ -303,7 +303,7 @@ export default function DocsPage() {
                     <strong>限定仓库</strong>：输入 <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">owner/repo</code> 格式限定搜索范围
                   </li>
                   <li>
-                    <strong>限定用户/组织</strong>：只搜索指定 GitHub 用户或组织下的代码
+                    <strong>限定用户/组织</strong>：只搜索指定用户或组织下的代码
                   </li>
                 </ul>
               </div>
@@ -311,7 +311,7 @@ export default function DocsPage() {
               <div>
                 <h3 className="text-base font-semibold text-gray-800 mb-2">方式二：粘贴链接自动识别</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  在编辑器中直接粘贴 GitHub 文件链接，系统会自动识别并转换为代码块：
+                  在编辑器中直接粘贴代码仓库文件链接，系统会自动识别并转换为代码块：
                 </p>
                 <div className="bg-gray-900 rounded-lg p-4 text-sm text-gray-300 font-mono overflow-x-auto">
                   <div>https://github.com/facebook/react/blob/main/README.md</div>
@@ -324,7 +324,7 @@ export default function DocsPage() {
               <div>
                 <h3 className="text-base font-semibold text-gray-800 mb-2">方式三：短代码</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  使用 <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">[github]URL[/github]</code> 短代码包裹 GitHub 链接：
+                  使用 <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600">[github]URL[/github]</code> 短代码包裹代码仓库文件链接：
                 </p>
                 <div className="bg-gray-900 rounded-lg p-4 text-sm text-gray-300 font-mono overflow-x-auto">
                   <div>[github]https://github.com/owner/repo/blob/main/web3.md[/github]</div>
@@ -385,8 +385,8 @@ export default function DocsPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">🚀 协同创作召集令</h2>
             <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
               <p className="text-sm text-gray-600 leading-relaxed">
-                GitHub 协同创作召集令是平台的核心功能，帮助开发者发起开源协作项目，
-                邀请社区成员共同参与代码编写。支持手动添加已有仓库或登录 GitHub 创建新仓库，
+                协同创作召集令是平台的核心功能，帮助开发者发起开源协作项目，
+                邀请社区成员共同参与代码编写。支持手动添加已有仓库或连接第三方仓库服务创建新仓库，
                 包含任务清单、团队管理、提交贡献、审核流程等完整协作功能。
               </p>
               <div className="bg-blue-50 rounded-lg p-4">
@@ -402,11 +402,11 @@ export default function DocsPage() {
                 <h3 className="text-base font-semibold text-gray-800 mb-2">发起召集令</h3>
                 <p className="text-sm text-gray-600 mb-2">
                   访问 <Link href="/collab/new" className="text-blue-600 underline">发起召集令</Link> 页面，
-                  填写项目信息并关联 GitHub 仓库。支持两种方式：
+                  填写项目信息并关联代码仓库。支持两种方式：
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1.5 ml-4 list-disc">
-                  <li><strong>手动添加</strong>：输入已有 GitHub 仓库 URL，自动解析仓库信息</li>
-                  <li><strong>创建新仓库</strong>：通过 GitHub API 直接创建新仓库（需配置 Token）</li>
+                  <li><strong>手动添加</strong>：输入已有仓库 URL，自动解析仓库信息</li>
+                  <li><strong>创建新仓库</strong>：通过已连接的第三方仓库服务创建新仓库（需配置 Token）</li>
                 </ul>
               </div>
 
@@ -422,7 +422,7 @@ export default function DocsPage() {
               <div>
                 <h3 className="text-base font-semibold text-gray-800 mb-2">提交贡献与审核</h3>
                 <p className="text-sm text-gray-600">
-                  成员在 GitHub 提交代码后，可在平台记录贡献（commit/PR/issue/docs），
+                  成员在代码仓库提交代码后，可在平台记录贡献（commit/PR/issue/docs），
                   关联任务和分支信息。Owner/Maintainer 审核贡献，通过或拒绝。
                 </p>
               </div>
@@ -569,13 +569,13 @@ export default function DocsPage() {
                     <tr>
                       <td className="px-3 py-2 font-mono text-xs text-gray-700">/api/github/search</td>
                       <td className="px-3 py-2"><span className="text-green-600">GET</span></td>
-                      <td className="px-3 py-2 text-gray-600">搜索 GitHub 代码</td>
+                      <td className="px-3 py-2 text-gray-600">搜索代码仓库文件</td>
                       <td className="px-3 py-2 text-gray-400">否</td>
                     </tr>
                     <tr>
                       <td className="px-3 py-2 font-mono text-xs text-gray-700">/api/github/file</td>
                       <td className="px-3 py-2"><span className="text-green-600">GET</span></td>
-                      <td className="px-3 py-2 text-gray-600">获取 GitHub 文件内容</td>
+                      <td className="px-3 py-2 text-gray-600">获取代码仓库文件内容</td>
                       <td className="px-3 py-2 text-gray-400">否</td>
                     </tr>
                   </tbody>
@@ -613,7 +613,7 @@ export default function DocsPage() {
               <div>
                 <h3 className="text-base font-semibold text-gray-800 mb-1">忘记密码怎么办？</h3>
                 <p className="text-sm text-gray-600">
-                  如果绑定了 GitHub 账号，可通过 GitHub 登录。
+                  如果绑定了第三方登录账号，可通过对应账号登录。
                   其他情况请联系管理员重置密码。
                 </p>
               </div>
@@ -625,11 +625,11 @@ export default function DocsPage() {
                 </p>
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800 mb-1">如何在帖子中嵌入 GitHub 代码？</h3>
+                <h3 className="text-base font-semibold text-gray-800 mb-1">如何在帖子中嵌入代码仓库文件？</h3>
                 <p className="text-sm text-gray-600">
-                  发帖时点击编辑器上方的「GitHub 代码」按钮搜索开源代码，或手动使用
+                  发帖时点击编辑器上方的「代码引用」按钮搜索开源代码，或手动使用
                   <code className="px-1 py-0.5 bg-gray-100 rounded text-gray-600 mx-1">```github-code</code>
-                  代码块格式嵌入。详见上方「GitHub 代码嵌入」章节。
+                  代码块格式嵌入。详见上方「代码仓库文件嵌入」章节。
                 </p>
               </div>
             </div>

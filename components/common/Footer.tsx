@@ -126,7 +126,7 @@ export default function Footer({ siteName = "Gitd" }: { siteName?: string }) {
           <div className="col-span-2 md:col-span-1">
             <h4 className="mb-4 text-sm font-semibold text-white">{siteName}</h4>
             <p className="text-sm text-gray-400 leading-relaxed mb-4">
-              开发者交流、分享、成长的社区。连接开发者，共建 AI 工具生态。
+              自研开发者协作平台。连接技术讨论、工具实践与开源协作，帮助开发者共建高质量内容生态。
             </p>
             <div className="flex items-center gap-3">
               <Link
@@ -146,6 +146,9 @@ export default function Footer({ siteName = "Gitd" }: { siteName?: string }) {
         </div>
 
         <div className="mt-10 pt-8 border-t border-gray-800">
+          <p className="mb-4 rounded-lg border border-gray-800 bg-white/[0.03] px-3 py-2 text-xs leading-5 text-gray-500">
+            免责声明：Git 为通用开源工具名称，本站为独立运营的自研开发者协作平台，与 GitHub、Gitee 无关联。站内导入或展示的开源项目应保留原作者、原仓库链接及完整开源协议。
+          </p>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-xs text-gray-500">
               &copy; {currentYear} {siteName}. All rights reserved.

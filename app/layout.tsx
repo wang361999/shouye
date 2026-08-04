@@ -118,7 +118,7 @@ export async function generateMetadata(): Promise<Metadata> {
       default: defaultTitle,
     },
     description: siteDescription,
-    keywords: [siteName, '开发者工具', 'GitHub', 'AI', '技术社区', '开发者社区', '开源项目', '代码分享', '在线工具'],
+    keywords: [siteName, '开发者工具', 'AI', '技术社区', '开发者社区', '开源项目', '代码分享', '在线工具', '开发者协作平台'],
     metadataBase: new URL(baseUrl),
     alternates: {
       canonical: '/',

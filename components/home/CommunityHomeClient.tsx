@@ -688,7 +688,7 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
               <div className="mb-4 text-4xl">🚀</div>
               <h3 className="mb-2 text-xl font-bold">协同创作</h3>
               <p className="text-sm text-blue-100/80">
-                发起 GitHub 协作项目，邀请开发者一起写代码
+                发起开源协作项目，邀请开发者一起写代码
               </p>
               <span className="mt-4 inline-flex items-center text-sm font-medium text-blue-300 group-hover:text-blue-200 transition-colors">
                 发起召集令
