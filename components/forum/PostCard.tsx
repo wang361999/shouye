@@ -29,206 +29,245 @@ interface PostCardProps {
   showActions?: boolean;
 }
 
-// 分类 → 图标 & 颜色
+// 分类 → 颜色点 & 标签（去掉 emoji，用颜色圆点代替）
 const categoryMap: Record<
   string,
-  { icon: string; label: string; colorClass: string }
+  { dot: string; label: string; textClass: string }
 > = {
   announcement: {
-    icon: "📢",
+    dot: "bg-amber-500",
     label: "公告",
-    colorClass: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    textClass: "text-amber-700",
   },
   feedback: {
-    icon: "💬",
+    dot: "bg-blue-500",
     label: "反馈",
-    colorClass: "bg-blue-50 text-blue-700 border-blue-200",
+    textClass: "text-blue-700",
   },
   tutorial: {
-    icon: "📖",
+    dot: "bg-emerald-500",
     label: "教程",
-    colorClass: "bg-green-50 text-green-700 border-green-200",
+    textClass: "text-emerald-700",
   },
   chat: {
-    icon: "🗣️",
+    dot: "bg-violet-500",
     label: "闲聊",
-    colorClass: "bg-purple-50 text-purple-700 border-purple-200",
+    textClass: "text-violet-700",
   },
 };
+
+// SVG 图标组件
+const EyeIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+  </svg>
+);
+
+const HeartIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+  </svg>
+);
+
+const CommentIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+  </svg>
+);
+
+const PinIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M16 3l5 5-3 1-3 3-1 5-2-2-4 4-1-1 4-4-2-2 5-1 3-3 1-3z" />
+  </svg>
+);
+
+const StarIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  </svg>
+);
 
 export default function PostCard({ post, showActions = false }: PostCardProps) {
   const router = useRouter();
   const { user, token } = useAppStore();
   const category = categoryMap[post.category] ?? {
-    icon: "📋",
-    label: post.category,
-    colorClass: "bg-gray-50 text-gray-700 border-gray-200",
+    dot: "bg-gray-400",
+    label: post.category || "其他",
+    textClass: "text-gray-600",
   };
 
-  const canManage = showActions && user && (post.authorId === user.id || user.role === 'ADMIN');
+  const canManage = showActions && user && (post.authorId === user.id || user.role === "ADMIN");
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!token) {
-      toast.error('请先登录');
+      toast.error("请先登录");
       return;
     }
-    if (!confirm('确定要删除这篇帖子吗？删除后无法恢复。')) {
+    if (!confirm("确定要删除这篇帖子吗？删除后无法恢复。")) {
       return;
     }
     try {
       const res = await fetch(`/api/forum/posts/${post.id}`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        toast.success('帖子已删除');
+        toast.success("帖子已删除");
         router.refresh();
       } else {
         const errData = await res.json();
-        toast.error(errData.error || '删除失败');
+        toast.error(errData.error || "删除失败");
       }
     } catch {
-      toast.error('删除帖子失败');
+      toast.error("删除帖子失败");
     }
   };
 
+  // 左侧强调条颜色
+  const accentBar = post.isPinned
+    ? "bg-red-500"
+    : post.isEssence
+      ? "bg-amber-500"
+      : "";
+
   return (
-    <div
+    <article
       className={cn(
-        "group bg-white rounded-xl border p-3 sm:p-5 transition-all duration-200 hover:shadow-md hover:border-gray-300",
-        post.isPinned && "border-l-4 border-l-red-400 bg-red-50/30"
+        "group relative bg-white rounded-xl border border-gray-200/80 transition-all duration-200 hover:border-gray-300 hover:shadow-sm",
+        "overflow-hidden",
       )}
     >
-      {/* 顶部：用户信息 + 分类标签 */}
-      <div className="flex items-start gap-2.5 sm:gap-3 mb-2 sm:mb-2.5">
-        {/* 头像 */}
-        <UserAvatar username={post.author.username} avatar={post.author.avatar} size="md" />
+      {/* 左侧强调条 — 置顶/精华 */}
+      {accentBar && (
+        <div className={cn("absolute left-0 top-0 bottom-0 w-1", accentBar)} />
+      )}
 
-        <div className="flex-1 min-w-0">
-          {/* 用户名 + 时间 */}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium text-gray-700 truncate">
-              {post.author.username}
-            </span>
-            <span className="text-gray-300">·</span>
-            <span className="text-xs text-gray-400 shrink-0">
-              {formatTimeAgo(post.createdAt)}
-            </span>
-          </div>
+      <div className="p-4 sm:p-5 pl-5 sm:pl-6">
+        {/* 顶部：用户信息 */}
+        <div className="flex items-center gap-2.5 mb-3">
+          <UserAvatar
+            username={post.author.username}
+            avatar={post.author.avatar}
+            size="sm"
+            className="!w-7 !h-7 !text-xs"
+          />
+          <span className="text-sm font-medium text-gray-700 truncate">
+            {post.author.username}
+          </span>
+          <span className="text-gray-300 text-xs">·</span>
+          <span className="text-xs text-gray-400 shrink-0">
+            {formatTimeAgo(post.createdAt)}
+          </span>
 
-          {/* 分类标签 + 置顶/精华 */}
-          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-            <span
-              className={cn(
-                "inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full border",
-                category.colorClass
-              )}
-            >
-              <span className="mr-1">{category.icon}</span>
+          {/* 右侧标签 */}
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            {/* 分类标签 — 颜色点 + 文字 */}
+            <span className={cn("inline-flex items-center gap-1 text-xs font-medium", category.textClass)}>
+              <span className={cn("w-1.5 h-1.5 rounded-full", category.dot)} />
               {category.label}
             </span>
 
+            {/* 置顶 */}
             {post.isPinned && (
-              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-600 border border-red-200">
-                📌 置顶
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 bg-red-50 rounded">
+                <PinIcon className="w-2.5 h-2.5" />
+                置顶
               </span>
             )}
 
+            {/* 精华 */}
             {post.isEssence && (
-              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-orange-50 text-orange-600 border border-orange-200">
-                ⭐ 精华
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 bg-amber-50 rounded">
+                <StarIcon className="w-2.5 h-2.5" />
+                精华
               </span>
             )}
 
-            {post.postType === 'question' && (
-              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-green-50 text-green-600 border border-green-200">
-                ❓ 问答
-              </span>
-            )}
-
-            {post.postType === 'question' && post.commentCount === 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-600 border border-blue-200">
-                待回答
-              </span>
+            {/* 问答类型 */}
+            {post.postType === "question" && (
+              <>
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 bg-emerald-50 rounded">
+                  问答
+                </span>
+                {post.commentCount === 0 && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 bg-blue-50 rounded">
+                    待解答
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
-      </div>
 
-      {/* 标题 */}
-      <h3 className="text-base sm:text-lg font-semibold mb-1.5 ml-0 sm:ml-12">
-        <Link
-          href={`/forum/post/${post.id}`}
-          className="text-gray-900 hover:text-blue-600 transition-colors"
-        >
-          {post.title}
-        </Link>
-      </h3>
+        {/* 标题 */}
+        <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 mb-1.5 leading-snug">
+          <Link
+            href={`/forum/post/${post.id}`}
+            className="hover:text-indigo-600 transition-colors"
+          >
+            {post.title}
+          </Link>
+        </h3>
 
-      {/* 正文预览 */}
-      <p className="text-sm text-gray-500 mb-3 leading-relaxed ml-0 sm:ml-12 line-clamp-2">
-        {truncateText(stripMarkdown(post.content), 120)}
-      </p>
+        {/* 正文预览 */}
+        <p className="text-sm text-gray-500 mb-3 leading-relaxed line-clamp-2">
+          {truncateText(stripMarkdown(post.content), 120)}
+        </p>
 
-      {/* 标签 */}
-      {post.tags && post.tags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 ml-0 sm:ml-12 mb-3">
-          {post.tags.slice(0, 4).map(({ tag }) => (
-            <Link
-              key={tag.id}
-              href={`/forum?tag=${encodeURIComponent(tag.slug)}`}
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-blue-500 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
-            >
-              {tag.name}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* 底部统计行 */}
-      <div className="flex items-center gap-3 sm:gap-4 ml-0 sm:ml-12 text-xs text-gray-400">
-        <span className="inline-flex items-center gap-1">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-          {post.viewCount}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-          {post.likeCount}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          {post.commentCount}
-        </span>
-
-        {/* 管理按钮（仅作者/管理员在 showActions 模式下显示） */}
-        {canManage && (
-          <div className="ml-auto flex items-center gap-2">
-            <Link
-              href={`/forum/post/${post.id}/edit`}
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
-            >
-              ✏️ 编辑
-            </Link>
-            <button
-              onClick={handleDelete}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 transition-colors"
-            >
-              🗑️ 删除
-            </button>
+        {/* 标签 */}
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+            {post.tags.slice(0, 4).map(({ tag }) => (
+              <Link
+                key={tag.id}
+                href={`/forum?tag=${encodeURIComponent(tag.slug)}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-100 rounded hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 transition-colors"
+              >
+                {tag.name}
+              </Link>
+            ))}
           </div>
         )}
+
+        {/* 底部统计行 */}
+        <div className="flex items-center gap-4 text-xs text-gray-400">
+          <span className="inline-flex items-center gap-1">
+            <EyeIcon className="w-3.5 h-3.5" />
+            {post.viewCount}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <HeartIcon className="w-3.5 h-3.5" />
+            {post.likeCount}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <CommentIcon className="w-3.5 h-3.5" />
+            {post.commentCount}
+          </span>
+
+          {/* 管理按钮 */}
+          {canManage && (
+            <div className="ml-auto flex items-center gap-2">
+              <Link
+                href={`/forum/post/${post.id}/edit`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 hover:text-indigo-600 transition-colors"
+              >
+                编辑
+              </Link>
+              <button
+                onClick={handleDelete}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-500 hover:text-red-600 transition-colors"
+              >
+                删除
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </article>
   );
 }

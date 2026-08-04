@@ -41,7 +41,7 @@ interface PostListProps {
   showActions?: boolean;
 }
 
-type SortType = 'latest' | 'hot' | 'essence';
+type SortType = "latest" | "hot" | "essence";
 
 export default function PostList({
   posts,
@@ -56,7 +56,7 @@ export default function PostList({
   showActions = false,
 }: PostListProps) {
   const [searchInput, setSearchInput] = useState(searchQuery);
-  const [sortBy, setSortBy] = useState<SortType>('latest');
+  const [sortBy, setSortBy] = useState<SortType>("latest");
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,13 +70,12 @@ export default function PostList({
 
     const sortFn = (a: Post, b: Post): number => {
       switch (sortBy) {
-        case 'hot':
-          return (b.likeCount + b.viewCount) - (a.likeCount + a.viewCount);
-        case 'essence':
-          // 精华帖优先
+        case "hot":
+          return b.likeCount + b.viewCount - (a.likeCount + a.viewCount);
+        case "essence":
           if (a.isEssence !== b.isEssence) return a.isEssence ? -1 : 1;
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'latest':
+        case "latest":
         default:
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
@@ -102,25 +101,62 @@ export default function PostList({
     return pages;
   };
 
-  const sortOptions: { value: SortType; label: string; icon: string }[] = [
-    { value: 'latest', label: '最新', icon: '🕐' },
-    { value: 'hot', label: '最热', icon: '🔥' },
-    { value: 'essence', label: '精华', icon: '⭐' },
+  const sortOptions: { value: SortType; label: string }[] = [
+    { value: "latest", label: "最新" },
+    { value: "hot", label: "最热" },
+    { value: "essence", label: "精华" },
   ];
 
   const sortedPosts = getSortedPosts();
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      {/* 分类标签栏 — 移动端横向滚动，桌面端换行 */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 sm:pb-0 sm:flex-wrap">
+    <div className="space-y-4">
+      {/* 工具栏：搜索 + 排序 */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        {/* 搜索框 */}
+        <form onSubmit={handleSearch} className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="搜索帖子..."
+            className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+          />
+        </form>
+
+        {/* 排序 — 分段控件 */}
+        <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+          {sortOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setSortBy(opt.value)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap",
+                sortBy === opt.value
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700",
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 分类标签栏 */}
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
         <button
           onClick={() => onCategoryChange("all")}
           className={cn(
-            "px-3 py-1.5 text-sm font-medium rounded-full border transition-colors whitespace-nowrap shrink-0 touch-target",
+            "px-3 py-1.5 text-sm font-medium rounded-full transition-all whitespace-nowrap shrink-0",
             currentCategory === "all"
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+              ? "bg-gray-900 text-white"
+              : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50",
           )}
         >
           全部
@@ -130,21 +166,20 @@ export default function PostList({
             key={cat.id}
             onClick={() => onCategoryChange(cat.slug)}
             className={cn(
-              "px-3 py-1.5 text-sm font-medium rounded-full border transition-colors inline-flex items-center gap-1 whitespace-nowrap shrink-0 touch-target",
+              "px-3 py-1.5 text-sm font-medium rounded-full transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0",
               currentCategory === cat.slug
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                ? "bg-gray-900 text-white"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50",
             )}
           >
-            {cat.icon && <span>{cat.icon}</span>}
             {cat.name}
             {cat.postCount > 0 && (
               <span
                 className={cn(
-                  "ml-1 px-1.5 py-0.5 text-xs rounded-full",
+                  "px-1.5 py-0.5 text-[10px] rounded-full font-medium",
                   currentCategory === cat.slug
-                    ? "bg-blue-500/30 text-blue-100"
-                    : "bg-gray-100 text-gray-500"
+                    ? "bg-white/20 text-white"
+                    : "bg-gray-100 text-gray-500",
                 )}
               >
                 {cat.postCount}
@@ -154,88 +189,49 @@ export default function PostList({
         ))}
       </div>
 
-      {/* 搜索框 + 排序选项 */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <form onSubmit={handleSearch} className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg
-              className="w-5 h-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="搜索帖子..."
-            className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-          />
-        </form>
-
-        {/* 排序按钮组 */}
-        <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1 overflow-x-auto scrollbar-hide">
-          {sortOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSortBy(opt.value)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap touch-target",
-                sortBy === opt.value
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-500 hover:bg-gray-50"
-              )}
-            >
-              {opt.icon} {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* 帖子列表 */}
-      <div className="space-y-2.5 sm:space-y-3">
+      <div className="space-y-2.5">
         {sortedPosts.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            <p className="text-4xl mb-3">📭</p>
-            <p className="text-sm">暂无帖子</p>
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-50 rounded-full mb-3">
+              <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <p className="text-sm text-gray-400">暂无帖子</p>
+            <p className="text-xs text-gray-300 mt-1">成为第一个发帖的人吧</p>
           </div>
         ) : (
-          sortedPosts.map((post) => <PostCard key={post.id} post={post} showActions={showActions} />)
+          sortedPosts.map((post) => (
+            <PostCard key={post.id} post={post} showActions={showActions} />
+          ))
         )}
       </div>
 
       {/* 分页器 */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-1 sm:space-x-1 pt-4 flex-wrap">
+        <div className="flex items-center justify-center gap-1 pt-4 flex-wrap">
           {/* 上一页 */}
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
             className={cn(
-              "px-3 py-1.5 text-sm rounded-md border transition-colors touch-target",
+              "flex items-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors",
               currentPage <= 1
-                ? "text-gray-300 border-gray-200 cursor-not-allowed"
-                : "text-gray-600 border-gray-300 hover:bg-gray-50"
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-gray-600 hover:bg-gray-100",
             )}
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
             上一页
           </button>
 
           {/* 页码 */}
           {getPageNumbers().map((page, idx) =>
             typeof page === "string" ? (
-              <span
-                key={`ellipsis-${idx}`}
-                className="px-2 py-1.5 text-sm text-gray-400"
-              >
+              <span key={`ellipsis-${idx}`} className="px-2 py-2 text-sm text-gray-300">
                 ...
               </span>
             ) : (
@@ -243,15 +239,15 @@ export default function PostList({
                 key={page}
                 onClick={() => onPageChange(page)}
                 className={cn(
-                  "w-9 h-9 sm:w-8 sm:h-8 text-sm rounded-md border transition-colors touch-target",
+                  "w-9 h-9 text-sm rounded-lg transition-all font-medium",
                   page === currentPage
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "text-gray-600 border-gray-300 hover:bg-gray-50"
+                    ? "bg-gray-900 text-white"
+                    : "text-gray-600 hover:bg-gray-100",
                 )}
               >
                 {page}
               </button>
-            )
+            ),
           )}
 
           {/* 下一页 */}
@@ -259,13 +255,16 @@ export default function PostList({
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
             className={cn(
-              "px-3 py-1.5 text-sm rounded-md border transition-colors",
+              "flex items-center gap-1 px-3 py-2 text-sm rounded-lg transition-colors",
               currentPage >= totalPages
-                ? "text-gray-300 border-gray-200 cursor-not-allowed"
-                : "text-gray-600 border-gray-300 hover:bg-gray-50"
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-gray-600 hover:bg-gray-100",
             )}
           >
             下一页
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
       )}
