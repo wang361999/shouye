@@ -237,7 +237,8 @@ export default function CollabListPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="搜索项目标题、技术栈..."
-            className="w-full pl-9 pr-4 py-2 text-[11px] sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            enterKeyHint="search"
+            className="w-full pl-9 pr-4 py-2 text-[16px] sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
       </div>

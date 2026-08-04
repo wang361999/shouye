@@ -31,7 +31,7 @@ export default function UserAvatar({ username, avatar, size = "sm", className }:
       // 图片 URL 头像
       return (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatar} alt={username} className={cn("rounded-full object-cover flex-shrink-0", sizeMap[size], className)} />
+        <img src={avatar} alt={username} loading="lazy" className={cn("rounded-full object-cover flex-shrink-0", sizeMap[size], className)} />
       );
     }
     // Emoji 头像

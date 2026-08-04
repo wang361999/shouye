@@ -190,7 +190,8 @@ export default function ToolsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索工具名称、功能或标签..."
-                className="w-full pl-10 pr-4 py-3 bg-white text-gray-900 placeholder-gray-400 rounded-xl shadow-md text-[11px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                enterKeyHint="search"
+                className="w-full pl-10 pr-4 py-3 bg-white text-gray-900 placeholder-gray-400 rounded-xl shadow-md text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
               />
               <svg
                 className="w-5 h-5 text-gray-400 absolute left-3 top-3.5"

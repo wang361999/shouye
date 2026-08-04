@@ -634,7 +634,7 @@ export default function MessagesPage() {
                     onKeyDown={handleKeyDown}
                     placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
                     rows={1}
-                    className="flex-1 resize-none px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-[120px] min-h-[40px] dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                    className="flex-1 resize-none px-3 py-2 text-[16px] sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-[120px] min-h-[40px] dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                     style={{ height: '40px' }}
                   />
                   <button

@@ -630,7 +630,7 @@ function Field({
 // ============ 输入框样式 ============
 function inputClass(hasError: boolean): string {
   return cn(
-    'w-full px-4 py-2.5 text-[13px] sm:text-sm border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-shadow',
+    'w-full px-4 py-2.5 text-[16px] sm:text-sm border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition-shadow',
     hasError
       ? 'border-red-300 dark:border-red-700 focus:ring-red-500'
       : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
@@ -797,7 +797,7 @@ function TagInput({
         onKeyDown={handleKeyDown}
         onBlur={addTag}
         placeholder={tags.length === 0 ? placeholder : ''}
-        className="flex-1 min-w-[120px] px-2 py-1 text-[13px] sm:text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
+        className="flex-1 min-w-[120px] px-2 py-1 text-[16px] sm:text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
       />
     </div>
   );

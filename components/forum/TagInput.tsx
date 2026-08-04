@@ -139,7 +139,7 @@ export default function TagInput({ value, onChange, maxTags = 5, error }: TagInp
             onFocus={() => setShowSuggestions(true)}
             placeholder={value.length === 0 ? "输入标签，按回车添加" : ""}
             disabled={value.length >= maxTags}
-            className="flex-1 min-w-[80px] sm:min-w-[120px] text-sm bg-transparent outline-none disabled:cursor-not-allowed"
+            className="flex-1 min-w-[80px] sm:min-w-[120px] text-[16px] sm:text-sm bg-transparent outline-none disabled:cursor-not-allowed"
           />
         </div>
 

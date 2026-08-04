@@ -622,7 +622,7 @@ export default function SubmitWizard({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && canGoNext()) goNext();
                       }}
-                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[16px] sm:text-sm font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
                     />
                     <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
                       输入 a/b/c.ts 可自动创建嵌套目录
@@ -658,7 +658,7 @@ export default function SubmitWizard({
                     value={fileContent}
                     onChange={(e) => setFileContent(e.target.value)}
                     placeholder="// 输入文件内容..."
-                    className="flex-1 min-h-[300px] w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[13px] font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y"
+                    className="flex-1 min-h-[300px] w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[16px] sm:text-sm font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y"
                     spellCheck={false}
                   />
                 </div>
@@ -719,7 +719,7 @@ export default function SubmitWizard({
                       value={commitMsg}
                       onChange={(e) => setCommitMsg(e.target.value)}
                       placeholder="例如：feat: 新增用户登录组件"
-                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
                     />
                   </div>
 
@@ -733,7 +733,7 @@ export default function SubmitWizard({
                       value={prTitle}
                       onChange={(e) => setPrTitle(e.target.value)}
                       placeholder="例如：新增用户登录页"
-                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+                      className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
                     />
                   </div>
 
@@ -747,7 +747,7 @@ export default function SubmitWizard({
                       onChange={(e) => setPrBody(e.target.value)}
                       placeholder="描述本次变更的内容与目的…"
                       rows={3}
-                      className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y"
+                      className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y"
                     />
                   </div>
 

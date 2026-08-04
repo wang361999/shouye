@@ -391,7 +391,7 @@ export default function MyFavoritesPage() {
                     onChange={(e) => setNewName(e.target.value)}
                     maxLength={50}
                     placeholder="收藏夹名称"
-                    className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -404,7 +404,7 @@ export default function MyFavoritesPage() {
                     maxLength={200}
                     rows={2}
                     placeholder="收藏夹描述"
-                    className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   />
                 </div>
                 <label className="flex items-center gap-2 text-[11px] sm:text-sm text-gray-600 cursor-pointer">
@@ -567,7 +567,7 @@ export default function MyFavoritesPage() {
                     value={addPostInput}
                     onChange={(e) => setAddPostInput(e.target.value)}
                     placeholder="输入帖子 ID 或帖子链接，加入收藏夹"
-                    className="flex-1 px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-3 py-2 text-[16px] sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
                     type="submit"

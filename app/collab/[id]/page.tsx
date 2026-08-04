@@ -1075,7 +1075,7 @@ function TaskCreateForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="简要描述任务..."
-          className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
       <div>
@@ -1087,7 +1087,7 @@ function TaskCreateForm({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="详细说明任务要求..."
           rows={3}
-          className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+          className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1098,7 +1098,7 @@ function TaskCreateForm({
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as TaskPriority)}
-            className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="low">低</option>
             <option value="medium">中</option>
@@ -1114,7 +1114,7 @@ function TaskCreateForm({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
@@ -1474,7 +1474,7 @@ function ContributionForm({
     }
   };
 
-  const inputCls = 'w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  const inputCls = 'w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
 
   return (
     <form
@@ -2030,7 +2030,7 @@ function EditProjectModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={100}
-              className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -2043,7 +2043,7 @@ function EditProjectModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
-              className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
+              className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
             />
           </div>
 
@@ -2056,7 +2056,7 @@ function EditProjectModal({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as ProjectStatus)}
-                className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="recruiting">招募中</option>
                 <option value="active">进行中</option>
@@ -2074,7 +2074,7 @@ function EditProjectModal({
                 min={2}
                 max={50}
                 onChange={(e) => setMaxMembers(Number(e.target.value))}
-                className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -2112,7 +2112,7 @@ function EditProjectModal({
               value={goals}
               onChange={(e) => setGoals(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
+              className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
             />
           </div>
 
@@ -2125,7 +2125,7 @@ function EditProjectModal({
               value={requirements}
               onChange={(e) => setRequirements(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+              className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
             />
           </div>
         </form>
@@ -2213,7 +2213,7 @@ function TagInputField({
         onKeyDown={handleKeyDown}
         onBlur={addTag}
         placeholder={tags.length === 0 ? placeholder : ''}
-        className="flex-1 min-w-[120px] px-2 py-1 text-[13px] sm:text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
+        className="flex-1 min-w-[120px] px-2 py-1 text-[16px] sm:text-sm bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none"
       />
     </div>
   );

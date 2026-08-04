@@ -152,7 +152,8 @@ function SearchContent() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="搜索帖子或工具..."
-              className="w-full pl-10 pr-4 py-2.5 text-[11px] sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              enterKeyHint="search"
+              className="w-full pl-10 pr-4 py-2.5 text-[16px] sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               autoFocus
             />
           </div>

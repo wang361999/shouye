@@ -170,7 +170,7 @@ export default function PostForm({
           placeholder={postType === "question" ? "请输入你的问题..." : "请输入帖子标题..."}
           maxLength={100}
           className={cn(
-            "w-full px-3 sm:px-4 py-2.5 text-[13px] sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
+            "w-full px-3 sm:px-4 py-2.5 text-[16px] sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
             errors.title
               ? "border-red-300 focus:ring-red-500"
               : "border-gray-300 focus:ring-blue-500"
@@ -192,7 +192,7 @@ export default function PostForm({
             if (errors.category) setErrors((prev) => ({ ...prev, category: undefined }));
           }}
           className={cn(
-            "w-full px-3 sm:px-4 py-2.5 text-[13px] sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow appearance-none bg-white",
+            "w-full px-3 sm:px-4 py-2.5 text-[16px] sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-shadow appearance-none bg-white",
             errors.category
               ? "border-red-300 focus:ring-red-500"
               : "border-gray-300 focus:ring-blue-500"
@@ -265,7 +265,7 @@ export default function PostForm({
               placeholder="请输入帖子内容...（支持 Markdown 格式）"
               rows={10}
               className={cn(
-                "w-full px-3 sm:px-4 py-3 text-[13px] sm:text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:border-transparent transition-shadow font-mono",
+                "w-full px-3 sm:px-4 py-3 text-[16px] sm:text-sm border rounded-lg resize-y focus:outline-none focus:ring-2 focus:border-transparent transition-shadow font-mono",
                 errors.content
                   ? "border-red-300 focus:ring-red-500"
                   : "border-gray-300 focus:ring-blue-500"

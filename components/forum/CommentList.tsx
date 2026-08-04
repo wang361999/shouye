@@ -217,7 +217,7 @@ export default function CommentList({
               onChange={(e) => setContent(e.target.value)}
               placeholder={postType === "question" ? "写下你的回答..." : "写下你的评论..."}
               rows={3}
-              className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+              className="w-full px-4 py-3 text-[16px] sm:text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
             />
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-400">支持 Markdown 格式</p>

@@ -200,7 +200,7 @@ export default function GithubCodeSearch({ onInsert }: GithubCodeSearchProps) {
           }}
           onBlur={handleBlur}
           placeholder="搜索 GitHub 代码..."
-          className="flex-1 min-w-0 px-2.5 sm:px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 min-w-0 px-2.5 sm:px-3 py-1.5 text-[16px] sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         {/* 筛选切换按钮 */}
         <button

@@ -141,7 +141,7 @@ export default function AvatarPicker({
             value={urlInput}
             onChange={handleUrlChange}
             placeholder="https://example.com/avatar.png"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           {(currentAvatar || urlInput) && (
             <button

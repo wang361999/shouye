@@ -636,7 +636,7 @@ export default function CodeExplorer({
             <select
               value={currentBranch}
               onChange={(e) => setCurrentBranch(e.target.value)}
-              className="h-7 max-w-[140px] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 text-[13px] font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 cursor-pointer"
+              className="h-7 max-w-[140px] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 text-[16px] sm:text-sm font-medium text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 cursor-pointer"
             >
               {branches.map((b) => (<option key={b} value={b}>{b}</option>))}
             </select>
@@ -878,7 +878,7 @@ export default function CodeExplorer({
                       value={commitMessage}
                       onChange={(e) => setCommitMessage(e.target.value)}
                       placeholder="提交信息，如：修复登录页样式问题"
-                      className="flex-1 h-8 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                      className="flex-1 h-8 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
                       autoFocus
                     />
                   </div>
@@ -896,7 +896,7 @@ export default function CodeExplorer({
                     ref={editorRef}
                     value={editContent}
                     onChange={(e) => handleEditChange(e.target.value)}
-                    className="w-full h-full min-h-[300px] p-4 text-[13px] leading-relaxed font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-950 border-0 resize-none focus:outline-none"
+                    className="w-full h-full min-h-[300px] p-4 text-[16px] sm:text-sm leading-relaxed font-mono text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-950 border-0 resize-none focus:outline-none"
                     spellCheck={false}
                     placeholder="在此输入代码..."
                   />
@@ -950,7 +950,7 @@ export default function CodeExplorer({
                   onChange={(e) => setNewFilePath(e.target.value)}
                   placeholder="src/components/Button.tsx"
                   autoFocus
-                  className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+                  className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[16px] sm:text-sm font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
                 />
                 <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-1">支持嵌套路径如 a/b/c.ts，以 / 结尾创建文件夹</p>
               </div>
@@ -963,7 +963,7 @@ export default function CodeExplorer({
                   value={newFileCommitMsg}
                   onChange={(e) => setNewFileCommitMsg(e.target.value)}
                   placeholder="feat: 新增 Button 组件"
-                  className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
+                  className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all"
                 />
               </div>
               <div>
@@ -973,7 +973,7 @@ export default function CodeExplorer({
                   onChange={(e) => setNewFileContent(e.target.value)}
                   placeholder="// 输入文件内容..."
                   rows={6}
-                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[13px] font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[16px] sm:text-sm font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y"
                   spellCheck={false}
                 />
               </div>
@@ -1002,11 +1002,11 @@ export default function CodeExplorer({
             <div className="p-5 space-y-4">
               <div>
                 <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">分支名 <span className="text-red-400">*</span></label>
-                <input type="text" value={newBranchName} onChange={(e) => setNewBranchName(e.target.value)} placeholder="feature/new-ui" autoFocus className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all" />
+                <input type="text" value={newBranchName} onChange={(e) => setNewBranchName(e.target.value)} placeholder="feature/new-ui" autoFocus className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[16px] sm:text-sm font-mono text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all" />
               </div>
               <div>
                 <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">基于分支</label>
-                <select value={newBranchFrom} onChange={(e) => setNewBranchFrom(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2.5 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all">
+                <select value={newBranchFrom} onChange={(e) => setNewBranchFrom(e.target.value)} className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2.5 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all">
                   {branches.map((b) => (<option key={b} value={b}>{b}</option>))}
                 </select>
               </div>
@@ -1051,23 +1051,23 @@ export default function CodeExplorer({
                 <div className="p-5 space-y-4 overflow-y-auto">
                   <div>
                     <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">标题 <span className="text-red-400">*</span></label>
-                    <input type="text" value={prForm.title} onChange={(e) => setPrForm((p) => ({ ...p, title: e.target.value }))} placeholder="新增用户登录页" className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all" />
+                    <input type="text" value={prForm.title} onChange={(e) => setPrForm((p) => ({ ...p, title: e.target.value }))} placeholder="新增用户登录页" className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all" />
                   </div>
                   <div>
                     <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">描述</label>
-                    <textarea value={prForm.body} onChange={(e) => setPrForm((p) => ({ ...p, body: e.target.value }))} placeholder="描述本次变更内容..." rows={3} className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y" />
+                    <textarea value={prForm.body} onChange={(e) => setPrForm((p) => ({ ...p, body: e.target.value }))} placeholder="描述本次变更内容..." rows={3} className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all resize-y" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">源分支 <span className="text-red-400">*</span></label>
-                      <select value={prForm.head} onChange={(e) => setPrForm((p) => ({ ...p, head: e.target.value }))} className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2.5 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all">
+                      <select value={prForm.head} onChange={(e) => setPrForm((p) => ({ ...p, head: e.target.value }))} className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2.5 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all">
                         <option value="">选择分支</option>
                         {branches.map((b) => (<option key={b} value={b}>{b}</option>))}
                       </select>
                     </div>
                     <div>
                       <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">目标分支</label>
-                      <select value={prForm.base} onChange={(e) => setPrForm((p) => ({ ...p, base: e.target.value }))} className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2.5 text-[13px] text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all">
+                      <select value={prForm.base} onChange={(e) => setPrForm((p) => ({ ...p, base: e.target.value }))} className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-2.5 text-[16px] sm:text-sm text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all">
                         <option value="">默认分支</option>
                         {branches.map((b) => (<option key={b} value={b}>{b}</option>))}
                       </select>

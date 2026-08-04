@@ -53,6 +53,7 @@ function HeaderAvatar({
           <img
             src={avatar as string}
             alt={username}
+            loading="lazy"
             className="w-full h-full object-cover"
           />
         ) : (
@@ -265,7 +266,8 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索..."
-                className="w-40 lg:w-56 pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                enterKeyHint="search"
+                className="w-40 lg:w-56 pl-9 pr-3 py-1.5 text-[16px] sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:border-slate-600 dark:text-white"
               />
               <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

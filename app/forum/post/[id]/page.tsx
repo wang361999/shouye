@@ -566,7 +566,7 @@ function ReportForm({ onSubmit, onCancel }: { onSubmit: (reason: string, descrip
         onChange={(e) => setDescription(e.target.value)}
         placeholder="补充说明（可选）"
         rows={3}
-        className="w-full px-3 py-2 text-[13px] sm:text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        className="w-full px-3 py-2 text-[16px] sm:text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
       />
       <div className="flex justify-end gap-2">
         <button

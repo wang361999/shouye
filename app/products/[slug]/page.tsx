@@ -431,7 +431,7 @@ export default function ProductDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {screenshots.map((src, idx) => (
                     <div key={idx} className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50 group cursor-zoom-in">
-                      <img src={src} alt={`${product.name} 截图 ${idx + 1}`}
+                      <img src={src} alt={`${product.name} 截图 ${idx + 1}`} loading="lazy"
                         className="w-full h-auto object-contain group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
                     </div>
@@ -819,7 +819,7 @@ export default function ProductDetailPage() {
                   {hasWechat && (
                     <div className="text-center">
                       <div className="inline-block p-2 bg-gray-50 rounded-xl mb-1.5">
-                        <img src={sponsor.sponsor_wechat_qr} alt="微信赞助" className="w-28 h-28 rounded-lg object-contain"
+                        <img src={sponsor.sponsor_wechat_qr} alt="微信赞助" loading="lazy" className="w-28 h-28 rounded-lg object-contain"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       </div>
                       <div className="text-xs text-gray-500">微信赞助</div>
@@ -828,7 +828,7 @@ export default function ProductDetailPage() {
                   {hasAlipay && (
                     <div className="text-center">
                       <div className="inline-block p-2 bg-gray-50 rounded-xl mb-1.5">
-                        <img src={sponsor.sponsor_alipay_qr} alt="支付宝赞助" className="w-28 h-28 rounded-lg object-contain"
+                        <img src={sponsor.sponsor_alipay_qr} alt="支付宝赞助" loading="lazy" className="w-28 h-28 rounded-lg object-contain"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       </div>
                       <div className="text-xs text-gray-500">支付宝赞助</div>

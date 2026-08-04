@@ -852,7 +852,7 @@ export default function UserLicensesPage() {
                   }}
                   autoFocus
                   placeholder="例如：example.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <p className="mt-1.5 text-xs text-gray-400">
                   请输入需要绑定的域名，无需 http:// 前缀

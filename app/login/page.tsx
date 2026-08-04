@@ -191,7 +191,7 @@ function LoginContent() {
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="请输入注册邮箱"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   autoComplete="email"
                 />
               </div>
@@ -206,7 +206,7 @@ function LoginContent() {
                     value={resetCode}
                     onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="6 位验证码"
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                     autoComplete="one-time-code"
                     inputMode="numeric"
                   />
@@ -234,7 +234,7 @@ function LoginContent() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="至少 6 位"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   autoComplete="new-password"
                 />
               </div>
@@ -248,7 +248,7 @@ function LoginContent() {
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   placeholder="请再次输入新密码"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   autoComplete="new-password"
                 />
               </div>
@@ -280,7 +280,7 @@ function LoginContent() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="请输入用户名"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 autoComplete="username"
               />
             </div>
@@ -294,7 +294,7 @@ function LoginContent() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="请输入密码"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 autoComplete="current-password"
               />
             </div>

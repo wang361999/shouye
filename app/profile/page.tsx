@@ -461,7 +461,7 @@ export default function ProfilePage() {
                   profile.username.charAt(0).toUpperCase()
                 ) : user.avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                  <img src={user.avatar} alt={user.username} loading="lazy" className="w-full h-full object-cover" />
                 ) : (
                   user.username.charAt(0).toUpperCase()
                 )}
@@ -685,7 +685,7 @@ export default function ProfilePage() {
                         onChange={(e) => setEditUsername(e.target.value)}
                         placeholder="请输入用户名"
                         maxLength={20}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
 
@@ -700,7 +700,7 @@ export default function ProfilePage() {
                         placeholder="介绍一下自己吧..."
                         maxLength={200}
                         rows={4}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                       />
                       <p className="mt-1 text-xs text-gray-400 text-right">
                         {editBio.length}/200
@@ -740,7 +740,7 @@ export default function ProfilePage() {
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         placeholder="请输入当前密码"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -752,7 +752,7 @@ export default function ProfilePage() {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="请输入新密码（至少 6 位）"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       {newPassword.length > 0 && newPassword.length < 6 && (
                         <p className="mt-1 text-xs text-red-500">密码长度不能少于 6 位</p>
@@ -767,7 +767,7 @@ export default function ProfilePage() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="请再次输入新密码"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[13px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-[16px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                       {confirmPassword.length > 0 && newPassword !== confirmPassword && (
                         <p className="mt-1 text-xs text-red-500">两次输入的密码不一致</p>
