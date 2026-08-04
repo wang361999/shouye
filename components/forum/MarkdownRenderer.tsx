@@ -34,20 +34,20 @@ function MarkdownCodeBlock({
   return (
     <div className="not-prose my-5 bg-slate-950">
       {/* 标题栏：红黄绿三点 + 语言标签 + 复制按钮（与代码区同背景，无分隔线） */}
-      <div className="flex items-center justify-between px-3.5 py-2.5">
+      <div className="flex items-center justify-between px-3.5 py-1.5">
         <div className="flex items-center gap-1.5">
-          <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#ff5f57]" />
-          <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#ffbd2e]" />
-          <span className="inline-block h-[9px] w-[9px] rounded-full bg-[#28c840]" />
+          <span className="inline-block h-2 w-2 rounded-full bg-[#ff5f57]" />
+          <span className="inline-block h-2 w-2 rounded-full bg-[#ffbd2e]" />
+          <span className="inline-block h-2 w-2 rounded-full bg-[#28c840]" />
         </div>
-        <div className="flex items-center gap-2.5">
-          <span className="font-mono text-[12px] font-bold tracking-wide text-slate-400">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[11px] font-bold tracking-wide text-slate-400">
             {label}
           </span>
           <button
             type="button"
             onClick={handleCopy}
-            className="font-mono text-[12px] text-slate-500 transition-colors hover:text-white"
+            className="font-mono text-[11px] text-slate-500 transition-colors hover:text-white"
           >
             {copied ? "✓" : "复制"}
           </button>
