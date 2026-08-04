@@ -208,6 +208,8 @@ export async function GET(request: Request) {
         commentCount: Number(statsRow.comment_count) || 0,
         todayPostCount: Number(statsRow.today_post_count) || 0,
       };
+      statsCache = { stats: statsData };
+      statsCacheExpiry = now + STATS_TTL;
     } catch (err) {
       console.error('[HOME STATS ERROR]', err instanceof Error ? err.message : err);
     }
@@ -305,12 +307,18 @@ export async function GET(request: Request) {
     contentCacheExpiry[cacheKey] = now + CONTENT_TTL;
   }
 
-  const responseData = { ...(contentCache[cacheKey] || {}), stats: statsData };
-  statsCacheExpiry = now + STATS_TTL;
+  const responseData = {
+    ...(contentCache[cacheKey] || {
+      latestPosts: [],
+      hotPosts: [],
+      activeMembers: [],
+      collabProjects: [],
+      featuredTools: [],
+    }),
+    ...(statsCache || { stats: statsData }),
+  };
 
-  const result = { ...(contentCache as object), ...(statsCache as object) };
-
-  return NextResponse.json(result, {
+  return NextResponse.json(responseData, {
     headers: { 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=600' },
   });
 }
