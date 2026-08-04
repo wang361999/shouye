@@ -121,12 +121,12 @@ function buildWechatArticleHtml(data: PreviewData): string {
     <section style="padding:22px 20px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;">
       <section style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
         <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#1e293b;color:#ffffff;font-size:11px;font-weight:700;">&copy;</span>
-        <span style="font-size:15px;font-weight:600;color:#1e293b;letter-spacing:0.3px;">版权声明</span>
+        <span style="font-size:15px;font-weight:600;color:#1e293b;letter-spacing:0.3px;">内容与版权声明</span>
       </section>
       <section style="font-size:13px;line-height:2;color:#475569;">
-        <p style="margin:0 0 4px;">本文为 <strong style="color:#2563eb;">Gitd 社区</strong> 原创内容，作者：<strong style="color:#1e293b;">${author}</strong>。</p>
-        <p style="margin:0 0 4px;">&copy; ${year} Gitd 社区。保留所有权利。</p>
-        <p style="margin:0;">转载请在文首注明来源「Gitd 社区」及作者信息；未经授权，禁止商业用途。</p>
+        <p style="margin:0 0 4px;">本文由 <strong style="color:#2563eb;">Gitd 社区</strong> 进行选题、整理与编辑，部分内容由 AI 辅助生成，并已进行人工校对。</p>
+        <p style="margin:0 0 4px;">作者 / 编辑：<strong style="color:#1e293b;">${author}</strong>。&copy; ${year} Gitd 社区，排版与整理版权归 Gitd 社区所有。</p>
+        <p style="margin:0;">转载请注明来源「Gitd 社区」；如涉及版权或署名问题，请联系我们修正。</p>
       </section>
     </section>
     <section style="margin:14px 0 0;text-align:center;color:#94a3b8;font-size:12px;line-height:1.7;letter-spacing:0.2px;">
