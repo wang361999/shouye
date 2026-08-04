@@ -13,6 +13,11 @@
  */
 
 import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
+import {
+  appendProfessionalFooter,
+  normalizeTags,
+  normalizeTitle,
+} from './lib/post-template.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -199,18 +204,40 @@ async function generatePost(persona, categories) {
 ${topic}
 
 ## 要求
-1. 用第一人称写，像真实开发者在社区分享经验
-2. 内容用 Markdown 格式，结构清晰
-3. 长度 300-800 字，不要太长
-4. 语言自然、有个人观点，不要像教科书
-5. 可以适当提到自己的经验或踩坑经历
+1. 用第一人称写，像真实开发者在社区分享经验。
+2. 内容用 Markdown 格式，结构清晰。
+3. 长度 600-1200 字，不要太短。
+4. 语言自然、有个人观点，但表达要专业，不要像水帖。
+5. 必须包含一个真实场景、一个具体做法、一个踩坑提醒和一个讨论问题。
+6. 开头先给一句核心观点，避免寒暄。
+7. 不要写“作为 AI”“我是 AI”之类表达。
+
+## 建议结构
+
+> 核心观点：一句话说明你的看法。
+
+## 我的场景
+
+说明你为什么关注这个问题。
+
+## 我的做法
+
+写具体方案、配置、工具或判断标准。
+
+## 容易踩坑的点
+
+列出 2-3 个提醒。
+
+## 想听听大家的经验
+
+提出一个具体问题，引导评论。
 
 ## 输出格式
 只输出一个 JSON 对象，不要任何其他文字：
 {
-  "title": "帖子标题（可以与话题不同，用自己的话）",
+  "title": "专业、清晰的帖子标题（可以与话题不同，用自己的话）",
   "content": "Markdown 格式正文，换行用 \\n",
-  "tags": ["标签1", "标签2"]
+  "tags": ["标签1", "标签2", "标签3"]
 }
 
 论坛分类：${categoryNames}`;
@@ -227,6 +254,12 @@ ${topic}
   if (!parsed.title || !parsed.content) {
     throw new Error('AI 生成的帖子缺少 title 或 content');
   }
+  parsed.title = normalizeTitle(parsed.title, topic);
+  parsed.tags = normalizeTags(parsed.tags, ['开发经验', '技术讨论']);
+  parsed.content = appendProfessionalFooter(parsed.content, {
+    discussionQuestion: '你在类似场景下会怎么处理？欢迎分享不同工具、配置或团队实践。',
+    includeAiNote: false,
+  });
   return parsed;
 }
 
@@ -239,8 +272,11 @@ async function publishPost(token, postData, categories) {
   }
 
   const body = {
-    title: postData.title,
-    content: postData.content,
+    title: normalizeTitle(postData.title),
+    content: appendProfessionalFooter(postData.content, {
+      discussionQuestion: '你在类似场景下会怎么处理？欢迎分享不同工具、配置或团队实践。',
+      includeAiNote: false,
+    }),
     postType: 'discussion',
     isAIGenerated: true,
   };
@@ -248,7 +284,7 @@ async function publishPost(token, postData, categories) {
   if (AUTHOR_NAME) body.authorName = AUTHOR_NAME;
   if (categoryId) body.categoryId = categoryId;
   if (Array.isArray(postData.tags) && postData.tags.length > 0) {
-    body.tags = postData.tags.slice(0, 5);
+    body.tags = normalizeTags(postData.tags, ['开发经验', '技术讨论']);
   }
 
   const res = await siteFetch(`${SITE_URL}/api/forum/posts`, {

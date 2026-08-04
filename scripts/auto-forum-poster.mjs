@@ -9,6 +9,12 @@
  */
 
 import { callAI, checkAIHealth, siteFetch, robustJSONParse, extractPostFromText } from './lib/ai-client.mjs';
+import {
+  appendProfessionalFooter,
+  buildProfessionalPromptRules,
+  normalizeTags,
+  normalizeTitle,
+} from './lib/post-template.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -200,8 +206,9 @@ async function fetchCategories(token) {
 async function generatePostContent(title, topicType, categories) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
   const typeHint = topicType === 'tutorial'
-    ? '开发教程：写一篇实用的技术教程，包含代码示例和步骤说明'
-    : '开源项目推荐：介绍一个开源项目的特点、优势和使用场景';
+    ? '开发教程：写一篇实用的技术教程，包含背景、步骤、代码示例、避坑建议和讨论引导'
+    : '开源项目推荐：介绍一个开源项目的定位、核心亮点、适用场景、快速上手和选型建议';
+  const professionalRules = buildProfessionalPromptRules({ mode: 'forum' });
 
   const prompt = `你是一个技术社区的内容创作者。请生成一篇高质量的论坛帖子。
 
@@ -209,20 +216,23 @@ async function generatePostContent(title, topicType, categories) {
 
 1. 标题：${title}
 2. 类型：${typeHint}
-3. 内容用 Markdown 格式，结构清晰，包含代码块。
-4. 内容长度：800-2000 字。
+3. 内容用 Markdown 格式，结构清晰，必要时包含代码块。
+4. 内容长度：1200-2400 字。
 5. 语言：中文。
 6. 要有实际价值，不要空洞的水文。
-7. 代码示例要正确可运行。
-8. 帖子要有趣、易读，能吸引开发者。
+7. 代码示例要正确可运行；如果涉及命令或配置，要说明使用前提。
+8. 帖子要专业、易读，能吸引开发者收藏或参与讨论。
+9. 不要写“作为 AI”“我是 AI”之类表达。
+
+${professionalRules}
 
 ## 输出格式
 
 只输出一个 JSON 对象，不要输出任何其他文字，不要用 markdown 代码块包裹：
 {
-  "title": "帖子标题",
+  "title": "专业、清晰、适合 SEO 的帖子标题",
   "content": "Markdown 格式的帖子正文，注意：正文中的换行用 \\n 表示",
-  "tags": ["标签1", "标签2", "标签3"],
+  "tags": ["标签1", "标签2", "标签3", "标签4"],
   "postType": "discussion",
   "summary": "一句话总结这篇帖子"
 }
@@ -246,6 +256,15 @@ async function generatePostContent(title, topicType, categories) {
     try {
       const parsed = robustJSONParse(content);
       if (parsed.title && parsed.content) {
+        parsed.title = normalizeTitle(parsed.title, title);
+        parsed.tags = normalizeTags(parsed.tags, topicType === 'tutorial'
+          ? ['教程', '开发实践']
+          : ['开源项目', '工具推荐']);
+        parsed.content = appendProfessionalFooter(parsed.content, {
+          discussionQuestion: topicType === 'tutorial'
+            ? '你在实践这个方案时遇到过哪些坑？欢迎把你的环境、报错和解决方式发出来，后续可以一起整理成更完整的教程。'
+            : '你用过这个项目或类似工具吗？欢迎补充真实体验、替代方案和适合/不适合的场景。',
+        });
         log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
         return parsed;
       }
@@ -262,6 +281,11 @@ async function generatePostContent(title, topicType, categories) {
       warn('JSON 解析多次失败，尝试从文本中提取帖子内容...');
       const fallback = extractPostFromText(content, title);
       if (fallback.title && fallback.content && fallback.content.length > 50) {
+        fallback.title = normalizeTitle(fallback.title, title);
+        fallback.tags = normalizeTags(fallback.tags, topicType === 'tutorial'
+          ? ['教程', '开发实践']
+          : ['开源项目', '工具推荐']);
+        fallback.content = appendProfessionalFooter(fallback.content);
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
         return fallback;
       }
@@ -287,8 +311,8 @@ async function publishPost(token, postData, categories) {
   }
 
   const body = {
-    title: postData.title,
-    content: postData.content,
+    title: normalizeTitle(postData.title),
+    content: appendProfessionalFooter(postData.content),
     postType: postData.postType || 'discussion',
     isAIGenerated: true,
   };
@@ -300,7 +324,7 @@ async function publishPost(token, postData, categories) {
 
   if (categoryId) body.categoryId = categoryId;
   if (Array.isArray(postData.tags) && postData.tags.length > 0) {
-    body.tags = postData.tags.slice(0, 5);
+    body.tags = normalizeTags(postData.tags);
   }
 
   log(`发布帖子到 ${SITE_URL}/api/forum/posts...`);

@@ -16,6 +16,12 @@
  */
 
 import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
+import {
+  appendProfessionalFooter,
+  buildProfessionalPromptRules,
+  normalizeTags,
+  normalizeTitle,
+} from './lib/post-template.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -218,6 +224,7 @@ function parseTaggedOutput(text) {
 // ===== 调用 AI 生成高质量文章 =====
 async function generateArticle(postType, title, categories) {
   const categoryList = categories.map((c) => `${c.id}:${c.name}`).join('、') || '无';
+  const professionalRules = buildProfessionalPromptRules({ mode: 'deep' });
 
   const prompt = `你是一位资深技术博主和全栈开发工程师。请生成一篇高质量的深度技术博客文章。
 
@@ -226,16 +233,23 @@ async function generateArticle(postType, title, categories) {
 1. 标题：${title}
 2. 类型：${postType.label} —— ${postType.hint}
 3. 内容用 Markdown 格式，结构清晰，包含：
-   - 引言/背景介绍
+   - 核心结论（开头 2-3 句话直接说明价值）
+   - 适合读者
+   - 背景/问题介绍
    - 核心内容（分多个小节，每节有明确的小标题）
    - 完整的、可运行的代码示例（用代码块包裹，标注语言）
    - 实际案例或对比分析
+   - 常见坑点
    - 总结与最佳实践建议
+   - 讨论引导
 4. 内容长度：2500-6000 字（要深入、有料，不是水文）。
 5. 语言：中文，技术术语可保留英文。
 6. 代码示例必须正确、可运行，符合当前主流版本的最佳实践。
 7. 要有独到见解和实用价值，能让读者真正学到东西。
 8. 适当使用表格、列表、引用块来增强可读性。
+9. 不要写“作为 AI”“我是 AI”之类表达。
+
+${professionalRules}
 
 ## 论坛分类
 
@@ -246,13 +260,13 @@ async function generateArticle(postType, title, categories) {
 
 用以下标签格式输出，每个字段用对应标签包裹。content 标签内可以直接写 Markdown，不需要转义任何字符：
 
-<TITLE>文章标题</TITLE>
+<TITLE>专业、清晰、适合 SEO 的文章标题</TITLE>
 
 <CONTENT>
 Markdown 格式的完整文章正文
 </CONTENT>
 
-<TAGS>标签1,标签2,标签3</TAGS>
+<TAGS>标签1,标签2,标签3,标签4,标签5</TAGS>
 
 <POSTTYPE>discussion</POSTTYPE>
 
@@ -282,11 +296,15 @@ Markdown 格式的完整文章正文
   if (parsed.title.length > 100) {
     parsed.title = parsed.title.slice(0, 97) + '...';
   }
+  parsed.title = normalizeTitle(parsed.title, title);
 
   if (!parsed.postType) parsed.postType = 'discussion';
-  if (!parsed.tags) parsed.tags = [];
+  parsed.tags = normalizeTags(parsed.tags, [postType.label, '技术文章']);
   if (!parsed.categoryId) parsed.categoryId = '';
   if (!parsed.summary) parsed.summary = '';
+  parsed.content = appendProfessionalFooter(parsed.content, {
+    discussionQuestion: '你在真实项目里是怎么处理类似问题的？欢迎补充你的技术选型、踩坑经历或不同方案。',
+  });
 
   log(`文章生成完成，标题：${parsed.title}，内容长度：${parsed.content.length}`);
   return parsed;
@@ -304,8 +322,8 @@ async function publishPost(token, article, categories) {
   }
 
   const body = {
-    title: article.title,
-    content: article.content,
+    title: normalizeTitle(article.title),
+    content: appendProfessionalFooter(article.content),
     postType: article.postType || 'discussion',
     isAIGenerated: true,
   };
@@ -317,7 +335,7 @@ async function publishPost(token, article, categories) {
 
   if (categoryId) body.categoryId = categoryId;
   if (Array.isArray(article.tags) && article.tags.length > 0) {
-    body.tags = article.tags.slice(0, 5);
+    body.tags = normalizeTags(article.tags, [article.postType || '技术文章']);
   }
 
   log(`发布文章到 ${SITE_URL}/api/forum/posts...`);
