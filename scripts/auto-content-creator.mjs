@@ -307,6 +307,7 @@ async function publishPost(token, article, categories) {
     title: article.title,
     content: article.content,
     postType: article.postType || 'discussion',
+    isAIGenerated: true,
   };
 
   // 传递自定义作者名（仅管理员账号有效）

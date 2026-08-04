@@ -46,8 +46,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      conditions.push("(p.title LIKE '%' || ? || '%' OR p.content LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM PostTag pt JOIN Tag t ON pt.tag_id = t.id WHERE pt.post_id = p.id AND t.name LIKE '%' || ? || '%'))");
-      args.push(search, search, search);
+      // 多关键词搜索：按空格拆分，每个关键词都需匹配（AND 逻辑）
+      // 匹配范围：标题、内容、标签名
+      const keywords = search.trim().split(/\s+/).filter((kw) => kw.length > 0);
+
+      for (const kw of keywords) {
+        conditions.push(
+          "(p.title LIKE '%' || ? || '%' OR p.content LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM PostTag pt JOIN Tag t ON pt.tag_id = t.id WHERE pt.post_id = p.id AND t.name LIKE '%' || ? || '%'))",
+        );
+        args.push(kw, kw, kw);
+      }
     }
 
     if (authorId) {
@@ -73,7 +81,16 @@ export async function GET(request: NextRequest) {
 
     // ---- 排序 ----
     let orderClause: string;
-    if (sort === 'hot') {
+    if (search) {
+      // 搜索时按相关性排序：标题匹配优先，然后按热度+时间
+      // 仅保留安全字符（字母、数字、中文、空格），防止 SQL 注入
+      const safeKeyword = search.trim().split(/\s+/)[0].replace(/[^\w\u4e00-\u9fff\s]/g, '').replace(/'/g, "''");
+      if (safeKeyword) {
+        orderClause = `p.is_pinned DESC, CASE WHEN p.title LIKE '%' || '${safeKeyword}' || '%' THEN 0 ELSE 1 END, p.like_count DESC, p.created_at DESC`;
+      } else {
+        orderClause = 'p.is_pinned DESC, p.created_at DESC';
+      }
+    } else if (sort === 'hot') {
       orderClause = 'p.is_pinned DESC, p.like_count DESC, p.view_count DESC, p.created_at DESC';
     } else {
       orderClause = 'p.is_pinned DESC, p.created_at DESC';
@@ -109,7 +126,7 @@ export async function GET(request: NextRequest) {
         db,
         `SELECT p.id, p.title, substr(p.content, 1, 200) as summary_content,
                 p.view_count, p.like_count, p.comment_count, p.is_pinned, p.is_essence,
-                p.created_at, p.post_type, p.author_name, p.status,
+                p.created_at, p.post_type, p.author_name, p.status, p.is_ai_generated,
                 u.id as author_id, u.username as author_username, u.avatar as author_avatar,
                 c.id as cat_id, c.name as cat_name, c.slug as cat_slug
          FROM Post p
@@ -189,6 +206,7 @@ export async function GET(request: NextRequest) {
       createdAt: p.created_at,
       postType: p.post_type,
       status: p.status,
+      isAIGenerated: Boolean(p.is_ai_generated),
       author: {
         id: p.author_id || '',
         username: p.author_name || p.author_username || '匿名',
@@ -237,7 +255,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, content, categoryId, tags, postType: rawPostType, authorName } = body;
+    const { title, content, categoryId, tags, postType: rawPostType, authorName, isAIGenerated } = body;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -318,6 +336,7 @@ export async function POST(request: NextRequest) {
           status: 'PUBLISHED',
           postType,
           ...(safeAuthorName && { authorName: safeAuthorName }),
+          ...(isAIGenerated === true && { isAIGenerated: true }),
         },
       });
 

@@ -17,6 +17,7 @@ interface Post {
   isEssence: boolean;
   createdAt: string;
   postType?: string;
+  isAIGenerated?: boolean;
   tags?: { tag: { id: string; name: string; slug: string } }[];
 }
 
@@ -190,7 +191,7 @@ export default function PostList({
       </div>
 
       {/* 帖子列表 */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {sortedPosts.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-50 rounded-full mb-3">

@@ -48,6 +48,12 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: "微信同步",
+    items: [
+      { key: "wechat", label: "公众号同步", href: "/admin/wechat", icon: Icons.Chat },
+    ],
+  },
+  {
     title: "用户管理",
     items: [
       { key: "users", label: "用户列表", href: "/admin/users", icon: Icons.Users },

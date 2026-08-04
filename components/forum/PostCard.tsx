@@ -21,6 +21,7 @@ interface Post {
   createdAt: string;
   authorId?: string;
   postType?: string;
+  isAIGenerated?: boolean;
   tags?: { tag: { id: string; name: string; slug: string } }[];
 }
 
@@ -148,7 +149,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
 
       <div className="p-4 sm:p-5 pl-5 sm:pl-6">
         {/* 顶部：用户信息 */}
-        <div className="flex items-center gap-2.5 mb-3">
+        <div className="flex items-center gap-2.5 mb-2">
           <UserAvatar
             username={post.author.username}
             avatar={post.author.avatar}
@@ -163,13 +164,23 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
             {formatTimeAgo(post.createdAt)}
           </span>
 
-          {/* 右侧标签 */}
-          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {/* 右侧标签 — 移动端移到第二行 */}
+          <div className="ml-auto hidden sm:flex items-center gap-1.5 shrink-0">
             {/* 分类标签 — 颜色点 + 文字 */}
             <span className={cn("inline-flex items-center gap-1 text-xs font-medium", category.textClass)}>
               <span className={cn("w-1.5 h-1.5 rounded-full", category.dot)} />
               {category.label}
             </span>
+
+            {/* AI 创作 */}
+            {post.isAIGenerated && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 rounded">
+                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                AI 创作
+              </span>
+            )}
 
             {/* 置顶 */}
             {post.isPinned && (
@@ -201,6 +212,46 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
               </>
             )}
           </div>
+        </div>
+
+        {/* 移动端标签行 */}
+        <div className="flex sm:hidden flex-wrap items-center gap-1.5 mb-2">
+          <span className={cn("inline-flex items-center gap-1 text-xs font-medium", category.textClass)}>
+            <span className={cn("w-1.5 h-1.5 rounded-full", category.dot)} />
+            {category.label}
+          </span>
+          {post.isAIGenerated && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-violet-600 bg-violet-50 rounded">
+              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              AI 创作
+            </span>
+          )}
+          {post.isPinned && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 bg-red-50 rounded">
+              <PinIcon className="w-2.5 h-2.5" />
+              置顶
+            </span>
+          )}
+          {post.isEssence && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-amber-600 bg-amber-50 rounded">
+              <StarIcon className="w-2.5 h-2.5" />
+              精华
+            </span>
+          )}
+          {post.postType === "question" && (
+            <>
+              <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 bg-emerald-50 rounded">
+                问答
+              </span>
+              {post.commentCount === 0 && (
+                <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 bg-blue-50 rounded">
+                  待解答
+                </span>
+              )}
+            </>
+          )}
         </div>
 
         {/* 标题 */}
@@ -235,7 +286,7 @@ export default function PostCard({ post, showActions = false }: PostCardProps) {
         )}
 
         {/* 底部统计行 */}
-        <div className="flex items-center gap-4 text-xs text-gray-400">
+        <div className="flex items-center gap-3 sm:gap-4 text-xs text-gray-400">
           <span className="inline-flex items-center gap-1">
             <EyeIcon className="w-3.5 h-3.5" />
             {post.viewCount}

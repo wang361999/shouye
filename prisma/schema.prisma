@@ -75,6 +75,9 @@ model User {
   // 社区扩展 - 每日签到
   checkIns      CheckIn[]
 
+  // 微信公众号同步
+  wechatSyncs   WechatSync[]
+
   // 社区首页查询优化索引
   @@index([status, postCount, commentCount]) // 活跃成员：WHERE status + ORDER BY post_count, comment_count
   @@map("User")
@@ -136,6 +139,7 @@ model Post {
   postType     String     @default("discussion") @map("post_type") // discussion | question
   acceptedCommentId String? @map("accepted_comment_id") // 问答帖采纳的评论ID
   authorName   String?    @map("author_name") // AI 发帖时自定义显示名（为空则显示 author.username）
+  isAIGenerated Boolean    @default(false) @map("is_ai_generated") // 是否 AI 生成内容
   deletedAt    DateTime?  @map("deleted_at") // 软删除时间
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
@@ -145,6 +149,7 @@ model Post {
   comments Comment[]
   likes    Like[]
   tags     PostTag[]
+  wechatSyncs WechatSync[]
   collectionItems CollectionItem[]
 
   @@index([categoryId])
@@ -835,4 +840,26 @@ model CheckIn {
   @@index([userId])
   @@index([checkInDate])
   @@map("CheckIn")
+}
+
+// ============ 微信公众号同步 ============
+model WechatSync {
+  id            String   @id @default(cuid())
+  postId        String   @map("post_id")
+  mediaId       String?  @map("media_id")     // 草稿 media_id
+  publishId     String?  @map("publish_id")    // 发布 ID
+  status        String   @default("draft")     // draft | published | failed | deleted
+  errorMessage  String?  @map("error_message")
+  syncedBy      String   @map("synced_by")     // 操作人用户 ID
+  publishedAt   DateTime? @map("published_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [syncedBy], references: [id])
+
+  @@index([postId])
+  @@index([status])
+  @@index([syncedBy])
+  @@map("WechatSync")
 }

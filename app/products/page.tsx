@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
+import GithubStarBadge from '@/components/products/GithubStarBadge';
 
 // ============ 产品类型定义 ============
 interface Product {
@@ -117,10 +118,13 @@ export default function ProductsPage() {
 
                 {/* 内容区 */}
                 <div className="p-5">
-                  {/* 产品名称 */}
-                  <h3 className="text-base font-bold text-gray-900 mb-1.5 group-hover:text-gray-700 transition-colors">
-                    {product.name}
-                  </h3>
+                  {/* 标题行 + Star 徽章 */}
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <h3 className="text-base font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
+                      {product.name}
+                    </h3>
+                    <GithubStarBadge slug={product.slug} />
+                  </div>
 
                   {/* 一句话描述 */}
                   <p className="text-sm text-gray-500 mb-4 line-clamp-2 leading-relaxed">

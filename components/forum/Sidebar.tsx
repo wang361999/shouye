@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import CheckInWidget from "./CheckInWidget";
+import LeaderboardWidget from "./LeaderboardWidget";
 
 interface Post {
   id: string;
@@ -153,8 +155,14 @@ export default function Sidebar({ stats, hotPosts }: SidebarProps) {
 
   return (
     <aside className="space-y-4">
-      {/* 社区统计 */}
-      <div className="bg-white rounded-xl border border-gray-200/80 p-5">
+      {/* 每日签到 */}
+      <CheckInWidget />
+
+      {/* 社区排行榜 */}
+      <LeaderboardWidget />
+
+      {/* 社区统计 — 移动端隐藏（Hero 区域已有） */}
+      <div className="hidden lg:block bg-white rounded-xl border border-gray-200/80 p-5">
         <div className="flex items-center gap-2 mb-4">
           <ChartIcon className="w-4 h-4 text-gray-400" />
           <h3 className="text-sm font-semibold text-gray-700">社区统计</h3>
@@ -223,8 +231,8 @@ export default function Sidebar({ stats, hotPosts }: SidebarProps) {
         )}
       </div>
 
-      {/* 标签云 */}
-      <div className="bg-white rounded-xl border border-gray-200/80 p-5">
+      {/* 标签云 — 移动端隐藏 */}
+      <div className="hidden lg:block bg-white rounded-xl border border-gray-200/80 p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TagIcon className="w-4 h-4 text-gray-400" />
@@ -268,8 +276,8 @@ export default function Sidebar({ stats, hotPosts }: SidebarProps) {
         )}
       </div>
 
-      {/* 快捷入口 */}
-      <div className="bg-white rounded-xl border border-gray-200/80 p-5">
+      {/* 快捷入口 — 移动端隐藏（底部 Tab Bar 已覆盖） */}
+      <div className="hidden lg:block bg-white rounded-xl border border-gray-200/80 p-5">
         <div className="flex items-center gap-2 mb-4">
           <LinkIcon className="w-4 h-4 text-gray-400" />
           <h3 className="text-sm font-semibold text-gray-700">快捷入口</h3>
@@ -291,8 +299,8 @@ export default function Sidebar({ stats, hotPosts }: SidebarProps) {
         </div>
       </div>
 
-      {/* RSS 订阅 */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200/80 p-5">
+      {/* RSS 订阅 — 移动端隐藏 */}
+      <div className="hidden lg:block bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200/80 p-5">
         <div className="flex items-center gap-2 mb-2">
           <RssIcon className="w-4 h-4 text-orange-500" />
           <h3 className="text-sm font-semibold text-gray-700">RSS 订阅</h3>

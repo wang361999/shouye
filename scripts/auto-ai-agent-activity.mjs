@@ -18,6 +18,7 @@ const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = '',
   ADMIN_PASSWORD = '',
+  AUTHOR_NAME = 'GitdBot', // 回退到管理员发帖时显示的自定义作者名，默认不用 admin
 } = process.env;
 
 const TAG = '[ai-agent-activity]';
@@ -241,7 +242,10 @@ async function publishPost(token, postData, categories) {
     title: postData.title,
     content: postData.content,
     postType: 'discussion',
+    isAIGenerated: true,
   };
+  // 回退到管理员账号时用自定义作者名，避免显示 admin
+  if (AUTHOR_NAME) body.authorName = AUTHOR_NAME;
   if (categoryId) body.categoryId = categoryId;
   if (Array.isArray(postData.tags) && postData.tags.length > 0) {
     body.tags = postData.tags.slice(0, 5);

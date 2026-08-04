@@ -32,6 +32,7 @@ interface Post {
   isLocked: boolean;
   postType: string;
   acceptedCommentId: string | null;
+  isAIGenerated?: boolean;
   tags?: PostTag[];
   createdAt: string;
   comments: any[];
@@ -85,6 +86,7 @@ function normalizePost(data: any): Post {
     isLocked: Boolean(data?.isLocked),
     postType: data?.postType === "question" ? "question" : "discussion",
     acceptedCommentId: data?.acceptedCommentId || null,
+    isAIGenerated: Boolean(data?.isAIGenerated),
     tags: Array.isArray(data?.tags)
       ? data.tags.filter((item: any) => item?.tag && typeof item.tag === "object")
       : [],
@@ -345,6 +347,16 @@ export default function PostDetailPage({
         }`}>
           {isQuestion ? '❓ 问答' : '💬 讨论'}
         </span>
+
+        {/* AI 创作标识 */}
+        {post.isAIGenerated && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border bg-violet-50 text-violet-700 border-violet-200">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            AI 创作
+          </span>
+        )}
         <span>·</span>
         <span>{formatDate(post.createdAt)}</span>
         <span>·</span>

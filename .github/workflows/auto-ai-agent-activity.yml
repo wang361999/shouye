@@ -68,6 +68,7 @@ jobs:
       AI_MODEL: gemini-3.6-flash
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      AUTHOR_NAME: ${{ secrets.POSTER_AUTHOR_NAME || 'GitdBot' }}
 
     steps:
       - name: Checkout

@@ -4,6 +4,7 @@ import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { sendNotification } from '@/lib/notify';
+import { sendEmail } from '@/lib/email';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
 const QUERY_TIMEOUT = 6000;
@@ -17,6 +18,16 @@ const SENSITIVE_WORDS = [
 // ============ 敏感词检测函数 ============
 function containsSensitiveWord(text: string): boolean {
   return SENSITIVE_WORDS.some((word) => text.includes(word));
+}
+
+// ============ HTML 转义函数（防止邮件内容 XSS） ============
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ============ GET /api/forum/comments - 获取评论列表 ============
@@ -357,6 +368,8 @@ export async function POST(request: NextRequest) {
         content.trim().length > 50
           ? `${content.trim().slice(0, 50)}...`
           : content.trim();
+
+      // 站内通知
       await sendNotification({
         userId: post.authorId,
         type: 'reply',
@@ -364,6 +377,94 @@ export async function POST(request: NextRequest) {
         content: `${user.username || '匿名用户'} 回复了您：${commentSummary}`,
         link: `/forum/post/${postId}`,
       });
+
+      // 邮件通知（发送失败不影响评论创建，静默处理）
+      try {
+        // 查询帖子作者和评论者的邮箱与用户名
+        const users = await prisma.user.findMany({
+          where: { id: { in: [post.authorId, user.userId] } },
+          select: { id: true, email: true, username: true },
+        });
+        const postAuthor = users.find((u) => u.id === post.authorId);
+        const commentAuthorInfo = users.find((u) => u.id === user.userId);
+
+        // 仅当帖子作者有邮箱时发送邮件
+        if (postAuthor?.email) {
+          // 从数据库读取 Resend 邮件配置
+          const settings = await prisma.systemSetting.findMany({
+            where: { key: { in: ['resend_api_key', 'resend_from_email'] } },
+          });
+          const mailConfig: Record<string, string> = {};
+          for (const s of settings) mailConfig[s.key] = s.value;
+
+          const commenterName =
+            commentAuthorInfo?.username || user.username || '匿名用户';
+          const authorName = postAuthor.username || '社区成员';
+          const postTitle = post.title;
+          const rawContent = content.trim();
+          const commentExcerpt =
+            rawContent.length > 200
+              ? `${rawContent.slice(0, 200)}...`
+              : rawContent;
+          const origin = new URL(request.url).origin;
+          const postLink = `${origin}/forum/post/${postId}`;
+
+          const html = `
+            <div style="max-width:600px;margin:0 auto;padding:0;font-family:Arial,'Microsoft YaHei',Helvetica,sans-serif;background-color:#f4f5f7;">
+              <!-- 顶部品牌标题 -->
+              <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:28px 24px;text-align:center;border-radius:8px 8px 0 0;">
+                <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px;">Gitd 社区</h1>
+                <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">有人回复了你的帖子</p>
+              </div>
+
+              <!-- 正文通知内容 -->
+              <div style="background:#ffffff;padding:28px 24px;border:1px solid #e5e7eb;border-top:none;">
+                <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6;">
+                  你好，${escapeHtml(authorName)}：
+                </p>
+                <p style="margin:0 0 16px;color:#374151;font-size:14px;line-height:1.7;">
+                  <strong style="color:#4f46e5;">${escapeHtml(commenterName)}</strong> 回复了你的帖子
+                  <a href="${escapeHtml(postLink)}" style="color:#4f46e5;text-decoration:none;">《${escapeHtml(postTitle)}》</a>
+                </p>
+
+                <!-- 评论摘要 -->
+                <div style="background:#f9fafb;border-left:3px solid #4f46e5;padding:14px 16px;margin:0 0 24px;border-radius:0 4px 4px 0;">
+                  <p style="margin:0 0 8px;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">评论内容</p>
+                  <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;">${escapeHtml(commentExcerpt)}</p>
+                </div>
+
+                <!-- 查看详情按钮 -->
+                <div style="text-align:center;margin:0 0 8px;">
+                  <a href="${escapeHtml(postLink)}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 32px;border-radius:6px;">查看详情并回复</a>
+                </div>
+              </div>
+
+              <!-- 底部版权信息 -->
+              <div style="background:#f9fafb;padding:20px 24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;text-align:center;">
+                <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">
+                  此邮件由 Gitd 社区自动发送，请勿直接回复。
+                </p>
+                <p style="margin:0;color:#9ca3af;font-size:12px;">
+                  &copy; ${new Date().getFullYear()} Gitd. 保留所有权利。
+                </p>
+              </div>
+            </div>
+          `;
+
+          await sendEmail(
+            {
+              to: postAuthor.email,
+              subject: `[Gitd] ${commenterName} 回复了你的帖子《${postTitle}》`,
+              html,
+            },
+            mailConfig,
+            'Gitd',
+          );
+        }
+      } catch (emailError) {
+        // 邮件发送失败不影响评论创建，静默处理
+        console.error('[COMMENT EMAIL NOTIFY ERROR]', emailError);
+      }
     }
 
     // 如果评论被标记为待审核，返回提示信息

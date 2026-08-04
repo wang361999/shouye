@@ -23,6 +23,7 @@ import {
   TableLoading,
   Pagination,
   Icons,
+  Spinner,
 } from "@/components/admin/ui";
 
 interface Post {
@@ -69,6 +70,7 @@ export default function ForumPostsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Post | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [wechatSyncing, setWechatSyncing] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -205,6 +207,27 @@ export default function ForumPostsPage() {
       toast.error("删除失败，请稍后重试");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleWechatSync(post: Post) {
+    if (wechatSyncing || post.status === "DELETED") return;
+    try {
+      setWechatSyncing(post.id);
+      const res = await adminFetch("/api/wechat/sync", {
+        method: "POST",
+        body: JSON.stringify({ postId: post.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "同步失败");
+        return;
+      }
+      toast.success("已同步到微信草稿箱");
+    } catch {
+      toast.error("同步失败，请稍后重试");
+    } finally {
+      setWechatSyncing(null);
     }
   }
 
@@ -373,6 +396,17 @@ export default function ForumPostsPage() {
                           patchPost(post, post.isLocked ? "unlock" : "lock")
                         }
                         title={post.isLocked ? "解锁" : "锁定"}
+                      />
+                      <IconButton
+                        icon={
+                          wechatSyncing === post.id ? (
+                            <Spinner className="w-4 h-4" />
+                          ) : (
+                            <span className="text-base leading-none">💬</span>
+                          )
+                        }
+                        onClick={() => handleWechatSync(post)}
+                        title="同步到微信"
                       />
                       {post.status !== "DELETED" && (
                         <IconButton

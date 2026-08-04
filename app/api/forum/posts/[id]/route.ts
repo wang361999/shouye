@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
+import { sendNotification } from '@/lib/notify';
 import { revalidateCommunityHome } from '@/lib/revalidate';
 
 const QUERY_TIMEOUT = 8000;
@@ -44,7 +45,7 @@ export async function GET(
         `SELECT p.id, p.title, p.content, p.category_id,
                 p.view_count, p.like_count, p.comment_count,
                 p.is_pinned, p.is_essence, p.is_locked, p.status,
-                p.post_type, p.accepted_comment_id, p.author_name,
+                p.post_type, p.accepted_comment_id, p.author_name, p.is_ai_generated,
                 p.deleted_at, p.created_at, p.updated_at,
                 u.id as author_id, u.username as author_username, u.avatar as author_avatar,
                 c.id as cat_id, c.name as cat_name, c.slug as cat_slug
@@ -274,6 +275,7 @@ export async function GET(
       postType: postRow.post_type,
       acceptedCommentId: postRow.accepted_comment_id,
       authorName: postRow.author_name,
+      isAIGenerated: Boolean(postRow.is_ai_generated),
       deletedAt: postRow.deleted_at,
       createdAt: postRow.created_at,
       updatedAt: postRow.updated_at,
@@ -584,6 +586,34 @@ export async function PATCH(
         where: { id },
         data: { isEssence: !existing.isEssence },
       });
+
+      // 首次设为精华时（从非精华变为精华），奖励作者声望值并发送通知
+      // 取消精华时不扣回声望（只奖不罚）
+      if (!existing.isEssence && post.isEssence) {
+        // 增加作者声望值 +50
+        try {
+          await prisma.user.update({
+            where: { id: existing.authorId },
+            data: { reputation: { increment: 50 } },
+          });
+        } catch (repError) {
+          console.error('[ESSENCE REPUTATION UPDATE ERROR]', repError);
+        }
+
+        // 发送站内通知
+        try {
+          await sendNotification({
+            userId: existing.authorId,
+            type: 'system',
+            title: '帖子被设为精华',
+            content: `你的帖子《${existing.title}》被设为精华，获得 50 声望值奖励`,
+            link: `/forum/post/${existing.id}`,
+          });
+        } catch (notifyError) {
+          console.error('[ESSENCE NOTIFY ERROR]', notifyError);
+        }
+      }
+
       return NextResponse.json({
         message: post.isEssence ? '帖子已加精' : '帖子已取消加精',
         isEssence: post.isEssence,

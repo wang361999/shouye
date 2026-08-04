@@ -7,6 +7,7 @@ import { Container } from '@/components/common/Container';
 import { useAppStore } from '@/lib/store';
 import { formatDate, cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import GithubStatsWidget from '@/components/products/GithubStatsWidget';
 
 // ============ 类型定义 ============
 interface ProductVersion {
@@ -562,6 +563,9 @@ export default function ProductDetailPage() {
 
           {/* ============ 右侧侧边栏 ============ */}
           <div className="lg:col-span-1 space-y-6">
+            {/* GitHub 实时数据 */}
+            <GithubStatsWidget slug={params?.slug as string} />
+
             {/* 免费授权卡片 */}
             <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden sticky top-6">
               <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-6 text-white">

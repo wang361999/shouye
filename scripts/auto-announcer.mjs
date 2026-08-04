@@ -231,6 +231,7 @@ async function publishAnnouncement(token, announcement, categories) {
     content: announcement.content,
     postType: 'discussion',
     tags: announcement.tags || ['公告', '社区动态'],
+    isAIGenerated: true,
   };
 
   if (AUTHOR_NAME) body.authorName = AUTHOR_NAME;

@@ -290,6 +290,7 @@ async function publishPost(token, postData, categories) {
     title: postData.title,
     content: postData.content,
     postType: postData.postType || 'discussion',
+    isAIGenerated: true,
   };
 
   // 传递自定义作者名（仅管理员账号有效）

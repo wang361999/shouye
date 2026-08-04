@@ -154,6 +154,7 @@ async function publishReport(token, report) {
       content: report.content,
       postType: report.postType || 'discussion',
       tags: report.tags || ['周报', '社区动态'],
+      isAIGenerated: true,
       ...(AUTHOR_NAME && { authorName: AUTHOR_NAME }),
     }),
   });

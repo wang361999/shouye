@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
+import { notifyAllAdmins } from '@/lib/notify';
 
 // 允许的举报目标类型
 const ALLOWED_TARGET_TYPES = ['post', 'comment'];
@@ -153,6 +154,20 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // 通知所有管理员有新举报
+    const reasonMap: Record<string, string> = {
+      spam: '垃圾广告',
+      abuse: '辱骂攻击',
+      inappropriate: '不当内容',
+      other: '其他',
+    };
+    await notifyAllAdmins({
+      type: 'system',
+      title: `新举报：${reasonMap[reason] || reason}`,
+      content: `${user.username} 举报了一个${targetType === 'post' ? '帖子' : '评论'}，原因：${reasonMap[reason] || reason}${description ? '，描述：' + description.slice(0, 100) : ''}`,
+      link: '/admin/forum/reports',
+    }).catch(() => {});
 
     return NextResponse.json(report, { status: 201 });
   } catch (error) {

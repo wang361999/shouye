@@ -30,6 +30,7 @@ interface Post {
   isEssence: boolean;
   createdAt: string;
   postType?: string;
+  isAIGenerated?: boolean;
   tags?: { tag: { id: string; name: string; slug: string } }[];
 }
 
@@ -176,6 +177,7 @@ export default function ForumPage() {
             isEssence: p.isEssence,
             createdAt: p.createdAt,
             postType: p.postType,
+            isAIGenerated: p.isAIGenerated,
             tags: p.tags,
           }));
           setPosts(formattedPosts);
@@ -323,19 +325,19 @@ export default function ForumPage() {
           </div>
 
           {/* 统计数据条 */}
-          <div className="flex items-center gap-6 mt-6 text-sm">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-6 text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-white">{stats.totalPosts}</span>
+              <span className="text-xl sm:text-2xl font-bold text-white">{stats.totalPosts}</span>
               <span className="text-gray-400">帖子</span>
             </div>
-            <div className="w-px h-8 bg-white/10" />
+            <div className="w-px h-8 bg-white/10 hidden sm:block" />
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-white">{stats.totalUsers}</span>
+              <span className="text-xl sm:text-2xl font-bold text-white">{stats.totalUsers}</span>
               <span className="text-gray-400">用户</span>
             </div>
-            <div className="w-px h-8 bg-white/10" />
+            <div className="w-px h-8 bg-white/10 hidden sm:block" />
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-indigo-400">{stats.todayPosts}</span>
+              <span className="text-xl sm:text-2xl font-bold text-indigo-400">{stats.todayPosts}</span>
               <span className="text-gray-400">今日新增</span>
             </div>
           </div>
