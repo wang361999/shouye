@@ -12,7 +12,7 @@
  *   - trend:    技术趋势分析
  *
  * 用法：在 GitHub Actions 中运行
- * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL, POST_TOPIC
+ * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL, POST_TOPIC, AUTHOR_NAME
  */
 
 import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
@@ -22,6 +22,7 @@ const {
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
   POST_TOPIC = '', // tutorial | blog | trend | random
+  AUTHOR_NAME = 'GitdBot', // AI 发帖时显示的自定义作者名，默认不用 admin
 } = process.env;
 
 const TAG = '[auto-content-creator]';
@@ -92,6 +93,60 @@ function pickPostType() {
   const config = POST_TYPES[type];
   const title = config.topics[Math.floor(Math.random() * config.topics.length)];
   return { type, label: config.label, hint: config.hint, title };
+}
+
+// ===== AI Agent 人设池 =====
+const AGENT_PERSONAS = [
+  { name: 'CodeNinja', owner: 'Gitd Community', desc: '热爱全栈开发，专注 React 和 Node.js' },
+  { name: 'DevExplorer', owner: 'Gitd Community', desc: '探索新技术，分享开发经验和工具' },
+  { name: 'ByteWizard', owner: 'Gitd Community', desc: '后端架构师，擅长分布式系统' },
+  { name: 'PixelMage', owner: 'Gitd Community', desc: '前端开发者，热爱 CSS 动画和 UX 设计' },
+  { name: 'CloudPilot', owner: 'Gitd Community', desc: '云原生和 DevOps 实践者' },
+  { name: 'DataMiner', owner: 'Gitd Community', desc: '数据工程师，热爱 Python 和 ML' },
+  { name: 'TechSage', owner: 'Gitd Community', desc: '资深开发者，擅长系统设计' },
+  { name: 'WebCraftsman', owner: 'Gitd Community', desc: 'Web 工匠，追求代码质量和性能' },
+];
+
+// ===== 注册 AI Agent 并获取 token =====
+async function registerAIAgent() {
+  const persona = AGENT_PERSONAS[Math.floor(Math.random() * AGENT_PERSONAS.length)];
+  const suffix = Math.floor(Math.random() * 900 + 100);
+  const agentName = `${persona.name}${suffix}`;
+
+  log(`尝试注册 AI Agent：${agentName}...`);
+  try {
+    const res = await siteFetch(`${SITE_URL}/api/ai-agent/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent_name: agentName,
+        agent_owner: persona.owner,
+        agent_description: persona.desc,
+      }),
+    }, 15000);
+
+    if (res.ok) {
+      const data = await res.json();
+      log(`AI Agent 注册成功：${data.user?.username}，使用该账号发帖`);
+      return data.token;
+    }
+
+    if (res.status === 403 || res.status === 429) {
+      log('AI Agent 注册限额已满，回退到管理员账号');
+      return null;
+    }
+
+    if (res.status === 409) {
+      log('用户名已存在，重试...');
+      return registerAIAgent();
+    }
+
+    log(`AI Agent 注册失败：${res.status}`);
+    return null;
+  } catch (error) {
+    log(`AI Agent 注册异常：${error?.message || error}`);
+    return null;
+  }
 }
 
 // ===== 登录 =====
@@ -254,6 +309,11 @@ async function publishPost(token, article, categories) {
     postType: article.postType || 'discussion',
   };
 
+  // 传递自定义作者名（仅管理员账号有效）
+  if (AUTHOR_NAME) {
+    body.authorName = AUTHOR_NAME;
+  }
+
   if (categoryId) body.categoryId = categoryId;
   if (Array.isArray(article.tags) && article.tags.length > 0) {
     body.tags = article.tags.slice(0, 5);
@@ -292,8 +352,14 @@ log(`使用 AI 模型：${healthyModel}`);
 const postType = pickPostType();
 log(`本次文章类型：${postType.label}（${postType.type}）`);
 log(`备选标题：${postType.title}`);
+log(`作者名：${AUTHOR_NAME}`);
 
-const token = await login();
+// 优先尝试用 AI Agent 账号发帖，注册失败再回退到管理员
+let token = await registerAIAgent();
+if (!token) {
+  log('回退到管理员账号登录...');
+  token = await login();
+}
 const categories = await fetchCategories(token);
 const article = await generateArticle(postType, postType.title, categories);
 const result = await publishPost(token, article, categories);

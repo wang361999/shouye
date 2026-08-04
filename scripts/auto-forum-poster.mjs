@@ -15,7 +15,7 @@ const {
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
   POST_TOPIC = '', // tutorial | opensource | random
-  AUTHOR_NAME = '', // AI 发帖时显示的自定义作者名
+  AUTHOR_NAME = 'GitdBot', // AI 发帖时显示的自定义作者名，默认不用 admin
 } = process.env;
 
 const TAG = '[auto-forum-poster]';
@@ -334,7 +334,7 @@ async function main() {
 
   const { topicType, title } = pickTopic();
   log(`本次主题类型：${topicType}，标题：${title}`);
-  if (AUTHOR_NAME) log(`自定义作者名：${AUTHOR_NAME}`);
+  log(`作者名：${AUTHOR_NAME}`);
 
   // 优先尝试用 AI Agent 账号发帖，注册失败再回退到管理员
   let token = await registerAIAgent();

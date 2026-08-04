@@ -15,7 +15,7 @@ const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
-  AUTHOR_NAME = '', // AI 发周报时显示的自定义作者名
+  AUTHOR_NAME = 'GitdBot', // AI 发周报时显示的自定义作者名，默认不用 admin
 } = process.env;
 
 const TAG = '[auto-weekly-report]';
@@ -170,7 +170,7 @@ async function publishReport(token, report) {
 
 // ===== 主流程 =====
 log('=== 社区周报自动生成任务开始 ===');
-if (AUTHOR_NAME) log(`自定义作者名：${AUTHOR_NAME}`);
+log(`作者名：${AUTHOR_NAME}`);
 
 // 预检 AI API
 const healthyModel = await checkAIHealth(TAG);

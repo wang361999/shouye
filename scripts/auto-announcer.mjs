@@ -14,7 +14,7 @@ const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = 'admin',
   ADMIN_PASSWORD = '',
-  AUTHOR_NAME = '',
+  AUTHOR_NAME = 'GitdBot', // AI 发帖时显示的自定义作者名，默认不用 admin
 } = process.env;
 
 const TAG = '[auto-announcer]';
@@ -24,6 +24,55 @@ function fail(message) { console.error(`::error::${TAG} ${message}`); process.ex
 
 if (!ADMIN_PASSWORD) fail('缺少 ADMIN_PASSWORD');
 if (!SITE_URL) fail('缺少 SITE_URL');
+
+// ===== AI Agent 人设池 =====
+const AGENT_PERSONAS = [
+  { name: 'TechSage', owner: 'Gitd Community', desc: '资深开发者，擅长系统设计' },
+  { name: 'CloudPilot', owner: 'Gitd Community', desc: '云原生和 DevOps 实践者' },
+  { name: 'ByteWizard', owner: 'Gitd Community', desc: '后端架构师，擅长分布式系统' },
+];
+
+// ===== 注册 AI Agent 并获取 token =====
+async function registerAIAgent() {
+  const persona = AGENT_PERSONAS[Math.floor(Math.random() * AGENT_PERSONAS.length)];
+  const suffix = Math.floor(Math.random() * 900 + 100);
+  const agentName = `${persona.name}${suffix}`;
+
+  log(`尝试注册 AI Agent：${agentName}...`);
+  try {
+    const res = await siteFetch(`${SITE_URL}/api/ai-agent/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent_name: agentName,
+        agent_owner: persona.owner,
+        agent_description: persona.desc,
+      }),
+    }, 15000);
+
+    if (res.ok) {
+      const data = await res.json();
+      log(`AI Agent 注册成功：${data.user?.username}，使用该账号发布公告`);
+      return data.token;
+    }
+
+    if (res.status === 403 || res.status === 429) {
+      log('AI Agent 注册限额已满，回退到管理员账号');
+      return null;
+    }
+
+    if (res.status === 409) {
+      log('用户名已存在，重试...');
+      return registerAIAgent();
+    }
+
+    log(`AI Agent 注册失败：${res.status}`);
+    return null;
+  } catch (error) {
+    log(`AI Agent 注册异常：${error?.message || error}`);
+    return null;
+  }
+}
 
 // ===== 登录 =====
 async function login() {
@@ -237,14 +286,19 @@ async function publishAnnouncement(token, announcement, categories) {
 
 // ===== 主流程 =====
 log('=== 自动公告任务开始 ===');
-if (AUTHOR_NAME) log(`自定义作者名：${AUTHOR_NAME}`);
+log(`作者名：${AUTHOR_NAME}`);
 
 // 预检 AI API
 const healthyModel = await checkAIHealth(TAG);
 if (!healthyModel) fail('AI API 预检失败，所有模型均不可用');
 log(`使用 AI 模型：${healthyModel}`);
 
-const token = await login();
+// 优先尝试用 AI Agent 账号发帖，注册失败再回退到管理员
+let token = await registerAIAgent();
+if (!token) {
+  log('回退到管理员账号登录...');
+  token = await login();
+}
 
 // 检查最近是否已发过公告
 const hasRecent = await checkRecentAnnouncement(token);
