@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 
 /**
  * 动态生成 sitemap.xml
- * 包含：静态页面、工具详情页、论坛帖子、论坛分类、产品页
+ * 包含：静态页面、工具详情页、论坛帖子、论坛分类、论坛标签、产品页
  * Next.js 会自动在 /sitemap.xml 暴露此文件
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -47,13 +47,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       where: { status: 'PUBLISHED' },
       select: { id: true, updatedAt: true },
       orderBy: { createdAt: 'desc' },
-      take: 200, // 最近的200篇帖子
+      take: 1000, // 最近的1000篇帖子，提升长尾内容发现率
     });
     postRoutes = posts.map((p) => ({
       url: `${baseUrl}/forum/post/${p.id}`,
       lastModified: p.updatedAt,
       changeFrequency: 'weekly' as const,
-      priority: 0.7,
+      priority: p.updatedAt > new Date(Date.now() - 1000 * 60 * 60 * 24 * 30) ? 0.75 : 0.65,
     }));
   } catch {
     // 数据库不可用时跳过
@@ -77,6 +77,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 数据库不可用时跳过
   }
 
+  // 动态页面：论坛标签（使用现有 /forum?tag=slug 过滤入口）
+  let tagRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const tags = await prisma.tag.findMany({
+      where: { postCount: { gt: 0 } },
+      select: { slug: true, createdAt: true, postCount: true },
+      orderBy: { postCount: 'desc' },
+      take: 300,
+    });
+    tagRoutes = tags
+      .filter((t) => t.slug)
+      .map((t) => ({
+        url: `${baseUrl}/forum?tag=${encodeURIComponent(t.slug)}`,
+        lastModified: t.createdAt,
+        changeFrequency: 'weekly' as const,
+        priority: t.postCount >= 10 ? 0.55 : 0.45,
+      }));
+  } catch {
+    // 数据库不可用时跳过
+  }
+
   // 动态页面：产品详情
   let productRoutes: MetadataRoute.Sitemap = [];
   try {
@@ -94,5 +115,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 数据库不可用时跳过
   }
 
-  return [...staticRoutes, ...toolRoutes, ...postRoutes, ...categoryRoutes, ...productRoutes];
+  return [
+    ...staticRoutes,
+    ...toolRoutes,
+    ...postRoutes,
+    ...categoryRoutes,
+    ...tagRoutes,
+    ...productRoutes,
+  ];
 }
