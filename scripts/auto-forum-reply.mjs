@@ -11,6 +11,15 @@
 
 import { callAI, checkAIHealth, siteFetch } from './lib/ai-client.mjs';
 
+function normalizeReplyContent(content) {
+  const text = String(content || '').trim();
+  if (!text) return '';
+  return text
+    .replace(/^(回复|回答|评论)\s*[:：]\s*/i, '')
+    .replace(/作为(一个)?AI[^，。]*[，。]\s*/g, '')
+    .trim();
+}
+
 const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = 'admin',
@@ -213,11 +222,25 @@ ${content}
 ## 回复要求
 1. 语言：中文，使用 Markdown 格式。
 2. 态度：友善、专业、有实际帮助。
-3. 如果是提问：直接回答问题，给出可操作的方案或代码示例；如果关键信息不足，礼貌地追问必要细节。
-4. 如果是分享 / 讨论：给出有意义的反馈，补充观点或延伸思考，避免空洞的"支持一下"。
-5. 长度适中（约 100-500 字），不要长篇大论，也不要敷衍。
-6. 不要编造不确定的技术细节，不要假装测试过对方的环境。
-7. 直接输出回复正文，不要包含"回复："之类的前缀，也不要解释你在做什么。`;
+3. 如果是提问：先给结论，再给 2-4 个可操作步骤；如果关键信息不足，最后追问必要细节。
+4. 如果是分享 / 讨论：先认可具体观点，再补充一个有价值的角度、经验或风险提醒。
+5. 至少包含一个具体建议，必要时给出短代码、命令或检查清单。
+6. 长度适中（约 180-650 字），不要长篇大论，也不要敷衍。
+7. 不要编造不确定的技术细节，不要假装测试过对方的环境。
+8. 不要出现“作为 AI”“我是 AI”“根据你的帖子”这种生硬表达。
+9. 直接输出回复正文，不要包含"回复："之类的前缀，也不要解释你在做什么。
+
+## 推荐结构
+
+如果是提问：
+- 先用一段话给出判断
+- 用列表给出排查 / 解决步骤
+- 最后问一个必要的补充信息
+
+如果是讨论：
+- 先回应楼主的具体观点
+- 补充一个实践建议或风险点
+- 最后抛出一个可继续讨论的问题`;
 
   log(`调用 AI 生成回复，帖子：${title}`);
 
@@ -228,8 +251,9 @@ ${content}
     tag: TAG,
   });
 
-  log(`回复生成完成，长度：${replyContent.length}`);
-  return replyContent;
+  const normalized = normalizeReplyContent(replyContent);
+  log(`回复生成完成，长度：${normalized.length}`);
+  return normalized;
 }
 
 // ===== 发布评论 =====

@@ -231,11 +231,14 @@ async function generateTool(idea) {
 ## 技术要求
 1. 输出一个完整的 HTML 文件内容（包含 HTML、CSS、JavaScript）。
 2. 所有代码必须内联在单个 HTML 文件中，不依赖外部 CDN 或库（纯原生 HTML/CSS/JS）。
-3. 界面必须美观现代：使用渐变、阴影、圆角等现代 CSS 技术，配色协调。
+3. 界面必须专业现代：清晰标题、简短说明、核心输入区、结果区、操作按钮、使用提示。
 4. 功能必须完整可用，不能有占位符或"TODO"。
 5. 所有交互必须有反馈（如复制成功提示、输入校验提示等）。
 6. 不使用 alert/prompt/confirm，用自定义 toast 或内联提示。
 7. 代码注释用中文。
+8. 页面必须包含基础 SEO 信息：title、description meta、语义化 h1。
+9. 必须考虑可访问性：label、aria-live、按钮可聚焦、颜色对比清晰。
+10. 不要做花哨但影响可用性的动画，优先保证功能稳定。
 
 ## 移动端适配要求（非常重要！）
 1. 必须使用 viewport meta 标签：<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -250,6 +253,13 @@ async function generateTool(idea) {
 6. 使用 box-sizing: border-box 确保宽度计算正确。
 7. textarea 和 input 要设置 width: 100% 并自适应。
 8. 避免使用 position: fixed/absolute 定位关键内容，防止移动端遮挡。
+
+## 产品体验要求
+1. 首屏要能让用户马上知道这个工具能解决什么问题。
+2. 操作区和结果区要分明，结果为空时给出友好提示。
+3. 提供“清空”“复制”“示例数据”这类高频按钮（按工具场景选择）。
+4. 错误提示要具体，例如指出 JSON 第几行错误、正则无效原因等。
+5. 工具底部放一个简短说明区，解释适用场景和注意事项。
 
 ## 安全要求
 1. 不使用 eval() 或 new Function()。
@@ -280,6 +290,12 @@ async function generateTool(idea) {
   const parsed = robustJSONParse(content);
   if (!parsed.htmlContent || parsed.htmlContent.length < 200) {
     fail(`AI 生成的工具内容太短或不完整，htmlContent 长度：${parsed.htmlContent?.length || 0}`);
+  }
+  if (!/<meta\s+name=["']description["']/i.test(parsed.htmlContent)) {
+    warn('生成的工具缺少 description meta，已继续发布但建议后续人工检查');
+  }
+  if (!/<h1[\s>]/i.test(parsed.htmlContent)) {
+    warn('生成的工具缺少 h1，已继续发布但建议后续人工检查');
   }
 
   log(`工具生成完成，HTML 长度：${parsed.htmlContent.length}`);

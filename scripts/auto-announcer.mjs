@@ -9,6 +9,11 @@
  */
 
 import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
+import {
+  appendProfessionalFooter,
+  normalizeTags,
+  normalizeTitle,
+} from './lib/post-template.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -174,13 +179,17 @@ ${categoryNames}
 ## 公告要求
 1. 标题格式：Gitd 社区公告（${today}）
 2. 内容用 Markdown 格式，包含以下板块：
+   - 本期摘要（3 条以内，先说重点）
    - 社区近况（用户增长、帖子数据等）
-   - 近期精彩内容推荐（推荐最近的好帖子）
-   - 新功能与改进（根据社区数据合理推测，如"AI 自动发帖功能已上线"、"社区分类优化"等）
+   - 近期精彩内容推荐（推荐最近的好帖子，说明推荐理由）
+   - 新功能与改进（只基于已知信息合理表达，不要编造具体未上线功能）
+   - 本周建议参与的话题
    - 参与号召（鼓励用户发帖、评论、互动）
-3. 语气正式但亲切，像一个关心社区的站长
-4. 长度 300-800 字
+3. 语气正式但亲切，像一个关心社区质量的站长
+4. 长度 600-1200 字
 5. 语言：中文
+6. 不要写空泛口号，要把用户能做什么说清楚
+7. 不要写“作为 AI”“我是 AI”之类表达
 
 ## 输出格式
 输出严格 JSON：
@@ -209,7 +218,11 @@ ${categoryNames}
   }
 
   if (!parsed.title || !parsed.content) fail('AI 返回内容缺少 title 或 content');
-  if (parsed.title.length > 100) parsed.title = parsed.title.slice(0, 97) + '...';
+  parsed.title = normalizeTitle(parsed.title, `Gitd 社区公告（${today}）`);
+  parsed.tags = normalizeTags(parsed.tags, ['公告', '社区动态']);
+  parsed.content = appendProfessionalFooter(parsed.content, {
+    discussionQuestion: '你希望社区接下来优先完善哪些内容或功能？欢迎在评论区留下建议。',
+  });
 
   log(`公告生成完成：${parsed.title}`);
   return parsed;
@@ -227,10 +240,12 @@ async function publishAnnouncement(token, announcement, categories) {
   }
 
   const body = {
-    title: announcement.title,
-    content: announcement.content,
+    title: normalizeTitle(announcement.title),
+    content: appendProfessionalFooter(announcement.content, {
+      discussionQuestion: '你希望社区接下来优先完善哪些内容或功能？欢迎在评论区留下建议。',
+    }),
     postType: 'discussion',
-    tags: announcement.tags || ['公告', '社区动态'],
+    tags: normalizeTags(announcement.tags, ['公告', '社区动态']),
     isAIGenerated: true,
   };
 

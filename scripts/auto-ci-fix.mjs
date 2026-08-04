@@ -200,7 +200,7 @@ async function callAi({ lintFailed, buildFailed, lintLog, buildLog, context, att
   if (lintFailed) failedParts.push('lint');
   if (buildFailed) failedParts.push('build');
 
-  const prompt = `你是一名资深全栈工程师，正在维护这个 Next.js 开源项目。CI 检查中的 ${failedParts.join(' 和 ')} 失败了，请分析错误日志，定位根因并生成修复代码。
+  const prompt = `你是一名资深全栈工程师，正在维护这个 Next.js 开源项目。CI 检查中的 ${failedParts.join(' 和 ')} 失败了，请分析错误日志，定位根因并生成最小可行修复代码。
 
 ## 失败的检查项
 ${failedParts.map((f) => `- ${f}`).join('\n')}
@@ -218,9 +218,12 @@ ${context.tree}
 ${context.files.map((f) => f.block).join('\n') || '（未能自动定位相关文件，请根据错误日志中的路径推断并修复）'}
 
 ## 工作原则
-1. 仔细阅读错误日志，找到具体的报错位置和原因，不要敷衍回复"没问题"。
-2. 只修改必要的文件来修复错误，不要做无关改动。
-3. 确保修复后 npm run lint 和 npm run build 都能通过。
+1. 仔细阅读错误日志，先定位第一个确定的根因，再处理连带错误，不要敷衍回复"没问题"。
+2. 只修改必要的文件来修复当前 CI 错误，不做重构、不做功能新增、不做样式优化。
+3. 优先选择低风险修复：补类型、补空值保护、修正导入、修复语法、修复 Next.js 14 兼容问题。
+4. 不要通过删除功能、绕过校验、注释大段代码、扩大 any 类型来掩盖问题。
+5. 如果同一文件有多处相关错误，可以一次性修完；如果没有证据，不要猜测修改无关文件。
+6. 确保修复后 npm run lint 和 npm run build 都能通过。
 
 ## Vercel 免费版安全红线（绝对不能违反）
 
@@ -239,7 +242,10 @@ ${context.files.map((f) => f.block).join('\n') || '（未能自动定位相关�
 
 ## 输出格式（必须严格遵守，不要用 JSON，不要用 Markdown 代码块包裹文件内容）
 ===SUMMARY===
-一句话说明本次修复内容
+一句话说明根因和本次修复内容
+===DETAILS===
+- 根因：说明导致 CI 失败的具体原因
+- 修复：说明改了什么以及为什么安全
 ===FILE: 相对仓库根目录的文件路径===
 该文件修改后的完整内容
 ===FILE: 另一个文件路径===
@@ -250,10 +256,10 @@ ${context.files.map((f) => f.block).join('\n') || '（未能自动定位相关�
 - 每个 ===FILE: 后跟文件路径，下一行开始就是文件完整内容，直到下一个 ===FILE: 或 ===END=== 为止。
 - 文件内容直接输出原始代码，不要用代码块包裹。
 - 已通过的检查项不需要为它生成修复。
-- 如果确实无法修复，在 SUMMARY 中说明原因，不输出 FILE 部分。`;
+- 如果确实无法修复，在 SUMMARY 和 DETAILS 中说明原因、缺少的信息和建议人工检查点，不输出 FILE 部分。`;
 
   const systemPrompt =
-    '你是资深全栈工程师，擅长排查和修复 CI 构建错误。本项目部署在 Vercel 免费版，使用 React 18 + Next.js 14，禁止引入新依赖、禁止使用 React 19+ API、禁止修改配置文件和中间件。必须按指定分隔符格式输出修复后的完整文件内容，禁止敷衍回复。';
+    '你是资深全栈工程师，擅长排查和修复 CI 构建错误。本项目部署在 Vercel 免费版，使用 React 18 + Next.js 14。必须最小化修改，禁止引入新依赖、禁止使用 React 19+ API、禁止修改配置文件和中间件，禁止用删除功能或扩大 any 掩盖问题。必须按指定分隔符格式输出修复后的完整文件内容。';
 
   log(`第 ${attempt}/${maxAttempts} 次调用 AI API...`);
   log(`prompt 长度：约 ${prompt.length} 字符，上下文文件数：${context.fileCount}`);

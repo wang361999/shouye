@@ -21,6 +21,13 @@ const TAG = '[auto-categorizer]';
 function log(message) { console.log(`${TAG} ${message}`); }
 function fail(message) { console.error(`::error::${TAG} ${message}`); process.exit(1); }
 
+function normalizeSlug(slug) {
+  return String(slug || '')
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .toLowerCase();
+}
+
 if (!ADMIN_PASSWORD) fail('缺少 ADMIN_PASSWORD');
 if (!SITE_URL) fail('缺少 SITE_URL');
 
@@ -80,7 +87,7 @@ async function fetchUncategorizedPosts(token) {
 async function categorizePost(post, categories) {
   const categoryList = categories.map((c) => `- ${c.name}（slug: ${c.slug}，描述: ${c.desc || '无'}）`).join('\n');
 
-  const prompt = `你是一个论坛分类助手。请根据帖子标题和内容，从现有分类中选择最合适的一个。
+  const prompt = `你是一个专业的技术社区内容分类编辑。请根据帖子标题和内容，从现有分类中选择最合适的一个，优先保证分类准确性和社区信息架构一致性。
 
 ## 帖子信息
 标题：${post.title}
@@ -90,19 +97,22 @@ async function categorizePost(post, categories) {
 ${categoryList}
 
 ## 要求
-1. 从上面的分类中选择一个最匹配的
-2. 如果没有完全匹配的，选择最接近的
-3. 只返回分类的 slug，不要其他内容
+1. 只能从“可选分类”里选择一个已存在的 slug，不允许编造新分类。
+2. 先判断帖子核心意图：教程 / 问题求助 / 工具推荐 / 项目展示 / 社区讨论 / 产品动态。
+3. 分类依据优先级：明确技术对象 > 使用场景 > 问题类型 > 帖子语气。
+4. 如果没有完全匹配的，选择最接近且不会误导用户的分类。
+5. 不要被标题里的泛词误导，例如“分享”“求助”“问题”不能单独决定分类。
+6. confidence 用 0-1 小数表示，低于 0.6 时 reason 必须说明为什么仍选择该分类。
 
 ## 输出格式
-只输出一个 JSON：
-{"slug": "分类的slug"}`;
+只输出严格 JSON，不要输出其他文字：
+{"slug":"分类的slug","confidence":0.86,"reason":"一句话说明分类依据"}`;
 
   log(`分类帖子：${post.title.slice(0, 40)}`);
 
   const content = await callAI({
     prompt,
-    systemPrompt: '你是论坛分类助手，只输出严格 JSON。',
+    systemPrompt: '你是专业的技术社区分类编辑。只能选择已给出的分类 slug，并且只输出严格 JSON。',
     maxTokens: 256,
     responseFormat: { type: 'json_object' },
     tag: TAG,
@@ -136,11 +146,17 @@ ${categoryList}
   }
 
   // 验证 slug 是否存在
-  const matched = categories.find((c) => c.slug === parsed.slug);
+  const normalizedSlug = normalizeSlug(parsed.slug);
+  const matched = categories.find((c) => normalizeSlug(c.slug) === normalizedSlug);
   if (!matched) {
     log(`AI 返回的 slug "${parsed.slug}" 不存在于分类列表中`);
     return null;
   }
+
+  const confidence = Number(parsed.confidence);
+  const confidenceText = Number.isFinite(confidence) ? `，置信度：${confidence.toFixed(2)}` : '';
+  const reasonText = parsed.reason ? `，依据：${String(parsed.reason).slice(0, 80)}` : '';
+  log(`  -> AI 分类判断：${matched.name}${confidenceText}${reasonText}`);
 
   return matched;
 }

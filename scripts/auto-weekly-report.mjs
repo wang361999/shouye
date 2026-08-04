@@ -10,6 +10,11 @@
  */
 
 import { callAI, checkAIHealth, siteFetch, robustJSONParse } from './lib/ai-client.mjs';
+import {
+  appendProfessionalFooter,
+  normalizeTags,
+  normalizeTitle,
+} from './lib/post-template.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -97,13 +102,17 @@ ${hotPostList}
 ## 周报要求
 1. 标题格式：Gitd 社区周报（${dateRange}）
 2. 内容用 Markdown 格式，包含以下板块：
-   - 社区概览（用数据说话，展示社区活跃度）
-   - 本周热门内容（介绍排名前列的帖子）
-   - 社区亮点（从帖子内容中提炼有趣的话题）
-   - 下周展望（鼓励用户参与社区互动）
-3. 语气活泼有趣，有亲和力
-4. 长度 500-1500 字
+   - 本周摘要（3 条以内，先给重点）
+   - 数据概览（用表格展示用户、帖子、评论、今日新增）
+   - 热门内容回顾（介绍排名前列的帖子，并说明为什么值得看）
+   - 社区观察（从帖子里提炼开发者关心的话题）
+   - 下周可以参与什么（给出具体行动建议）
+   - 讨论问题（邀请用户补充建议）
+3. 语气专业、有亲和力，不要过度营销
+4. 长度 800-1800 字
 5. 语言：中文
+6. 不要编造不存在的数据，只能基于给出的数据表达
+7. 不要写“作为 AI”“我是 AI”之类表达
 
 ## 输出格式
 输出严格 JSON：
@@ -133,7 +142,11 @@ ${hotPostList}
   }
 
   if (!parsed.title || !parsed.content) fail('AI 返回内容缺少 title 或 content');
-  if (parsed.title.length > 100) parsed.title = parsed.title.slice(0, 97) + '...';
+  parsed.title = normalizeTitle(parsed.title, `Gitd 社区周报（${dateRange}）`);
+  parsed.tags = normalizeTags(parsed.tags, ['周报', '社区动态']);
+  parsed.content = appendProfessionalFooter(parsed.content, {
+    discussionQuestion: '你希望下周周报重点关注哪些技术方向、工具或社区话题？欢迎留言补充。',
+  });
 
   log(`周报生成完成：${parsed.title}`);
   return parsed;
@@ -150,10 +163,12 @@ async function publishReport(token, report) {
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      title: report.title,
-      content: report.content,
+      title: normalizeTitle(report.title),
+      content: appendProfessionalFooter(report.content, {
+        discussionQuestion: '你希望下周周报重点关注哪些技术方向、工具或社区话题？欢迎留言补充。',
+      }),
       postType: report.postType || 'discussion',
-      tags: report.tags || ['周报', '社区动态'],
+      tags: normalizeTags(report.tags, ['周报', '社区动态']),
       isAIGenerated: true,
       ...(AUTHOR_NAME && { authorName: AUTHOR_NAME }),
     }),
