@@ -100,6 +100,10 @@ export default function MarkdownRenderer({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          // 去掉 ReactMarkdown 默认生成的 pre 外壳，避免代码框里再套一层圆角框
+          pre({ children }: any) {
+            return <>{children}</>;
+          },
           // 拦截 code 块，处理 github-code 语言
           code({ node, className, children, ...props }: any) {
             const match = /language-(\w+)/.exec(className || "");
