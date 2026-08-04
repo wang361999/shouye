@@ -580,7 +580,7 @@ const WECHAT_TEMPLATE_CONFIGS: Record<WechatArticleTemplate, WechatTemplateConfi
       strong: 'font-weight:bold;',
       em: 'font-style:italic;',
       inlineCode: 'background:#f1f5f9;padding:2px 6px;border-radius:5px;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;color:#be123c;',
-      codeBlock: 'background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:16px;overflow:auto;line-height:1.7;font-size:13px;margin:18px 0;color:#e2e8f0;',
+      codeBlock: 'background:#0f172a;border:none;border-radius:0 0 12px 12px;padding:18px 16px;overflow:auto;line-height:1.75;font-size:13px;margin:0;color:#e2e8f0;',
       code: 'font-family:Menlo,Monaco,Consolas,monospace;color:#e2e8f0;',
       hr: 'border:none;border-top:1px dashed #cbd5e1;margin:26px 0;',
       heading: 'font-size:{size};font-weight:700;margin:28px 0 14px;color:#111827;line-height:1.45;padding-left:12px;border-left:4px solid #2563eb;letter-spacing:0.2px;',
@@ -615,7 +615,7 @@ const WECHAT_TEMPLATE_CONFIGS: Record<WechatArticleTemplate, WechatTemplateConfi
       strong: 'font-weight:bold;color:#12351f;',
       em: 'font-style:italic;color:#42634a;',
       inlineCode: 'background:#eaf7e8;padding:2px 6px;border-radius:5px;font-family:Menlo,Monaco,Consolas,monospace;font-size:13px;color:#0f5132;',
-      codeBlock: 'background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:16px;overflow:auto;line-height:1.7;font-size:13px;margin:18px 0;color:#c9d1d9;',
+      codeBlock: 'background:#0d1117;border:none;border-radius:0 0 12px 12px;padding:18px 16px;overflow:auto;line-height:1.75;font-size:13px;margin:0;color:#c9d1d9;',
       code: 'font-family:Menlo,Monaco,Consolas,monospace;color:#c9d1d9;',
       hr: 'border:none;border-top:1px dashed #b7d7ae;margin:26px 0;',
       heading: 'font-size:{size};font-weight:800;margin:28px 0 14px;color:#12351f;line-height:1.45;padding-left:12px;border-left:4px solid #2da44e;letter-spacing:0.2px;',
@@ -715,6 +715,20 @@ export function markdownToWechatHtml(
   if (!markdown) return '';
   const normalizedTemplate = normalizeWechatTemplate(template);
   const styles = WECHAT_TEMPLATE_CONFIGS[normalizedTemplate].markdown;
+  const codeFrame =
+    normalizedTemplate === 'open-source'
+      ? {
+        shell: 'margin:20px 0;border:1px solid #30363d;border-radius:12px;background:#0d1117;overflow:hidden;box-shadow:0 8px 20px rgba(35,134,54,0.10);',
+        header: 'padding:9px 14px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between;',
+        dots: 'display:inline-flex;align-items:center;gap:6px;',
+        lang: 'font-family:Menlo,Monaco,Consolas,monospace;font-size:12px;line-height:1;color:#7ee787;letter-spacing:0.4px;font-weight:700;',
+      }
+      : {
+        shell: 'margin:20px 0;border:1px solid #1e293b;border-radius:12px;background:#0f172a;overflow:hidden;box-shadow:0 8px 20px rgba(15,23,42,0.12);',
+        header: 'padding:9px 14px;background:#111827;border-bottom:1px solid #1f2937;display:flex;align-items:center;justify-content:space-between;',
+        dots: 'display:inline-flex;align-items:center;gap:6px;',
+        lang: 'font-family:Menlo,Monaco,Consolas,monospace;font-size:12px;line-height:1;color:#93c5fd;letter-spacing:0.4px;font-weight:700;',
+      };
 
   // 先提取代码块，避免内部内容被其他规则误处理
   const codeBlocks: string[] = [];
@@ -723,9 +737,20 @@ export function markdownToWechatHtml(
     (_m, lang, code) => {
       const idx = codeBlocks.length;
       const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : '';
-      const styled = `<pre style="${styles.codeBlock}"${langAttr}><code style="${styles.code}">${escapeHtml(
+      const languageLabel = escapeHtml(String(lang || 'code').trim().toUpperCase());
+      const styled = `<section style="${codeFrame.shell}">
+        <section style="${codeFrame.header}">
+          <section style="${codeFrame.dots}">
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ff5f57;"></span>
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ffbd2e;"></span>
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#28c840;"></span>
+          </section>
+          <span style="${codeFrame.lang}">${languageLabel}</span>
+        </section>
+        <pre style="${styles.codeBlock}"${langAttr}><code style="${styles.code}">${escapeHtml(
         code.replace(/\n$/, ''),
-      )}</code></pre>`;
+      )}</code></pre>
+      </section>`;
       codeBlocks.push(styled);
       return `\u0000CODEBLOCK${idx}\u0000`;
     },
