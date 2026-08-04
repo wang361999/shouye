@@ -157,21 +157,21 @@ export default function CollabListPage() {
       <div className="flex items-center justify-between mb-2">
         <Link
           href="/"
-          className="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+          className="text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
         >
           &larr; 返回首页
         </Link>
         {user ? (
           <Link
             href="/collab/new"
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-[11px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
           >
-            <span className="text-base leading-none">+</span> 发起召集令
+            <span className="text-[13px] sm:text-base leading-none">+</span> 发起召集令
           </Link>
         ) : (
           <Link
             href="/login"
-            className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-300 dark:text-blue-400 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            className="px-4 py-2 text-[11px] sm:text-sm font-medium text-blue-600 border border-blue-300 dark:text-blue-400 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
             登录后发起
           </Link>
@@ -181,18 +181,18 @@ export default function CollabListPage() {
       {/* 页面标题 */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-[18px] sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             <span className="mr-2">🤝</span>
             GitHub 协同创作召集令
           </h1>
           <Link
             href="/collab/guide"
-            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-3 py-1 text-[11px] sm:text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap"
           >
             📖 使用教程
           </Link>
         </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400">
           发起开源协作项目，召集开发者一起共建 GitHub 仓库
         </p>
       </div>
@@ -206,7 +206,7 @@ export default function CollabListPage() {
               key={f.value}
               onClick={() => handleStatusChange(f.value)}
               className={cn(
-                'px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors',
+                'px-3 py-1.5 text-[11px] sm:text-sm font-medium rounded-md whitespace-nowrap transition-colors',
                 statusFilter === f.value
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -237,7 +237,7 @@ export default function CollabListPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="搜索项目标题、技术栈..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-9 pr-4 py-2 text-[11px] sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
       </div>
@@ -265,7 +265,7 @@ export default function CollabListPage() {
           )}
 
           {/* 统计 */}
-          <p className="mt-6 text-center text-xs text-gray-400 dark:text-gray-500">
+          <p className="mt-6 text-center text-[11px] sm:text-xs text-gray-400 dark:text-gray-500">
             共 {total} 个项目
           </p>
         </>
@@ -289,13 +289,13 @@ function ProjectCard({ project }: { project: Project }) {
       <div className="flex items-start justify-between gap-2 mb-2">
         <Link
           href={`/collab/${project.id}`}
-          className="text-base font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors line-clamp-2"
+          className="text-[13px] sm:text-base font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors line-clamp-2"
         >
           {project.title}
         </Link>
         <span
           className={cn(
-            'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border whitespace-nowrap flex-shrink-0',
+            'inline-flex items-center gap-1 px-2 py-0.5 text-[11px] sm:text-xs font-medium rounded-full border whitespace-nowrap flex-shrink-0',
             status.badge
           )}
         >
@@ -305,7 +305,7 @@ function ProjectCard({ project }: { project: Project }) {
       </div>
 
       {/* 描述摘要 */}
-      <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2 mb-3">
+      <p className="text-[11px] sm:text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2 mb-3">
         {truncateText(stripMarkdown(project.description), 100)}
       </p>
 
@@ -315,7 +315,7 @@ function ProjectCard({ project }: { project: Project }) {
           href={project.repoUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-3"
+          className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-3"
         >
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
@@ -323,7 +323,7 @@ function ProjectCard({ project }: { project: Project }) {
           <span className="truncate">{repoFullName}</span>
         </a>
       ) : (
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">暂无仓库</p>
+        <p className="text-[11px] sm:text-xs text-gray-400 dark:text-gray-500 mb-3">暂无仓库</p>
       )}
 
       {/* 技术栈标签 */}
@@ -332,13 +332,13 @@ function ProjectCard({ project }: { project: Project }) {
           {project.techStack.slice(0, 4).map((tech) => (
             <span
               key={tech}
-              className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+              className="inline-flex items-center px-2 py-0.5 text-[11px] sm:text-xs font-medium rounded bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
             >
               {tech}
             </span>
           ))}
           {project.techStack.length > 4 && (
-            <span className="inline-flex items-center px-2 py-0.5 text-xs text-gray-400 dark:text-gray-500">
+            <span className="inline-flex items-center px-2 py-0.5 text-[11px] sm:text-xs text-gray-400 dark:text-gray-500">
               +{project.techStack.length - 4}
             </span>
           )}
@@ -357,7 +357,7 @@ function ProjectCard({ project }: { project: Project }) {
 
       {/* 任务进度条 */}
       <div className="mb-3">
-        <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500 mb-1">
+        <div className="flex items-center justify-between text-[11px] sm:text-xs text-gray-400 dark:text-gray-500 mb-1">
           <span>任务进度</span>
           <span>{taskProgress}%</span>
         </div>
@@ -378,17 +378,17 @@ function ProjectCard({ project }: { project: Project }) {
             size="sm"
           />
           <div className="min-w-0">
-            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
+            <p className="text-[11px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
               {project.owner?.username || project.author?.username || '未知用户'}
             </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">
+            <p className="text-[11px] sm:text-xs text-gray-400 dark:text-gray-500">
               {formatTimeAgo(project.createdAt)}
             </p>
           </div>
         </div>
         <Link
           href={`/collab/${project.id}`}
-          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] sm:text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap"
         >
           查看详情
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,8 +404,8 @@ function ProjectCard({ project }: { project: Project }) {
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="text-center">
-      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{value}</p>
-      <p className="text-xs text-gray-400 dark:text-gray-500">{label}</p>
+      <p className="text-[11px] sm:text-sm font-semibold text-gray-900 dark:text-gray-100">{value}</p>
+      <p className="text-[11px] sm:text-xs text-gray-400 dark:text-gray-500">{label}</p>
     </div>
   );
 }
@@ -451,10 +451,10 @@ function EmptyState({ hasFilter }: { hasFilter: boolean }) {
       <div className="w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-4xl mb-4">
         {hasFilter ? '🔍' : '🚀'}
       </div>
-      <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-1">
+      <h3 className="text-[15px] sm:text-lg font-medium text-gray-700 dark:text-gray-300 mb-1">
         {hasFilter ? '没有找到匹配的项目' : '还没有召集令'}
       </h3>
-      <p className="text-sm text-gray-400 dark:text-gray-500 mb-6">
+      <p className="text-[11px] sm:text-sm text-gray-400 dark:text-gray-500 mb-6">
         {hasFilter
           ? '试试调整筛选条件或换个关键词'
           : '成为第一个发起 GitHub 协作项目的人吧'}
@@ -462,9 +462,9 @@ function EmptyState({ hasFilter }: { hasFilter: boolean }) {
       {!hasFilter && (
         <Link
           href="/collab/new"
-          className="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 text-[11px] sm:text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
         >
-          <span className="text-base leading-none">+</span> 发起召集令
+          <span className="text-[13px] sm:text-base leading-none">+</span> 发起召集令
         </Link>
       )}
     </div>
@@ -497,7 +497,7 @@ function Pagination({
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
-        className="inline-flex items-center px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="inline-flex items-center px-3 py-1.5 text-[11px] sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         上一页
       </button>
@@ -505,7 +505,7 @@ function Pagination({
         <>
           <button
             onClick={() => onPageChange(1)}
-            className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="px-3 py-1.5 text-[11px] sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             1
           </button>
@@ -517,7 +517,7 @@ function Pagination({
           key={p}
           onClick={() => onPageChange(p)}
           className={cn(
-            'px-3 py-1.5 text-sm border rounded-lg transition-colors',
+            'px-3 py-1.5 text-[11px] sm:text-sm border rounded-lg transition-colors',
             p === currentPage
               ? 'bg-blue-600 text-white border-blue-600'
               : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -531,7 +531,7 @@ function Pagination({
           {end < totalPages - 1 && <span className="px-1 text-gray-400">...</span>}
           <button
             onClick={() => onPageChange(totalPages)}
-            className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="px-3 py-1.5 text-[11px] sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             {totalPages}
           </button>
@@ -540,7 +540,7 @@ function Pagination({
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
-        className="inline-flex items-center px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="inline-flex items-center px-3 py-1.5 text-[11px] sm:text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         下一页
       </button>

@@ -120,13 +120,13 @@ function SearchContent() {
       {/* 返回链接 */}
       <Link
         href="/"
-        className="inline-block text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
+        className="inline-block text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
       >
         &larr; 返回首页
       </Link>
 
       {/* 页面标题 */}
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">🔍 全站搜索</h1>
+      <h1 className="text-[18px] sm:text-2xl font-bold text-gray-900 mb-6">🔍 全站搜索</h1>
 
       {/* 搜索框 */}
       <form onSubmit={handleSearch} className="mb-6">
@@ -152,14 +152,14 @@ function SearchContent() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="搜索帖子或工具..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 text-[11px] sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               autoFocus
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="px-6 py-2.5 bg-blue-600 text-white text-[11px] sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {loading ? '搜索中...' : '搜索'}
           </button>
@@ -185,7 +185,7 @@ function SearchContent() {
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
           <p className="text-5xl mb-3">🔍</p>
           <p className="text-gray-500 mb-1">输入关键词开始搜索</p>
-          <p className="text-sm text-gray-400">
+          <p className="text-[11px] sm:text-sm text-gray-400">
             可以搜索论坛帖子和工具箱中的工具
           </p>
         </div>
@@ -196,12 +196,12 @@ function SearchContent() {
           <p className="text-gray-500 mb-1">
             未找到与「{query}」相关的内容
           </p>
-          <p className="text-sm text-gray-400">试试其他关键词吧</p>
+          <p className="text-[11px] sm:text-sm text-gray-400">试试其他关键词吧</p>
         </div>
       ) : (
         <>
           {/* 结果统计 */}
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-[11px] sm:text-sm text-gray-500 mb-4">
             共找到 <span className="font-medium text-gray-700">{total}</span>{' '}
             条与「{query}」相关的结果
           </p>
@@ -211,7 +211,7 @@ function SearchContent() {
             <button
               onClick={() => setActiveTab('posts')}
               className={cn(
-                'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
+                'px-4 py-2.5 text-[11px] sm:text-sm font-medium border-b-2 transition-colors',
                 activeTab === 'posts'
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700',
@@ -219,7 +219,7 @@ function SearchContent() {
             >
               📝 帖子
               {postsTotal > 0 && (
-                <span className="ml-1 text-xs text-gray-400">
+                <span className="ml-1 text-[11px] sm:text-xs text-gray-400">
                   ({postsTotal})
                 </span>
               )}
@@ -227,7 +227,7 @@ function SearchContent() {
             <button
               onClick={() => setActiveTab('tools')}
               className={cn(
-                'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
+                'px-4 py-2.5 text-[11px] sm:text-sm font-medium border-b-2 transition-colors',
                 activeTab === 'tools'
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700',
@@ -235,7 +235,7 @@ function SearchContent() {
             >
               🧩 工具
               {toolsTotal > 0 && (
-                <span className="ml-1 text-xs text-gray-400">
+                <span className="ml-1 text-[11px] sm:text-xs text-gray-400">
                   ({toolsTotal})
                 </span>
               )}
@@ -259,13 +259,13 @@ function SearchContent() {
                     >
                       {/* 分类标签 */}
                       {post.category && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-2">
+                        <span className="inline-flex items-center px-2 py-0.5 text-[11px] sm:text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-2">
                           {post.category.name}
                         </span>
                       )}
 
                       {/* 标题（可点击） */}
-                      <h3 className="text-base sm:text-lg font-semibold mb-1.5">
+                      <h3 className="text-[13px] sm:text-lg font-semibold mb-1.5">
                         <Link
                           href={`/forum/post/${post.id}`}
                           className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
@@ -275,12 +275,12 @@ function SearchContent() {
                       </h3>
 
                       {/* 内容摘要 */}
-                      <p className="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                      <p className="text-[11px] sm:text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
                         {truncateText(post.content, 200)}
                       </p>
 
                       {/* 底部信息 */}
-                      <div className="flex items-center text-xs text-gray-400 space-x-3">
+                      <div className="flex items-center text-[11px] sm:text-xs text-gray-400 space-x-3">
                         <span className="text-gray-600 font-medium">
                           {post.author.username}
                         </span>
@@ -310,14 +310,14 @@ function SearchContent() {
                       className="bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow flex items-start gap-4"
                     >
                       {/* 图标 */}
-                      <div className="text-3xl flex-shrink-0">
+                      <div className="text-[20px] sm:text-3xl flex-shrink-0">
                         {tool.icon || '🔧'}
                       </div>
 
                       {/* 内容 */}
                       <div className="flex-1 min-w-0">
                         {/* 名称（可点击） */}
-                        <h3 className="text-base font-semibold mb-1">
+                        <h3 className="text-[13px] sm:text-base font-semibold mb-1">
                           <Link
                             href={tool.url}
                             className="text-blue-600 hover:text-blue-800 hover:underline transition-colors"
@@ -328,7 +328,7 @@ function SearchContent() {
                           </Link>
                         </h3>
                         {/* 描述 */}
-                        <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">
+                        <p className="text-[11px] sm:text-sm text-gray-500 line-clamp-2 leading-relaxed">
                           {tool.description || '暂无描述'}
                         </p>
                       </div>
@@ -352,7 +352,7 @@ export default function SearchPage() {
       fallback={
         <Container className="py-16 text-center">
           <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3" />
-          <p className="text-sm text-gray-500">加载中...</p>
+          <p className="text-[11px] sm:text-sm text-gray-500">加载中...</p>
         </Container>
       }
     >

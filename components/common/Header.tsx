@@ -173,6 +173,69 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
   };
 
   return (
+    <>
+    {/* 移动端顶部品牌栏 */}
+    <header className="md:hidden sticky top-0 z-50 bg-white border-b border-gray-100 dark:bg-slate-800 dark:border-slate-700">
+      <div className="flex items-center justify-between h-12 px-4">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-[15px] font-bold text-gray-900 dark:text-white"
+        >
+          <GitdLogo className="h-6 w-6 flex-shrink-0" />
+          <span>{siteName}</span>
+        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/search"
+            className="grid h-8 w-8 place-items-center rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700"
+            aria-label="搜索"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </Link>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="grid h-8 w-8 place-items-center rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-700"
+            aria-label="菜单"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+      {mobileMenuOpen && (
+        <div className="border-t border-gray-100 bg-white px-4 py-3 space-y-1 dark:bg-slate-800 dark:border-slate-700">
+          <Link href="/forum" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">社区</Link>
+          <Link href="/tools" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">工具</Link>
+          <Link href="/collab" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">协作</Link>
+          <Link href="/products" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">开源项目</Link>
+          <Link href="/docs" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">文档</Link>
+          <hr className="border-gray-100 dark:border-slate-700" />
+          {user ? (
+            <>
+              <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">我的</Link>
+              <button onClick={handleLogout} className="block w-full text-left px-3 py-2 text-[13px] font-medium text-gray-500 hover:bg-gray-50 rounded-lg">退出</button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">登录</Link>
+              <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-blue-600 hover:bg-blue-50 rounded-lg">注册</Link>
+            </>
+          )}
+        </div>
+      )}
+    </header>
+
+    {/* 桌面端导航 */}
     <header className="hidden md:block sticky top-0 z-50 bg-white shadow-sm border-b border-gray-100 dark:bg-slate-800 dark:border-slate-700 dark:shadow-none">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
@@ -569,6 +632,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
         </div>
       )}
     </header>
+    </>
   );
 }
 

@@ -107,7 +107,7 @@ export default function NewPostPage() {
       {/* 顶部导航 */}
       <Link
         href="/forum"
-        className="inline-flex items-center text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4 sm:mb-6 touch-target"
+        className="inline-flex items-center text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4 sm:mb-6 touch-target"
       >
         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -116,7 +116,7 @@ export default function NewPostPage() {
       </Link>
 
       {/* 页面标题 */}
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
+      <h1 className="text-[15px] sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
         {presetPostType === 'question' ? '❓ 提问' : '✏️ 发布新帖'}
       </h1>
 

@@ -171,15 +171,15 @@ export default function ToolsPage() {
         {/* 页头 Banner */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 md:p-12 text-white shadow-lg mb-8">
           <div className="relative z-10 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-medium text-white mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white mb-4">
               <span>🚀 效率利器</span>
               <span>•</span>
               <span>开发者实用工具全集</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">
+            <h1 className="text-[20px] md:text-4xl font-extrabold tracking-tight mb-3">
               工具库中心
             </h1>
-            <p className="text-blue-100 text-sm md:text-base leading-relaxed mb-6">
+            <p className="text-blue-100 text-[11px] md:text-base leading-relaxed mb-6">
               汇聚高效便利的开发与日常在线工具，助你快速解决开发、调试、转换与效率难题。
             </p>
 
@@ -190,7 +190,7 @@ export default function ToolsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索工具名称、功能或标签..."
-                className="w-full pl-10 pr-4 py-3 bg-white text-gray-900 placeholder-gray-400 rounded-xl shadow-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-white text-gray-900 placeholder-gray-400 rounded-xl shadow-md text-[11px] sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
               />
               <svg
                 className="w-5 h-5 text-gray-400 absolute left-3 top-3.5"
@@ -208,7 +208,7 @@ export default function ToolsPage() {
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 text-xs bg-gray-100 rounded-full w-5 h-5 flex items-center justify-center"
+                  className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 text-[11px] sm:text-xs bg-gray-100 rounded-full w-5 h-5 flex items-center justify-center"
                 >
                   ✕
                 </button>
@@ -226,7 +226,7 @@ export default function ToolsPage() {
           <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-medium whitespace-nowrap transition-all ${
+              className={`px-4 py-2 rounded-xl text-[11px] md:text-sm font-medium whitespace-nowrap transition-all ${
                 selectedCategory === "all"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
@@ -238,7 +238,7 @@ export default function ToolsPage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2 rounded-xl text-xs md:text-sm font-medium whitespace-nowrap transition-all ${
+                className={`px-4 py-2 rounded-xl text-[11px] md:text-sm font-medium whitespace-nowrap transition-all ${
                   selectedCategory === cat.id
                     ? "bg-blue-600 text-white shadow-sm"
                     : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
@@ -280,7 +280,7 @@ export default function ToolsPage() {
             <h3 className="text-gray-800 font-semibold mb-1">{error}</h3>
             <button
               onClick={fetchData}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              className="mt-4 px-4 py-2 bg-blue-600 text-white text-[11px] sm:text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors"
             >
               重新加载
             </button>
@@ -288,10 +288,10 @@ export default function ToolsPage() {
         ) : filteredTools.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center my-8">
             <div className="text-5xl mb-3">🛠️</div>
-            <h3 className="text-gray-800 font-semibold text-lg mb-1">
+            <h3 className="text-gray-800 font-semibold text-[15px] sm:text-lg mb-1">
               暂无匹配的工具
             </h3>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-[11px] sm:text-sm text-gray-500 mb-6">
               {searchQuery
                 ? `未找到与 “${searchQuery}” 相关的工具`
                 : "当前分类下暂无工具，请选择其他分类查看"}
@@ -302,7 +302,7 @@ export default function ToolsPage() {
                   setSearchQuery("");
                   setSelectedCategory("all");
                 }}
-                className="px-4 py-2 bg-blue-50 text-blue-600 text-xs font-medium rounded-xl hover:bg-blue-100 transition-colors"
+                className="px-4 py-2 bg-blue-50 text-blue-600 text-[11px] sm:text-xs font-medium rounded-xl hover:bg-blue-100 transition-colors"
               >
                 重置搜索与筛选
               </button>
@@ -331,11 +331,11 @@ export default function ToolsPage() {
                     {/* 头部：图标 + 名称 + 标签 */}
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100/60 flex items-center justify-center text-[15px] sm:text-xl flex-shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
                           <ToolIcon tool={tool} />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate text-base">
+                          <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate text-[13px] sm:text-base">
                             {tool.name}
                           </h3>
                           <span className="inline-block px-2 py-0.5 text-[11px] font-medium text-blue-600 bg-blue-50 rounded-md">
@@ -352,7 +352,7 @@ export default function ToolsPage() {
                     </div>
 
                     {/* 简介 */}
-                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-4 min-h-[2.5rem]">
+                    <p className="text-[11px] sm:text-xs text-gray-500 line-clamp-2 leading-relaxed mb-4 min-h-[2.5rem]">
                       {tool.description || "暂无工具功能说明..."}
                     </p>
                   </div>
@@ -366,7 +366,7 @@ export default function ToolsPage() {
                     <Link
                       href={`/tools/${tool.id}`}
                       prefetch
-                      className="inline-flex items-center gap-1 px-4 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
+                      className="inline-flex items-center gap-1 px-4 py-1.5 text-[11px] sm:text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
                     >
                       使用工具
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
