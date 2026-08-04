@@ -111,22 +111,43 @@ function buildWechatArticleHtml(data: PreviewData): string {
     ? `<section style="margin:14px 0 0;padding:12px 14px;background:#f8fafc;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;color:#475569;font-size:14px;line-height:1.8;">${data.digest}</section>`
     : "";
 
+  const year = new Date().getFullYear();
+  const author = data.author || "Gitd 社区";
+
+  // 专业版权信息块
+  const copyrightBlock = `
+  <section style="margin:40px 0 0;">
+    <section style="height:1px;background:#cbd5e1;margin:0 0 24px;"></section>
+    <section style="padding:22px 20px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;">
+      <section style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#1e293b;color:#ffffff;font-size:11px;font-weight:700;">&copy;</span>
+        <span style="font-size:15px;font-weight:600;color:#1e293b;letter-spacing:0.3px;">版权声明</span>
+      </section>
+      <section style="font-size:13px;line-height:2;color:#475569;">
+        <p style="margin:0 0 4px;">本文为 <strong style="color:#2563eb;">Gitd 社区</strong> 原创内容，作者：<strong style="color:#1e293b;">${author}</strong>。</p>
+        <p style="margin:0 0 4px;">&copy; ${year} Gitd 社区。保留所有权利。</p>
+        <p style="margin:0;">转载请在文首注明来源「Gitd 社区」及作者信息；未经授权，禁止商业用途。</p>
+      </section>
+    </section>
+    <section style="margin:14px 0 0;text-align:center;color:#94a3b8;font-size:12px;line-height:1.7;letter-spacing:0.2px;">
+      排版工具 · Gitd 社区 内容同步平台
+    </section>
+  </section>`.trim();
+
   return `
 <section style="max-width:677px;margin:0 auto;padding:0 0 8px;background:#ffffff;color:#1f2937;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif;">
   <section style="padding:8px 0 18px;border-bottom:1px solid #e5e7eb;margin-bottom:22px;">
     <h1 style="margin:0 0 12px;font-size:24px;line-height:1.45;font-weight:700;color:#111827;letter-spacing:0.2px;">${data.title}</h1>
     <section style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:13px;line-height:1.6;">
       <span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#eff6ff;color:#2563eb;font-weight:500;">公众号精选</span>
-      <span>${data.author || "Gitd 社区"}</span>
+      <span>${author}</span>
     </section>
     ${digestHtml}
   </section>
   <section style="font-size:15px;line-height:1.9;color:#1f2937;">
 ${data.content}
   </section>
-  <section style="margin:30px 0 6px;padding-top:16px;border-top:1px dashed #d1d5db;color:#94a3b8;font-size:12px;line-height:1.7;text-align:center;">
-    本文由 Gitd 社区内容生成工具整理排版
-  </section>
+  ${copyrightBlock}
 </section>`.trim();
 }
 
