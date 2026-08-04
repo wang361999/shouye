@@ -566,6 +566,59 @@ export default function ProductDetailPage() {
             {/* GitHub 实时数据 */}
             <GithubStatsWidget slug={params?.slug as string} />
 
+            {/* 来源信息 —— 遵守开源协议，标注原作者与原仓库 */}
+            {product.downloadUrl && (() => {
+              const match = product.downloadUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+              const owner = match?.[1] || '';
+              const repo = match?.[2]?.replace(/\.git$/, '') || '';
+              return (
+                <section className="bg-white rounded-2xl border border-gray-200 p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <h2 className="text-sm font-bold text-gray-900">来源信息</h2>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    {owner && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">原作者</span>
+                        <a
+                          href={`https://github.com/${owner}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-600 hover:underline"
+                        >
+                          {owner}
+                        </a>
+                      </div>
+                    )}
+                    {repo && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">原仓库</span>
+                        <a
+                          href={product.downloadUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-600 hover:underline truncate ml-2"
+                          title={`${owner}/${repo}`}
+                        >
+                          {owner}/{repo}
+                        </a>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">开源协议</span>
+                      <span className="font-medium text-gray-700">遵循原仓库 LICENSE</span>
+                    </div>
+                  </div>
+                  <p className="mt-3 pt-3 border-t border-gray-100 text-[11px] leading-relaxed text-gray-400">
+                    本站导入展示此开源项目，已保留原作者及原仓库链接。使用前请遵守原仓库开源协议。
+                  </p>
+                </section>
+              );
+            })()}
+
             {/* 免费授权卡片 */}
             <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden sticky top-6">
               <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-6 text-white">

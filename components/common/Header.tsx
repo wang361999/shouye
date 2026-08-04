@@ -6,6 +6,7 @@ import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "./ThemeToggle";
 import OnlineCounter from "./OnlineCounter";
+import GitdLogo from "./GitdLogo";
 
 const toolLinks = [
   { name: "工具库", href: "/tools" },
@@ -180,7 +181,7 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
             href="/"
             className="flex items-center space-x-2 text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors dark:text-white"
           >
-            <span>🛠️</span>
+            <GitdLogo className="h-7 w-7 flex-shrink-0" />
             <span>{siteName}</span>
           </Link>
 

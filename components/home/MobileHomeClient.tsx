@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCategoryDisplayName } from "@/lib/utils";
+import GitdLogo from "@/components/common/GitdLogo";
 
 interface CommunityPost {
   id: string;
@@ -66,33 +67,6 @@ interface MobileHomeProps {
 function formatNumber(value: number) {
   if (value >= 10000) return `${(value / 10000).toFixed(1)}万`;
   return value.toLocaleString();
-}
-
-function GitdSourceLogo({ className = "h-8 w-8" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 72 72" aria-hidden="true">
-      <defs>
-        <linearGradient id="gitd-source-logo" x1="12" y1="10" x2="58" y2="62">
-          <stop stopColor="#67e8f9" />
-          <stop offset="0.42" stopColor="#2563eb" />
-          <stop offset="1" stopColor="#8b5cf6" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M36 7c15.3 0 27 11.2 27 25.8 0 13.9-10.6 24.7-24.3 25.6-2.1.1-3.9-1.6-3.9-3.7v-6.2c0-1.8 1.4-3.3 3.2-3.6 5.8-.9 10.1-5.7 10.1-11.9 0-6.9-5.4-12.2-12.2-12.2-7.1 0-12.5 5.5-12.5 12.7 0 5.3 3.1 9.9 7.5 11.8 1.5.6 2.4 2 2.4 3.6v9.7c0 2.3-2.2 4-4.4 3.4C17 58.6 8.9 47.6 8.9 34.1 8.9 18.6 20.7 7 36 7z"
-        fill="url(#gitd-source-logo)"
-      />
-      <circle cx="36" cy="34" r="6.4" fill="#fff" />
-      <path
-        d="M28 34h5l2.4-4 3.2 8 2.4-4h4"
-        fill="none"
-        stroke="#0f172a"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
 }
 
 function getPostSource(post?: CommunityPost | null) {
@@ -180,7 +154,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
         <div className="relative">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <GitdSourceLogo className="h-[34px] w-[34px] drop-shadow-[0_8px_14px_rgba(37,99,235,0.24)]" />
+              <GitdLogo className="h-[34px] w-[34px] drop-shadow-[0_8px_14px_rgba(37,99,235,0.24)]" />
               <div>
                 <div className="text-[13px] font-extrabold leading-5">{siteName}</div>
                 <div className="text-[11px] leading-4 text-white/55">Developer source pulse</div>
@@ -331,6 +305,11 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
               ? `${challengeProject.title} 正在招募社区成员参与共创。`
               : "和社区一起完成一个可发布的开发者工具。"}
           </p>
+          {challengeProject && (
+            <div className="mt-1 text-[10px] leading-4 text-white/50">
+              来源 {challengeProject.repoOwner}/{challengeProject.repoName} · 遵循原仓库开源协议
+            </div>
+          )}
           <div className="mt-3 flex items-center justify-between">
             <div className="text-[11px] leading-4 text-white/70">
               {challengeProject ? `${challengeProject.memberCount}/${challengeProject.maxMembers} 人参与` : "社区共创入口"}
