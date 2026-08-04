@@ -19,7 +19,7 @@ import {
   Icons,
 } from "@/components/admin/ui";
 
-type TabKey = "basic" | "seo" | "sponsor";
+type TabKey = "basic" | "seo" | "sponsor" | "wechat";
 
 export default function SiteSettingsPage() {
   const { token } = useAppStore();
@@ -36,10 +36,13 @@ export default function SiteSettingsPage() {
     sponsor_text: "",
     sponsor_wechat_qr: "",
     sponsor_alipay_qr: "",
+    wechat_app_id: "",
+    wechat_app_secret: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [testingWechat, setTestingWechat] = useState(false);
 
   const wechatInputRef = useRef<HTMLInputElement>(null);
   const alipayInputRef = useRef<HTMLInputElement>(null);
@@ -61,6 +64,8 @@ export default function SiteSettingsPage() {
         sponsor_text: data.sponsor_text || "",
         sponsor_wechat_qr: data.sponsor_wechat_qr || "",
         sponsor_alipay_qr: data.sponsor_alipay_qr || "",
+        wechat_app_id: data.wechat_app_id || "",
+        wechat_app_secret: data.wechat_app_secret || "",
       });
     } catch {
       toast.error("获取设置失败");
@@ -90,6 +95,49 @@ export default function SiteSettingsPage() {
       toast.error("保存失败，请稍后重试");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // 测试微信公众号连接
+  async function handleTestWechat() {
+    if (testingWechat) return;
+    // 先保存当前配置
+    try {
+      setTestingWechat(true);
+      const saveRes = await adminFetch("/api/admin/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          settings: {
+            wechat_app_id: form.wechat_app_id,
+            wechat_app_secret: form.wechat_app_secret,
+          },
+        }),
+      });
+      if (!saveRes.ok) {
+        toast.error("保存配置失败，无法测试连接");
+        return;
+      }
+
+      // 调用测试接口（带 test=1 参数实际请求微信 API）
+      const res = await adminFetch("/api/wechat/config?test=1");
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "连接测试失败");
+        return;
+      }
+      if (data.error) {
+        toast.error(`连接失败：${data.error}`);
+        return;
+      }
+      if (data.configured) {
+        toast.success(data.message || "连接成功！");
+      } else {
+        toast.error("未检测到有效配置，请检查 AppID 和 AppSecret");
+      }
+    } catch {
+      toast.error("连接测试失败，请稍后重试");
+    } finally {
+      setTestingWechat(false);
     }
   }
 
@@ -231,6 +279,7 @@ export default function SiteSettingsPage() {
             { key: "basic", label: "基本信息" },
             { key: "seo", label: "SEO 优化" },
             { key: "sponsor", label: "赞助设置" },
+            { key: "wechat", label: "微信同步" },
           ]}
           active={activeTab}
           onChange={(k) => setActiveTab(k as TabKey)}
@@ -352,8 +401,97 @@ export default function SiteSettingsPage() {
           </Card>
         )}
 
+        {/* 微信同步设置 */}
+        {activeTab === "wechat" && (
+          <Card>
+            <CardHeader
+              title="微信公众号配置"
+              subtitle="配置公众号 AppID 与 AppSecret，用于帖子同步与发布"
+            />
+            <CardBody className="space-y-6">
+              {/* 配置说明 */}
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                  </svg>
+                  <div className="text-sm text-blue-800 space-y-1.5">
+                    <p className="font-medium">配置说明</p>
+                    <p>1. 登录 <a href="https://mp.weixin.qq.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">微信公众平台</a>，在「设置与开发 - 基本配置」中获取 AppID 和 AppSecret。</p>
+                    <p>2. 需在公众号后台配置服务器 IP 白名单，将本服务器出口 IP 加入白名单。</p>
+                    <p>3. AppSecret 仅在配置时显示一次，请妥善保管。如需修改直接填写新值即可。</p>
+                    <p>4. 认证订阅号/服务号可使用草稿+发布接口；个人订阅号部分接口受限，可能仅支持手动发布。</p>
+                  </div>
+                </div>
+              </div>
+
+              <FormField label="AppID" hint="公众号的唯一凭证">
+                <Input
+                  value={form.wechat_app_id}
+                  onChange={(e) => setForm((p) => ({ ...p, wechat_app_id: e.target.value }))}
+                  placeholder="例如：wx1234567890abcdef"
+                  className="font-mono"
+                />
+              </FormField>
+
+              <FormField label="AppSecret" hint="公众号的密钥，用于获取 Access Token">
+                <Input
+                  type="password"
+                  value={form.wechat_app_secret}
+                  onChange={(e) => setForm((p) => ({ ...p, wechat_app_secret: e.target.value }))}
+                  placeholder={form.wechat_app_secret === "••••••••" ? "已配置，输入新值可修改" : "请输入 AppSecret"}
+                  className="font-mono"
+                />
+              </FormField>
+
+              {/* 配置状态 */}
+              <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${form.wechat_app_id && form.wechat_app_secret ? "bg-green-500" : "bg-gray-300"}`} />
+                <span className="text-sm text-gray-700">
+                  {form.wechat_app_id && form.wechat_app_secret
+                    ? "已配置，可前往「公众号同步」页面进行帖子同步"
+                    : "未配置，请填写 AppID 和 AppSecret 后保存"}
+                </span>
+                {form.wechat_app_id && form.wechat_app_secret && (
+                  <a
+                    href="/admin/wechat"
+                    className="ml-auto text-sm text-brand-600 hover:text-brand-700 hover:underline font-medium"
+                  >
+                    前往同步管理 →
+                  </a>
+                )}
+              </div>
+
+              {/* 测试连接按钮 */}
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={handleTestWechat}
+                  loading={testingWechat}
+                  disabled={!form.wechat_app_id || !form.wechat_app_secret}
+                >
+                  <Icons.Search className="w-4 h-4" />
+                  测试连接
+                </Button>
+                <span className="text-xs text-gray-500">
+                  点击后会先保存配置，然后实际请求微信 API 验证 Access Token 是否可正常获取
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
         {/* 保存按钮 */}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
+          {activeTab === "wechat" && (
+            <a
+              href="/admin/wechat"
+              className="admin-btn-secondary inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium"
+            >
+              <Icons.Chat className="w-4 h-4" />
+              同步管理
+            </a>
+          )}
           <Button onClick={handleSave} loading={saving}>
             <Icons.Check className="w-4 h-4" />
             保存设置

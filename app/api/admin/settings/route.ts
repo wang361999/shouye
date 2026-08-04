@@ -29,6 +29,8 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   sponsor_text: '如果我们的项目对您有帮助，欢迎赞助支持 ❤️',
   ai_agent_daily_limit: '10',
   ai_agent_inactive_days: '7',
+  wechat_app_id: '',
+  wechat_app_secret: '',
 };
 
 // ============ GET /api/admin/settings - 获取所有系统设置 ============
@@ -50,11 +52,24 @@ export async function GET(request: NextRequest) {
     const resendConfigured = Boolean(settingsObj.resend_api_key || process.env.RESEND_API_KEY);
     const resendFromEmail = settingsObj.resend_from_email || process.env.RESEND_FROM_EMAIL || '';
 
+    // 微信配置状态（不暴露完整 Secret）
+    const wechatConfigured = Boolean(
+      settingsObj.wechat_app_id && settingsObj.wechat_app_secret,
+    );
+    const wechatAppId = settingsObj.wechat_app_id || '';
+    // 返回掩码后的 Secret，仅用于前端显示"已配置"状态
+    const wechatAppSecretMasked = settingsObj.wechat_app_secret
+      ? '••••••••'
+      : '';
+
     return NextResponse.json({
       ...settingsObj,
       resend_configured: resendConfigured ? 'true' : 'false',
       resend_from_email: resendFromEmail,
       active_email_provider: resendConfigured ? 'resend' : 'none',
+      wechat_app_id: wechatAppId,
+      wechat_app_secret: wechatAppSecretMasked,
+      wechat_configured: wechatConfigured ? 'true' : 'false',
     });
   } catch (error) {
     console.error('[ADMIN SETTINGS GET ERROR]', error);
@@ -91,10 +106,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 将所有值转为字符串存储
-    const entries = Object.entries(settingsToSave).map(([key, value]) => ({
-      key,
-      value: String(value),
-    }));
+    // 敏感字段：掩码值 '••••••••' 表示前端未修改，跳过保存
+    const SENSITIVE_MASKED_KEYS = ['wechat_app_secret'];
+    const entries = Object.entries(settingsToSave)
+      .filter(([key, value]) => {
+        // 跳过掩码值（前端未修改密钥）
+        if (SENSITIVE_MASKED_KEYS.includes(key) && value === '••••••••') {
+          return false;
+        }
+        return true;
+      })
+      .map(([key, value]) => ({
+        key,
+        value: String(value),
+      }));
 
     // 批量 upsert
     await prisma.$transaction(
