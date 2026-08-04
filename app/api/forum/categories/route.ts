@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
 import { adminAuth } from '@/lib/auth';
-import { getCategoryDisplayName } from '@/lib/utils';
+import { getCategoryDisplayName, normalizeCategorySlug } from '@/lib/utils';
 
 // 分类数据需要即时可见（创建后立即显示），禁用 ISR 缓存
 export const dynamic = 'force-dynamic';
@@ -44,15 +44,28 @@ export async function GET() {
       5000,
     );
 
-    const result = (rows as Record<string, unknown>[]).map((cat) => ({
+    const mapped = (rows as Record<string, unknown>[]).map((cat) => ({
       id: cat.id,
       name: getCategoryDisplayName(cat.name as string, cat.slug as string),
-      slug: cat.slug,
+      slug: normalizeCategorySlug(cat.slug as string) || cat.slug,
       icon: cat.icon,
       desc: cat.desc,
       sortOrder: Number(cat.sort_order) || 0,
       postCount: Number(cat.post_count) || 0,
     }));
+    const result = Array.from(
+      mapped.reduce((acc, cat) => {
+        const key = String(cat.slug);
+        const existing = acc.get(key);
+        if (existing) {
+          existing.postCount += cat.postCount;
+          if (cat.slug === key) Object.assign(existing, { ...cat, postCount: existing.postCount });
+        } else {
+          acc.set(key, cat);
+        }
+        return acc;
+      }, new Map<string, typeof mapped[number]>()).values(),
+    ).sort((a, b) => a.sortOrder - b.sortOrder);
 
     cachedCategories = result;
     cacheExpiry = now + CACHE_TTL;

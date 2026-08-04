@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
-import { getCategoryDisplayName } from '@/lib/utils';
+import { getCategoryDisplayName, normalizeCategorySlug } from '@/lib/utils';
 
 /**
  * GET /api/forum/bootstrap
@@ -118,15 +118,28 @@ export async function GET() {
   // ---- 处理分类 ----
   let categories: unknown[] = [];
   if (categoriesResult.status === 'fulfilled') {
-    categories = (categoriesResult.value as Record<string, unknown>[]).map((cat) => ({
+    const mappedCategories = (categoriesResult.value as Record<string, unknown>[]).map((cat) => ({
       id: cat.id,
       name: getCategoryDisplayName(cat.name as string, cat.slug as string),
-      slug: cat.slug,
+      slug: normalizeCategorySlug(cat.slug as string) || cat.slug,
       icon: cat.icon,
       desc: cat.desc,
       sortOrder: Number(cat.sort_order) || 0,
       postCount: Number(cat.post_count) || 0,
     }));
+    categories = Array.from(
+      mappedCategories.reduce((acc, cat) => {
+        const key = String(cat.slug);
+        const existing = acc.get(key);
+        if (existing) {
+          existing.postCount += cat.postCount;
+          if (cat.slug === key) Object.assign(existing, { ...cat, postCount: existing.postCount });
+        } else {
+          acc.set(key, cat);
+        }
+        return acc;
+      }, new Map<string, typeof mappedCategories[number]>()).values(),
+    ).sort((a, b) => a.sortOrder - b.sortOrder);
   } else {
     console.error('[BOOTSTRAP] categories failed:', categoriesResult.reason?.message || categoriesResult.reason);
   }

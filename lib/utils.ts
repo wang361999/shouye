@@ -91,13 +91,24 @@ const CATEGORY_SLUG_TO_CN: Record<string, string> = {
 };
 
 /**
+ * 归一化分类 slug
+ * 历史上开源分类曾用过 kaiyuan / opensource，现在统一合并到 open-source
+ */
+export function normalizeCategorySlug(slug: string | null | undefined): string {
+  const value = (slug || '').toLowerCase();
+  if (value === 'kaiyuan' || value === 'opensource') return 'open-source';
+  return value;
+}
+
+/**
  * 获取分类显示名称
  * 优先使用 slug 的标准显示名，避免旧数据里的同义分类名称重复展示
  */
 export function getCategoryDisplayName(name: string | null | undefined, slug: string | null | undefined): string {
   // 尝试 slug 映射
-  if (slug) {
-    const mapped = CATEGORY_SLUG_TO_CN[slug.toLowerCase()];
+  const normalizedSlug = normalizeCategorySlug(slug);
+  if (normalizedSlug) {
+    const mapped = CATEGORY_SLUG_TO_CN[normalizedSlug];
     if (mapped) return mapped;
   }
   // 有中文名直接用

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getCategoryDisplayName } from '@/lib/utils';
+import { getCategoryDisplayName, normalizeCategorySlug } from '@/lib/utils';
 
 // ============ XML 字符转义 ============
 function escapeXml(unsafe: string): string {
@@ -17,7 +17,7 @@ function escapeXml(unsafe: string): string {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const categorySlug = searchParams.get('category') || undefined;
+    const categorySlug = normalizeCategorySlug(searchParams.get('category') || undefined) || undefined;
 
     // ---- 构建查询条件 ----
     const where: Record<string, unknown> = {

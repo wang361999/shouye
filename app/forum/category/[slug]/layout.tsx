@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import prisma from '@/lib/prisma';
-import { getCategoryDisplayName, truncateText } from '@/lib/utils';
+import { getCategoryDisplayName, normalizeCategorySlug, truncateText } from '@/lib/utils';
 
 type CategorySeo = {
   name: string;
@@ -13,8 +13,9 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://et-studio.vercel.app
 
 async function getCategorySeo(slug: string): Promise<CategorySeo | null> {
   try {
+    const normalizedSlug = normalizeCategorySlug(slug);
     const category = await prisma.category.findUnique({
-      where: { slug },
+      where: { slug: normalizedSlug },
       select: {
         name: true,
         slug: true,

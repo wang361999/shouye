@@ -5,7 +5,7 @@ import { checkDbOr503 } from '@/lib/db-check';
 import type { InValue } from '@libsql/client/http';
 import { getUserFromRequest, adminAuth } from '@/lib/auth';
 import { revalidateCommunityHome } from '@/lib/revalidate';
-import { getCategoryDisplayName } from '@/lib/utils';
+import { getCategoryDisplayName, normalizeCategorySlug } from '@/lib/utils';
 
 const QUERY_TIMEOUT = 5000;
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
-    const categorySlug = searchParams.get('category') || undefined;
+    const categorySlug = normalizeCategorySlug(searchParams.get('category') || undefined) || undefined;
     const search = searchParams.get('search') || undefined;
     const authorId = searchParams.get('authorId') || undefined;
     const statusParam = searchParams.get('status') || undefined;

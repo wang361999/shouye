@@ -7,6 +7,7 @@ import { Container } from '@/components/common/Container';
 import PostList from '@/components/forum/PostList';
 import Sidebar from '@/components/forum/Sidebar';
 import { useAppStore } from '@/lib/store';
+import { normalizeCategorySlug } from '@/lib/utils';
 
 interface Category {
   id: string;
@@ -36,6 +37,7 @@ export default function CategoryPage({
   params: { slug: string };
 }) {
   const { slug } = params;
+  const normalizedSlug = normalizeCategorySlug(slug);
   const router = useRouter();
   const { user } = useAppStore();
 
@@ -43,7 +45,7 @@ export default function CategoryPage({
   const [categories, setCategories] = useState<Category[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [currentCategory, setCurrentCategory] = useState(slug);
+  const [currentCategory, setCurrentCategory] = useState(normalizedSlug);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [categoryName, setCategoryName] = useState('');
@@ -69,18 +71,18 @@ export default function CategoryPage({
           setCategories(cats);
 
           // 找到当前分类名
-          const current = data.find((cat: any) => cat.slug === slug);
+          const current = data.find((cat: any) => cat.slug === normalizedSlug);
           if (current) {
             setCategoryName(current.name);
           }
-          setCurrentCategory(slug);
+          setCurrentCategory(normalizedSlug);
         }
       } catch (err) {
         console.error('获取分类失败:', err);
       }
     };
     fetchCategories();
-  }, [slug]);
+  }, [normalizedSlug]);
 
   // 获取统计数据
   useEffect(() => {
@@ -110,7 +112,7 @@ export default function CategoryPage({
         const params = new URLSearchParams({
           page: String(currentPage),
           limit: '20',
-          category: slug,
+          category: normalizedSlug,
         });
         if (searchQuery) {
           params.set('search', searchQuery);
@@ -142,7 +144,7 @@ export default function CategoryPage({
       }
     };
     fetchPosts();
-  }, [currentPage, slug, searchQuery]);
+  }, [currentPage, normalizedSlug, searchQuery]);
 
   // 获取热门帖子（服务端排序）
   const fetchHotPosts = useCallback(async () => {
@@ -225,7 +227,7 @@ export default function CategoryPage({
         💬 社区论坛
       </h1>
       <p className="text-[13px] sm:text-sm text-blue-600 font-medium mb-8">
-        分类：{categoryName || slug}
+        分类：{categoryName || normalizedSlug}
       </p>
 
       {/* 主内容区：帖子列表 + 侧边栏 */}
