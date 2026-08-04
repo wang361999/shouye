@@ -7,8 +7,19 @@ export default function Footer({ siteName = "Gitd" }: { siteName?: string }) {
 
   return (
     <footer className="bg-gray-900 text-gray-400">
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
+      {/* 移动端精简 Footer —— 仅保留免责声明和版权 */}
+      <div className="md:hidden px-4 py-6">
+        <p className="mb-3 rounded-lg border border-gray-800 bg-white/[0.03] px-3 py-2 text-[11px] leading-5 text-gray-500">
+          免责声明：Git 为通用开源工具名称，本站为独立运营的自研开发者协作平台，与 GitHub、Gitee 无关联。站内导入或展示的开源项目应保留原作者、原仓库链接及完整开源协议。
+        </p>
+        <p className="text-[11px] text-gray-600">
+          &copy; {currentYear} {siteName}. All rights reserved.
+        </p>
+      </div>
+
+      {/* 桌面端完整 Footer */}
+      <div className="hidden md:block max-w-7xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-5 gap-8">
           {/* 社区 */}
           <div>
             <h4 className="mb-4 text-sm font-semibold text-white">社区</h4>
@@ -123,7 +134,7 @@ export default function Footer({ siteName = "Gitd" }: { siteName?: string }) {
           </div>
 
           {/* 品牌 */}
-          <div className="col-span-2 md:col-span-1">
+          <div className="col-span-1">
             <h4 className="mb-4 text-sm font-semibold text-white">{siteName}</h4>
             <p className="text-sm text-gray-400 leading-relaxed mb-4">
               自研开发者协作平台。连接技术讨论、工具实践与开源协作，帮助开发者共建高质量内容生态。

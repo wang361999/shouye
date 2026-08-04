@@ -158,7 +158,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
   const heatScore = Math.min(99, Math.max(36, stats.todayPostCount * 6 + discussionPosts.length * 8 + projects.length * 5));
 
   return (
-    <main className="min-h-screen bg-[#f7f9ff] pb-24">
+    <main className="min-h-screen bg-[#f7f9ff]">
       <section className="relative overflow-hidden bg-slate-950 px-5 pb-7 pt-3 text-white">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(96,165,250,0.10)_1px,transparent_1px),linear-gradient(90deg,rgba(96,165,250,0.10)_1px,transparent_1px)] bg-[length:26px_26px] [mask-image:radial-gradient(circle_at_50%_25%,black,transparent_78%)]" />
         <div className="absolute -right-20 top-10 h-44 w-44 rounded-full bg-blue-600/30 blur-3xl" />
