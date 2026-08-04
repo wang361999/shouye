@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "./ThemeToggle";
+import OnlineCounter from "./OnlineCounter";
 
 const toolLinks = [
   { name: "工具库", href: "/tools" },
@@ -317,6 +318,8 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
 
           {/* 右侧用户区 */}
           <div className="hidden md:flex items-center space-x-3">
+            {/* 在线人数 */}
+            <OnlineCounter variant="badge" />
             {/* 主题切换 */}
             <ThemeToggle />
             {user ? (

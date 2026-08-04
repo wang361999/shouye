@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Container } from "@/components/common/Container";
 import { cn } from "@/lib/utils";
 import UserAvatar from "@/components/common/UserAvatar";
+import OnlineCounter from "@/components/common/OnlineCounter";
 import CheckInLeaderboard from "./CheckInLeaderboard";
 
 interface CommunityPost {
@@ -344,6 +345,8 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
         <Container className="relative py-24 text-center md:py-32">
           {/* 活跃状态徽标 */}
           <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-blue-100 backdrop-blur">
+            <OnlineCounter variant="hero" />
+            <span className="text-white/30">·</span>
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
