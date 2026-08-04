@@ -2,12 +2,10 @@
 
 import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import MarkdownRenderer from "./MarkdownRenderer";
 import GithubCodeSearch from "./GithubCodeSearch";
-import GithubCodeBlock from "./GithubCodeBlock";
 import TagInput from "./TagInput";
-import { parseGithubUrl, preprocessGithubShortcodes } from "@/lib/github-url";
+import { parseGithubUrl } from "@/lib/github-url";
 
 interface Category {
   id: string;
@@ -278,32 +276,7 @@ export default function PostForm({
         ) : (
           <div className="w-full min-h-[250px] sm:min-h-[300px] px-3 sm:px-4 py-3 text-[13px] sm:text-sm border border-gray-300 rounded-lg bg-gray-50 overflow-auto">
             {content.trim() ? (
-              <div className="prose prose-sm max-w-none markdown-body">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    code({ node, className, children, ...props }: any) {
-                      const match = /language-(\w+)/.exec(className || "");
-                      const lang = match ? match[1] : "";
-                      const text = String(children).replace(/\n$/, "");
-                      if (lang === "github-code") {
-                        const [rawPath, queryString] = text.split("?");
-                        const params = new URLSearchParams(queryString || "");
-                        return (
-                          <GithubCodeBlock
-                            source={rawPath.trim()}
-                            ref={params.get("ref") || undefined}
-                            lines={params.get("lines") || undefined}
-                          />
-                        );
-                      }
-                      return <code className={className} {...props}>{children}</code>;
-                    },
-                  }}
-                >
-                  {preprocessGithubShortcodes(content)}
-                </ReactMarkdown>
-              </div>
+              <MarkdownRenderer content={content} />
             ) : (
               <p className="text-gray-400">暂无内容可预览...</p>
             )}

@@ -1,18 +1,15 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Container } from '@/components/common/Container';
 import UserAvatar from '@/components/common/UserAvatar';
 import CommentList from '@/components/forum/CommentList';
-import GithubCodeBlock from '@/components/forum/GithubCodeBlock';
+import MarkdownRenderer from '@/components/forum/MarkdownRenderer';
 import { ReputationBadge, FollowButton } from '@/components/forum/ReputationBadge';
 import { useAppStore } from '@/lib/store';
-import { preprocessGithubShortcodes } from '@/lib/github-url';
 import toast from 'react-hot-toast';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
 interface PostTag {
   tag: { id: string; name: string; slug: string };
@@ -109,12 +106,6 @@ export default function PostDetailPage({
   const [liked, setLiked] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-
-  // 预处理帖子内容
-  const processedContent = useMemo(
-    () => (post ? preprocessGithubShortcodes(post.content) : ""),
-    [post]
-  );
 
   // 获取帖子详情
   useEffect(() => {
@@ -381,33 +372,8 @@ export default function PostDetailPage({
       {/* 分割线 */}
       <hr className="border-gray-200 mb-6" />
 
-      {/* 帖子正文 - Markdown 渲染 */}
-      <div className="prose prose-sm sm:prose-base max-w-none mb-6 markdown-body">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            code({ node, className, children, ...props }: any) {
-              const match = /language-(\w+)/.exec(className || "");
-              const lang = match ? match[1] : "";
-              const text = String(children).replace(/\n$/, "");
-              if (lang === "github-code") {
-                const [rawPath, queryString] = text.split("?");
-                const params = new URLSearchParams(queryString || "");
-                return (
-                  <GithubCodeBlock
-                    source={rawPath.trim()}
-                    ref={params.get("ref") || undefined}
-                    lines={params.get("lines") || undefined}
-                  />
-                );
-              }
-              return <code className={className} {...props}>{children}</code>;
-            },
-          }}
-        >
-          {processedContent}
-        </ReactMarkdown>
-      </div>
+      {/* 帖子正文 - Markdown 渲染（统一代码块样式：macOS 风格 + 语言标签 + 复制按钮） */}
+      <MarkdownRenderer content={post.content} className="mb-6" />
 
       {/* 分割线 */}
       <hr className="border-gray-200 mb-6" />
