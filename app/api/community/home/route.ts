@@ -128,7 +128,7 @@ export async function GET(request: Request) {
       console.error('[HOME HOT POSTS ERROR]', err instanceof Error ? err.message : err);
     }
 
-    // 2.5 AI 热门帖子（AI分类下的热门内容）
+    // 2.5 AI 热门帖子（AI分类下的最新内容，按发布时间倒序）
     try {
       const rows = await queryWithTimeout(
         db,
@@ -142,7 +142,7 @@ export async function GET(request: Request) {
          LEFT JOIN Category c ON p.category_id = c.id
          WHERE p.status = 'PUBLISHED'
            AND c.slug IN ('ai-tools', 'llm', 'ai-agent', 'prompt')
-         ORDER BY p.like_count DESC, p.view_count DESC, p.created_at DESC
+         ORDER BY p.created_at DESC
          LIMIT ${aiLimit}`,
         [],
         QUERY_TIMEOUT,
