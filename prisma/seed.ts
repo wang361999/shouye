@@ -54,8 +54,12 @@ async function main() {
     { name: '使用教程', slug: 'tutorial', icon: '📖', desc: '工具使用教程与经验分享', sortOrder: 3 },
     { name: '闲聊', slug: 'chat', icon: '🗣️', desc: '开发者日常闲聊', sortOrder: 4 },
     { name: '开源项目', slug: 'open-source', icon: '📦', desc: '开源项目推荐、协议分析与社区趋势', sortOrder: 5 },
-    { name: '前端开发', slug: 'frontend', icon: '🎨', desc: '前端框架、CSS与性能优化', sortOrder: 6 },
-    { name: '后端开发', slug: 'backend', icon: '⚙️', desc: '后端架构、数据库与API设计', sortOrder: 7 },
+    { name: 'AI 工具', slug: 'ai-tools', icon: '🤖', desc: 'AI 工具推荐、评测与使用技巧', sortOrder: 6 },
+    { name: '大模型', slug: 'llm', icon: '🧠', desc: '大语言模型技术、应用与微调实践', sortOrder: 7 },
+    { name: 'Agent 开发', slug: 'ai-agent', icon: '⚡', desc: 'AI Agent 架构、框架与开发实践', sortOrder: 8 },
+    { name: 'Prompt 工程', slug: 'prompt', icon: '✍️', desc: 'Prompt 设计技巧、模板与最佳实践', sortOrder: 9 },
+    { name: '前端开发', slug: 'frontend', icon: '🎨', desc: '前端框架、CSS与性能优化', sortOrder: 10 },
+    { name: '后端开发', slug: 'backend', icon: '⚙️', desc: '后端架构、数据库与API设计', sortOrder: 11 },
   ];
 
   const categoryRecords = [];

@@ -52,6 +52,7 @@ interface CollabProject {
 interface CommunityData {
   latestPosts: CommunityPost[];
   hotPosts: CommunityPost[];
+  aiHotPosts: CommunityPost[];
   activeMembers: ActiveMember[];
   collabProjects: CollabProject[];
   featuredTools: FeaturedTool[];
@@ -339,6 +340,7 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
   }, []);
 
   const stats = data?.stats ?? { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 };
+  const aiHotPosts = data?.aiHotPosts ?? [];
 
   return (
     <div className="min-h-screen bg-white">
@@ -414,6 +416,54 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
                 {stats.commentCount.toLocaleString()}<span className="text-purple-300">+</span>
               </div>
               <div className="mt-1 text-sm text-purple-200">社区评论</div>
+            </div>
+          </div>
+
+          {/* AI 热门文章 */}
+          <div className="mx-auto mt-10 max-w-4xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <span>🔥</span>
+                <span>AI 热门文章</span>
+              </h3>
+              <Link href="/forum?category=ai-tools" className="text-sm text-pink-300 hover:text-pink-200 font-medium transition-colors">
+                查看更多 →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {aiHotPosts.length > 0 ? (
+                aiHotPosts.slice(0, 6).map((post, idx) => (
+                  <Link
+                    key={post.id}
+                    href={`/post/${post.id}`}
+                    className="group flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur transition-all hover:border-purple-400/30 hover:bg-white/10"
+                  >
+                    <span className={cn(
+                      "shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold",
+                      idx === 0 ? "bg-pink-500/20 text-pink-300" :
+                      idx === 1 ? "bg-purple-500/20 text-purple-300" :
+                      idx === 2 ? "bg-blue-500/20 text-blue-300" :
+                      "bg-white/10 text-white/50"
+                    )}>
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-medium text-white/90 group-hover:text-white transition-colors line-clamp-1">
+                        {post.title}
+                      </h4>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-white/40">
+                        <span className="text-purple-300">{post.category?.name || 'AI'}</span>
+                        <span>💬 {post.commentCount}</span>
+                        <span>👍 {post.likeCount}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="col-span-full py-8 text-center text-sm text-white/40 rounded-xl border border-white/10 bg-white/5">
+                  AI 内容正在赶来的路上...
+                </div>
+              )}
             </div>
           </div>
         </Container>

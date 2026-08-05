@@ -49,6 +49,7 @@ interface FeaturedTool {
 interface CommunityData {
   latestPosts: CommunityPost[];
   hotPosts: CommunityPost[];
+  aiHotPosts: CommunityPost[];
   collabProjects: CollabProject[];
   featuredTools: FeaturedTool[];
   stats: {
@@ -156,6 +157,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
   const stats = data?.stats ?? { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 };
   const latestPosts = data?.latestPosts ?? EMPTY_POSTS;
   const hotPosts = data?.hotPosts ?? EMPTY_POSTS;
+  const aiHotPosts = data?.aiHotPosts ?? EMPTY_POSTS;
   const projects = data?.collabProjects ?? EMPTY_PROJECTS;
   const tools = data?.featuredTools ?? EMPTY_TOOLS;
   const leadPost = latestPosts[0] ?? hotPosts[0] ?? null;
@@ -208,22 +210,58 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
             追踪 AI 工具、模型实践与开发技巧，发现最前沿的 AI 开发者内容。
           </p>
 
-          <div className="mt-3 rounded-[15px] border border-white/15 bg-white/10 p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-[13px] font-extrabold leading-5">今日 AI 热度</div>
-              <div className="text-[13px] font-extrabold leading-[18px] text-pink-200">{heatScore}</div>
+          <div className="mt-3 rounded-[15px] border border-white/15 bg-white/10 p-3 backdrop-blur">
+            <div className="mb-2.5 flex items-center justify-between">
+              <div className="text-[13px] font-extrabold leading-5 flex items-center gap-1.5">
+                <span>🔥</span>
+                <span>AI 热门文章</span>
+              </div>
+              <Link href="/forum?category=ai-tools" className="text-[11px] text-pink-200 hover:text-pink-100 font-medium">
+                更多 →
+              </Link>
             </div>
-            <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-white/15">
-              <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500" style={{ width: `${heatScore}%` }} />
+            <div className="space-y-2">
+              {aiHotPosts.length > 0 ? (
+                aiHotPosts.slice(0, 4).map((post, idx) => (
+                  <Link
+                    key={post.id}
+                    href={`/post/${post.id}`}
+                    className="flex items-start gap-2 group"
+                  >
+                    <span className={cn(
+                      "shrink-0 w-4 text-[11px] font-extrabold leading-4",
+                      idx === 0 ? "text-pink-400" :
+                      idx === 1 ? "text-purple-300" :
+                      idx === 2 ? "text-blue-300" : "text-white/40"
+                    )}>
+                      {idx + 1}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[12px] leading-4 text-white/90 group-hover:text-white transition-colors line-clamp-1">
+                        {post.title}
+                      </span>
+                      <span className="block text-[10px] leading-3 text-white/40 mt-0.5 flex items-center gap-2">
+                        <span>{post.category?.name || 'AI'}</span>
+                        <span>·</span>
+                        <span>💬 {post.commentCount}</span>
+                      </span>
+                    </span>
+                  </Link>
+                ))
+              ) : (
+                <div className="py-4 text-center text-[11px] text-white/40">
+                  AI 内容正在赶来的路上...
+                </div>
+              )}
             </div>
-            <div className="flex flex-wrap gap-2 text-[11px] leading-4 text-white/75">
+            <div className="mt-2.5 pt-2.5 border-t border-white/10 flex flex-wrap gap-1.5">
               {['AI 工具', '大模型', 'Agent 开发', 'Prompt'].map((tag) => (
                 <Link
                   key={tag}
                   href={`/search?q=${encodeURIComponent(tag)}`}
-                  className="rounded-full bg-white/10 px-2 py-0.5 transition-colors hover:bg-white/20"
+                  className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/70 transition-colors hover:bg-white/20"
                 >
-                  {tag}
+                  #{tag}
                 </Link>
               ))}
             </div>

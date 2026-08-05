@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     db = getDb();
   } catch {
     const fallbackContent = cachedContent || {
-      latestPosts: [], hotPosts: [], activeMembers: [], collabProjects: [], featuredTools: [],
+      latestPosts: [], hotPosts: [], aiHotPosts: [], activeMembers: [], collabProjects: [], featuredTools: [],
     };
     const fallbackStats = statsCache || {
       stats: { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 },
@@ -74,9 +74,11 @@ export async function GET(request: Request) {
   // ============ 内容数据（顺序查询，避免并发 HTTP 请求失败） ============
   let latestRows: Record<string, unknown>[] = [];
   let hotRows: Record<string, unknown>[] = [];
+  let aiHotRows: Record<string, unknown>[] = [];
   let memberRows: Record<string, unknown>[] = [];
   let collabRows: Record<string, unknown>[] = [];
   let toolRows: Record<string, unknown>[] = [];
+  const aiLimit = isMobileView ? 4 : 6;
 
   if (needContent) {
     // 1. 最新帖子
@@ -124,6 +126,30 @@ export async function GET(request: Request) {
       hotRows = rows as Record<string, unknown>[];
     } catch (err) {
       console.error('[HOME HOT POSTS ERROR]', err instanceof Error ? err.message : err);
+    }
+
+    // 2.5 AI 热门帖子（AI分类下的热门内容）
+    try {
+      const rows = await queryWithTimeout(
+        db,
+        `SELECT p.id, p.title,
+                p.view_count, p.like_count, p.comment_count, p.is_pinned, p.is_essence,
+                p.created_at, p.author_name,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar,
+                c.id as cat_id, c.name as cat_name, c.slug as cat_slug
+         FROM Post p
+         LEFT JOIN User u ON p.author_id = u.id
+         LEFT JOIN Category c ON p.category_id = c.id
+         WHERE p.status = 'PUBLISHED'
+           AND c.slug IN ('ai-tools', 'llm', 'ai-agent', 'prompt')
+         ORDER BY p.like_count DESC, p.view_count DESC, p.created_at DESC
+         LIMIT ${aiLimit}`,
+        [],
+        QUERY_TIMEOUT,
+      );
+      aiHotRows = rows as Record<string, unknown>[];
+    } catch (err) {
+      console.error('[HOME AI HOT POSTS ERROR]', err instanceof Error ? err.message : err);
     }
 
     // 3. 活跃成员（移动端不展示，跳过查询）
@@ -253,6 +279,7 @@ export async function GET(request: Request) {
 
   const formattedLatest = latestRows.map(formatPost);
   const formattedHot = hotRows.map(formatPost);
+  const formattedAiHot = aiHotRows.map(formatPost);
 
   const formattedMembers = memberRows.map((u) => ({
     id: u.id,
@@ -300,6 +327,7 @@ export async function GET(request: Request) {
     contentCache[cacheKey] = {
       latestPosts: formattedLatest,
       hotPosts: formattedHot,
+      aiHotPosts: formattedAiHot,
       activeMembers: formattedMembers,
       collabProjects: formattedCollab,
       featuredTools: formattedTools,
@@ -311,6 +339,7 @@ export async function GET(request: Request) {
     ...(contentCache[cacheKey] || {
       latestPosts: [],
       hotPosts: [],
+      aiHotPosts: [],
       activeMembers: [],
       collabProjects: [],
       featuredTools: [],
