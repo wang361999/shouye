@@ -217,10 +217,15 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
               <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500" style={{ width: `${heatScore}%` }} />
             </div>
             <div className="flex flex-wrap gap-2 text-[11px] leading-4 text-white/75">
-              <span className="rounded-full bg-white/10 px-2 py-0.5">AI 工具</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5">大模型</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5">Agent 开发</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5">Prompt</span>
+              {['AI 工具', '大模型', 'Agent 开发', 'Prompt'].map((tag) => (
+                <Link
+                  key={tag}
+                  href={`/search?q=${encodeURIComponent(tag)}`}
+                  className="rounded-full bg-white/10 px-2 py-0.5 transition-colors hover:bg-white/20"
+                >
+                  {tag}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
