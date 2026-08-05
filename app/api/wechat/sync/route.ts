@@ -5,6 +5,7 @@ import { logOperation } from '@/lib/admin-log';
 import {
   getWechatConfig,
   getWechatAccountType,
+  buildWechatDigest,
   buildWechatArticleHtml,
   markdownToWechatHtml,
   normalizeWechatTemplate,
@@ -204,11 +205,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- 3. 转换 Markdown 为微信 HTML ----
-    const digest = post.content
-      .replace(/[#*`>\-\[\]!()]/g, '')
-      .replace(/\n+/g, ' ')
-      .trim()
-      .slice(0, 120);
+    const digest = buildWechatDigest(post.content);
     const title = post.title.slice(0, 64);
     const author = post.authorName || 'Gitd 社区';
     const htmlContent = markdownToWechatHtml(post.content, template);

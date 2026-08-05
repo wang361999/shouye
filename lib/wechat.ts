@@ -890,6 +890,42 @@ export function markdownToWechatHtml(
   return htmlLines.join('\n');
 }
 
+/**
+ * 生成微信公众号摘要。
+ *
+ * 如果正文开头已经是“核心结论 / 核心观点 / 摘要 / 导读”等导语，
+ * 不再额外生成摘要框，避免公众号正文里出现两段相同导语。
+ */
+export function buildWechatDigest(markdown: string, maxLength = 120): string {
+  if (!markdown) return '';
+
+  const firstMeaningfulLine = markdown
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+
+  const cleanedFirstLine = (firstMeaningfulLine || '')
+    .replace(/^#{1,6}\s+/, '')
+    .replace(/^>\s?/, '')
+    .replace(/^[-*+]\s+/, '')
+    .replace(/^\d+\.\s+/, '')
+    .replace(/[#*`>\-[\]!()]/g, '')
+    .trim();
+
+  if (/^(核心结论|核心观点|核心理论|摘要|导读|本文摘要|结论)\s*[:：]/.test(cleanedFirstLine)) {
+    return '';
+  }
+
+  return markdown
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/!\[[^\]]*]\([^)]+\)/g, '')
+    .replace(/\[[^\]]+]\([^)]+\)/g, '')
+    .replace(/[#*`>\-[\]!()]/g, '')
+    .replace(/\n+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
 export function buildWechatArticleHtml(
   data: WechatArticleRenderInput,
   template: WechatArticleTemplate = 'technical',
@@ -898,7 +934,6 @@ export function buildWechatArticleHtml(
   const config = WECHAT_TEMPLATE_CONFIGS[normalizedTemplate];
   const year = new Date().getFullYear();
   const author = data.author || 'Gitd 社区';
-  const title = escapeHtml(data.title || 'Gitd 社区文章');
   const digest = data.digest
     ? `<section style="${config.digest}">${escapeHtml(data.digest)}</section>`
     : '';
@@ -925,7 +960,6 @@ export function buildWechatArticleHtml(
   return `
 <section style="${config.container}">
   <section style="${config.header}">
-    <h1 style="${config.title}">${title}</h1>
     <section style="${config.meta}">
       <span style="${config.badgeStyle}">${config.badge}</span>
       <span>${escapeHtml(author)}</span>

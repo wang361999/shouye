@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
 import {
+  buildWechatDigest,
   buildWechatArticleHtml,
   markdownToWechatHtml,
   normalizeWechatTemplate,
@@ -46,11 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 生成摘要
-    const digest = post.content
-      .replace(/[#*`>\-\[\]!()]/g, '')
-      .replace(/\n+/g, ' ')
-      .trim()
-      .slice(0, 120);
+    const digest = buildWechatDigest(post.content);
     const title = post.title.slice(0, 64);
     const author = post.authorName || 'Gitd 社区';
 
