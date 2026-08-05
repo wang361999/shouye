@@ -166,7 +166,7 @@ async function callAI(prompt: string, systemPrompt?: string, maxTokens = 4000): 
 }
 
 // 生成帖子
-async function generatePost(bot: typeof BOTS[0]): Promise<{ title: string; content: string; tags: string[] } | null> {
+async function generatePost(bot: typeof BOTS[0]): Promise<{ title: string; content: string; tags: string[]; rawResult?: string } | null> {
   // 随机选一个主题
   const topic = bot.topics[Math.floor(Math.random() * bot.topics.length)];
 
@@ -179,52 +179,85 @@ async function generatePost(bot: typeof BOTS[0]): Promise<{ title: string; conte
 
 【要求】
 1. 标题要有吸引力，能引发开发者兴趣，不超过 30 字
-2. 正文 1500-2500 字，结构清晰，使用 Markdown 格式
-3. 包含：引言、核心内容（分 3-5 个小节）、实践建议、总结
+2. 正文 1000-1500 字，结构清晰，使用 Markdown 格式
+3. 包含：引言、核心内容（分 3-4 个小节）、实践建议、总结
 4. 要有实战干货，避免空泛的理论
 5. 适当使用代码示例或列表来增强可读性
 6. 结尾加上互动引导：${bot.discussionQuestion}
 7. 全程中文
 
 【输出格式】
-严格使用以下 JSON 格式返回（不要包裹在 markdown 代码块中，直接输出 JSON）：
-{
-  "title": "帖子标题",
-  "content": "帖子正文（完整 Markdown）",
-  "tags": ["标签1", "标签2", "标签3", "标签4", "标签5"]
-}`;
+严格使用以下 JSON 格式返回，不要包裹在代码块中，直接输出纯 JSON：
+{"title":"帖子标题","content":"帖子正文（完整 Markdown）","tags":["标签1","标签2","标签3","标签4","标签5"]}`;
 
-  const result = await callAI(prompt, systemPrompt, 8000);
+  const result = await callAI(prompt, systemPrompt, 6000);
   if (!result) return null;
+
+  console.log(`[AI BOTS] AI 返回原始内容长度：${result.length} 字符`);
 
   // 尝试解析 JSON
   try {
     // 先清理可能的 markdown 代码块标记
     let cleaned = result.trim();
-    if (cleaned.startsWith('```json')) {
-      cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    const jsonBlockMatch = cleaned.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonBlockMatch) {
+      cleaned = jsonBlockMatch[1].trim();
+    } else {
+      // 尝试找第一个 { 和最后一个 } 之间的内容
+      const firstBrace = cleaned.indexOf('{');
+      const lastBrace = cleaned.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+      }
     }
-    return JSON.parse(cleaned);
-  } catch {
-    // JSON 解析失败，尝试从文本中提取
-    const titleMatch = result.match(/"title"\s*:\s*"([^"]+)"/);
-    const contentMatch = result.match(/"content"\s*:\s*"([\s\S]*?)"\s*,\s*"tags"/);
-    const tagsMatch = result.match(/"tags"\s*:\s*\[([^\]]+)\]/);
-
-    if (titleMatch) {
-      const tags = tagsMatch
-        ? tagsMatch[1].split(',').map(t => t.trim().replace(/^"|"$/g, '')).filter(Boolean)
-        : bot.defaultTags;
+    const parsed = JSON.parse(cleaned);
+    if (parsed.title && parsed.content) {
       return {
-        title: titleMatch[1],
-        content: contentMatch ? contentMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : result,
-        tags,
+        title: String(parsed.title),
+        content: String(parsed.content),
+        tags: Array.isArray(parsed.tags) ? parsed.tags.map(String) : bot.defaultTags,
       };
     }
-    return null;
+  } catch (e) {
+    console.log(`[AI BOTS] JSON 解析失败，尝试从文本提取: ${e instanceof Error ? e.message : String(e)}`);
   }
+
+  // JSON 解析失败，尝试从文本中提取
+  const titleMatch = result.match(/标题[：:]\s*([^\n]+)/) || result.match(/"title"\s*:\s*"([^"]+)"/);
+  const tagsMatch = result.match(/标签[：:]\s*([^\n]+)/) || result.match(/"tags"\s*:\s*\[([^\]]+)\]/);
+
+  if (titleMatch) {
+    const title = titleMatch[1].trim();
+    let tags = bot.defaultTags;
+    if (tagsMatch) {
+      tags = tagsMatch[1]
+        .split(/[,，、]/)
+        .map(t => t.trim().replace(/^["']|["']$/g, ''))
+        .filter(Boolean)
+        .slice(0, 5);
+      if (tags.length === 0) tags = bot.defaultTags;
+    }
+
+    // 正文从标题后开始
+    const contentStart = result.indexOf(title) + title.length;
+    let content = result.substring(contentStart).trim();
+    // 去掉可能的前缀（如 "正文：" 之类）
+    content = content.replace(/^[\s\S]{0,50}?(正文|内容)[：:]\s*/, '');
+    // 去掉标签后面的内容
+    if (tagsMatch && tagsMatch.index !== undefined) {
+      const tagEnd = tagsMatch.index + tagsMatch[0].length;
+      if (tagEnd < result.length) {
+        content = result.substring(contentStart, tagsMatch.index).trim();
+      }
+    }
+
+    if (content.length > 100) {
+      return { title, content, tags, rawResult: result };
+    }
+  }
+
+  // 完全提取失败，返回原始内容供调试
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -257,7 +290,7 @@ export async function POST(request: NextRequest) {
       try {
         const generated = await generatePost(bot);
         if (!generated) {
-          results.push({ bot: bot.key, name: bot.authorName, status: 'error', error: 'AI 生成失败' });
+          results.push({ bot: bot.key, name: bot.authorName, status: 'error', error: 'AI 生成失败或内容格式无法解析' });
           continue;
         }
 
