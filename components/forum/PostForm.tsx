@@ -7,6 +7,20 @@ import GithubCodeSearch from "./GithubCodeSearch";
 import TagInput from "./TagInput";
 import { parseGithubUrl } from "@/lib/github-url";
 
+// AI 润色功能
+async function aiRewrite(type: "polish" | "title" | "tags" | "all", data: { title?: string; content?: string; category?: string }) {
+  const res = await fetch("/api/ai/rewrite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, ...data }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "AI 调用失败");
+  }
+  return res.json();
+}
+
 interface Category {
   id: string;
   name: string;
@@ -54,6 +68,73 @@ export default function PostForm({
   const [errors, setErrors] = useState<{ title?: string; category?: string; content?: string }>({});
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // AI 润色状态
+  const [aiLoading, setAiLoading] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string>("");
+  const [titleOptions, setTitleOptions] = useState<string[]>([]);
+
+  const categoryName = categories.find((c) => c.id === category)?.name || "";
+
+  // AI 润色正文
+  const handleAIPolish = async () => {
+    if (!content.trim() || aiLoading) return;
+    setAiLoading("polish");
+    setAiError("");
+    try {
+      const res = await aiRewrite("polish", { title, content, category: categoryName });
+      if (res.result?.content) {
+        setContent(res.result.content);
+      }
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "润色失败");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  // AI 优化标题
+  const handleAITitle = async () => {
+    if ((!title.trim() && !content.trim()) || aiLoading) return;
+    setAiLoading("title");
+    setAiError("");
+    setTitleOptions([]);
+    try {
+      const res = await aiRewrite("title", { title, content, category: categoryName });
+      if (res.result?.titleOptions && res.result.titleOptions.length > 0) {
+        setTitleOptions(res.result.titleOptions);
+      } else {
+        setAiError("未生成候选标题");
+      }
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "生成失败");
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
+  // AI 推荐标签
+  const handleAITags = async () => {
+    if ((!title.trim() && !content.trim()) || aiLoading) return;
+    setAiLoading("tags");
+    setAiError("");
+    try {
+      const res = await aiRewrite("tags", { title, content, category: categoryName });
+      if (res.result?.tags && res.result.tags.length > 0) {
+        const newTags = [...tags];
+        for (const t of res.result.tags) {
+          if (!newTags.includes(t) && newTags.length < 5) {
+            newTags.push(t);
+          }
+        }
+        setTags(newTags);
+      }
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "推荐失败");
+    } finally {
+      setAiLoading(null);
+    }
+  };
 
   // 在光标位置插入文本
   const insertAtCursor = (text: string) => {
@@ -155,9 +236,19 @@ export default function PostForm({
 
       {/* 标题 */}
       <div>
-        <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
+        <div className="flex items-center justify-between mb-1.5">
+        <label className="block text-[13px] sm:text-sm font-medium text-gray-700">
           标题 <span className="text-red-500">*</span>
         </label>
+        <button
+          type="button"
+          onClick={handleAITitle}
+          disabled={aiLoading !== null || (!title.trim() && !content.trim())}
+          className="text-[11px] sm:text-xs text-purple-600 hover:text-purple-700 disabled:text-purple-400 disabled:cursor-not-allowed font-medium flex items-center gap-1"
+        >
+          {aiLoading === "title" ? "⏳ 生成中..." : "✨ AI 优化标题"}
+        </button>
+      </div>
         <input
           type="text"
           value={title}
@@ -174,6 +265,23 @@ export default function PostForm({
               : "border-gray-300 focus:ring-blue-500"
           )}
         />
+        {titleOptions.length > 0 && (
+          <div className="mt-2 space-y-1">
+            <p className="text-[11px] sm:text-xs text-gray-500">💡 推荐标题（点击选用）：</p>
+            <div className="flex flex-wrap gap-1.5">
+              {titleOptions.map((t, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => { setTitle(t); setTitleOptions([]); }}
+                  className="px-2 py-1 text-[11px] sm:text-xs bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 transition-colors text-left max-w-full"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {errors.title && <p className="mt-1 text-[11px] sm:text-xs text-red-500">{errors.title}</p>}
         <p className="mt-1 text-[11px] sm:text-xs text-gray-400 text-right">{title.length}/100</p>
       </div>
@@ -208,9 +316,19 @@ export default function PostForm({
 
       {/* 标签 */}
       <div>
-        <label className="block text-[13px] sm:text-sm font-medium text-gray-700 mb-1.5">
+        <div className="flex items-center justify-between mb-1.5">
+        <label className="block text-[13px] sm:text-sm font-medium text-gray-700">
           标签
         </label>
+        <button
+          type="button"
+          onClick={handleAITags}
+          disabled={aiLoading !== null || (!title.trim() && !content.trim()) || tags.length >= 5}
+          className="text-[11px] sm:text-xs text-purple-600 hover:text-purple-700 disabled:text-purple-400 disabled:cursor-not-allowed font-medium flex items-center gap-1"
+        >
+          {aiLoading === "tags" ? "⏳ 推荐中..." : "✨ AI 推荐标签"}
+        </button>
+      </div>
         <TagInput value={tags} onChange={setTags} maxTags={5} />
       </div>
 
@@ -220,31 +338,41 @@ export default function PostForm({
           <label className="block text-[13px] sm:text-sm font-medium text-gray-700">
             内容 <span className="text-red-500">*</span>
           </label>
-          <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-100 rounded-lg p-0.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab("edit")}
-              className={cn(
-                "px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium rounded-md transition-colors touch-target flex items-center",
-                activeTab === "edit"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              )}
+              onClick={handleAIPolish}
+              disabled={aiLoading !== null || !content.trim()}
+              className="text-[11px] sm:text-xs text-purple-600 hover:text-purple-700 disabled:text-purple-400 disabled:cursor-not-allowed font-medium flex items-center gap-1"
             >
-              ✏️ <span className="ml-1">编辑</span>
+              {aiLoading === "polish" ? "⏳ 润色中..." : "✨ AI 润色"}
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("preview")}
-              className={cn(
-                "px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium rounded-md transition-colors touch-target flex items-center",
-                activeTab === "preview"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              )}
-            >
-              👁 <span className="ml-1">预览</span>
-            </button>
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-100 rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setActiveTab("edit")}
+                className={cn(
+                  "px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium rounded-md transition-colors touch-target flex items-center",
+                  activeTab === "edit"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                )}
+              >
+                ✏️ <span className="ml-1">编辑</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("preview")}
+                className={cn(
+                  "px-3 sm:px-4 py-1.5 text-[11px] sm:text-xs font-medium rounded-md transition-colors touch-target flex items-center",
+                  activeTab === "preview"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                )}
+              >
+                👁 <span className="ml-1">预览</span>
+              </button>
+            </div>
           </div>
         </div>
         {activeTab === "edit" ? (
