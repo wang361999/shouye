@@ -23,6 +23,7 @@
     "@prisma/adapter-libsql": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@sentry/nextjs": "^10.69.0",
+    "@vercel/analytics": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "date-fns": "^3.3.1",
     "jsonwebtoken": "^9.0.2",
