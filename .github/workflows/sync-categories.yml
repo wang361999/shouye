@@ -1,0 +1,67 @@
+name: Sync Categories
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "强制同步（更新现有分类）"
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-categories
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync categories to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+
+    steps:
+      - name: Check config
+        run: |
+          if [ -z "$SITE_URL" ]; then
+            echo "❌ 请先在 GitHub Secrets 中配置 SITE_URL（你的网站地址，如 https://your-domain.com）"
+            exit 1
+          fi
+          if [ -z "$ADMIN_PASSWORD" ]; then
+            echo "❌ 请先在 GitHub Secrets 中配置 ADMIN_PASSWORD（管理员密码）"
+            exit 1
+          fi
+          echo "✅ 配置检查通过"
+          echo "网站地址: $SITE_URL"
+
+      - name: Sync categories via API
+        run: |
+          API_URL="$SITE_URL/api/admin/sync-categories"
+          echo "正在调用: $API_URL"
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Admin-Token: $ADMIN_PASSWORD")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "HTTP 状态码: $HTTP_CODE"
+          echo "响应内容: $BODY"
+          
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ 分类同步成功！"
+          elif [ "$HTTP_CODE" = "401" ]; then
+            echo "❌ 授权失败，请检查 ADMIN_PASSWORD 是否正确"
+            exit 1
+          elif [ "$HTTP_CODE" = "503" ]; then
+            echo "⚠️  数据库未就绪，请确保网站已正常部署并连接数据库"
+            exit 1
+          else
+            echo "❌ 同步失败（HTTP $HTTP_CODE）"
+            exit 1
+          fi
