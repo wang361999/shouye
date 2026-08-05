@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getCategoryDisplayName } from "@/lib/utils";
+import { cn, getCategoryDisplayName } from "@/lib/utils";
 import GitdLogo from "@/components/common/GitdLogo";
 
 interface CommunityPost {

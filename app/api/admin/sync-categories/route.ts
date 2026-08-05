@@ -46,12 +46,12 @@ export async function POST(request: Request) {
   for (const cat of categories) {
     try {
       // 先查找是否存在
-      const existing = await queryWithTimeout(
+      const existing = (await queryWithTimeout(
         db,
         `SELECT id FROM Category WHERE slug = ?`,
         [cat.slug],
         5000,
-      );
+      )) as Record<string, unknown>[];
 
       if (existing && existing.length > 0) {
         // 更新
