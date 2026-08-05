@@ -175,6 +175,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="zh-CN">
       <head>
+        <meta name="baidu-site-verification" content="codeva-YMU9NvuvBK" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
