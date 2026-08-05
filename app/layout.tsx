@@ -4,6 +4,7 @@ import { Header } from '@/components/common/Header';
 import { Footer } from '@/components/common/Footer';
 import MobileNav from '@/components/common/MobileNav';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from '@vercel/analytics/next';
 import prisma from '@/lib/prisma';
 
 /**
@@ -198,6 +199,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Footer siteName={siteName} />
         <MobileNav />
         <Toaster position="top-center" />
+        <Analytics />
       </body>
     </html>
   );
