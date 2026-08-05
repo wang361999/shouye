@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         // 更新
         await queryWithTimeout(
           db,
-          `UPDATE Category SET name = ?, icon = ?, desc = ?, sort_order = ? WHERE slug = ?`,
+          `UPDATE Category SET name = ?, icon = ?, "desc" = ?, sort_order = ? WHERE slug = ?`,
           [cat.name, cat.icon, cat.desc, cat.sortOrder, cat.slug],
           5000,
         );
@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
         const newId = 'c' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
         await queryWithTimeout(
           db,
-          `INSERT INTO Category (id, name, slug, icon, desc, sort_order, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+          `INSERT INTO Category (id, name, slug, icon, "desc", sort_order)
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [newId, cat.name, cat.slug, cat.icon, cat.desc, cat.sortOrder],
           5000,
         );
