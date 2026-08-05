@@ -1,0 +1,33 @@
+name: Auto AI Comment Reply
+
+on:
+  schedule:
+    # 每 6 小时检查一次（UTC 0/6/12/18 点，即北京时间 8/14/20/2 点）
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "dry-run 预览（只生成不发布）"
+        required: false
+        default: 'false'
+
+jobs:
+  reply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 执行 AI 评论自动回复
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_BASE: ${{ secrets.AI_API_BASE }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: node scripts/auto-ai-comment-reply.mjs

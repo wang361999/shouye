@@ -32,6 +32,49 @@ const TAG = '[auto-ai-bots]';
 const DRY_RUN = process.argv.includes('--dry-run');
 const AI_GENERATE_RETRIES = 2;
 
+// ===== 内容策略配置 =====
+// 每次运行发布的帖子数量（避免内容堆积）
+const POSTS_PER_RUN = parseInt(process.env.POSTS_PER_RUN || '2', 10);
+
+// 根据时间段选择不同类型的内容策略
+function getTimeBasedSelection() {
+  const hour = new Date().getUTCHours() + 8; // 北京时间
+  // 早间档（8-10点）：工具类 + 干货教程
+  if (hour >= 8 && hour < 11) return ['ai-tools', 'prompt'];
+  // 午间档（14-16点）：深度技术 + 大模型
+  if (hour >= 14 && hour < 17) return ['llm', 'ai-agent'];
+  // 晚间档（20-22点）：综合轮换
+  return null; // null 表示随机轮换
+}
+
+// 轮换选择本次要运行的机器人
+function selectBotsForRun(bots) {
+  const timeBased = getTimeBasedSelection();
+  let selected;
+
+  if (timeBased) {
+    // 按时间段策略选择
+    selected = bots.filter(b => timeBased.includes(b.key));
+  } else {
+    // 随机选择：基于日期哈希确保同一天同一时段选择相同的机器人
+    const today = new Date().toISOString().slice(0, 10);
+    const hour = new Date().getUTCHours() + 8;
+    const period = Math.floor(hour / 6); // 0-3 四个时段
+    const seed = today + '-' + period;
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const startIdx = Math.abs(hash) % bots.length;
+    selected = [];
+    for (let i = 0; i < Math.min(POSTS_PER_RUN, bots.length); i++) {
+      selected.push(bots[(startIdx + i) % bots.length]);
+    }
+  }
+
+  return selected.slice(0, POSTS_PER_RUN);
+}
+
 function log(message) { console.log(`${TAG} ${message}`); }
 function warn(message) { console.warn(`${TAG} ${message}`); }
 function fail(message) { console.error(`::error::${TAG} ${message}`); process.exit(1); }
@@ -424,7 +467,11 @@ async function main() {
   const results = { success: 0, failed: 0, skipped: 0 };
   const failedBots = [];
 
-  for (const bot of BOTS) {
+  // 根据内容策略选择本次要运行的机器人
+  const selectedBots = selectBotsForRun(BOTS);
+  log(`内容策略：本次运行 ${selectedBots.length} 个机器人 - ${selectedBots.map(b => b.authorName).join('、')}`);
+
+  for (const bot of selectedBots) {
     log(`\n========== [${bot.authorName}] ==========`);
     const topic = pickTopic(bot);
     log(`选中主题：${topic}`);

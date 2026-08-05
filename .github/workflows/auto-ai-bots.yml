@@ -2,8 +2,9 @@ name: Auto AI bots
 
 on:
   schedule:
-    # 每天 3 次（UTC 00:00 / 06:00 / 12:00，即北京时间 08:00 / 14:00 / 20:00）
-    - cron: '0 0,6,12 * * *'
+    # 每天 4 次（北京时间 8:00 / 12:00 / 18:00 / 22:00）
+    # 对应 UTC: 0:00 / 4:00 / 10:00 / 14:00
+    - cron: '0 0,4,10,14 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -11,7 +12,7 @@ on:
         required: false
         default: 'false'
       force:
-        description: "强制执行"
+        description: "强制执行（全部 4 个机器人）"
         required: false
         default: 'false'
 
@@ -62,6 +63,7 @@ jobs:
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
       AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
       AI_MODEL: gemini-3.6-flash
+      POSTS_PER_RUN: ${{ secrets.POSTS_PER_RUN || '2' }}
 
     steps:
       - name: Checkout
