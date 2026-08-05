@@ -175,15 +175,16 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
   return (
     <main className="min-h-screen bg-[#f7f9ff]">
       <section className="relative overflow-hidden bg-slate-950 px-5 pb-7 pt-3 text-white">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(96,165,250,0.10)_1px,transparent_1px),linear-gradient(90deg,rgba(96,165,250,0.10)_1px,transparent_1px)] bg-[length:26px_26px] [mask-image:radial-gradient(circle_at_50%_25%,black,transparent_78%)]" />
-        <div className="absolute -right-20 top-10 h-44 w-44 rounded-full bg-blue-600/30 blur-3xl" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(168,85,247,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(168,85,247,0.12)_1px,transparent_1px)] bg-[length:26px_26px] [mask-image:radial-gradient(circle_at_50%_25%,black,transparent_78%)]" />
+        <div className="absolute -right-20 top-10 h-44 w-44 rounded-full bg-purple-600/30 blur-3xl" />
+        <div className="absolute -left-16 bottom-8 h-36 w-36 rounded-full bg-pink-500/20 blur-3xl" />
         <div className="relative">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <GitdLogo className="h-[34px] w-[34px] drop-shadow-[0_8px_14px_rgba(37,99,235,0.24)]" />
+              <GitdLogo className="h-[34px] w-[34px] drop-shadow-[0_8px_14px_rgba(168,85,247,0.3)]" />
               <div>
-                <div className="text-[13px] font-extrabold leading-5">{siteName}</div>
-                <div className="text-[11px] leading-4 text-white/55">Developer source pulse</div>
+                <div className="text-[13px] font-extrabold leading-5">{siteName} AI</div>
+                <div className="text-[11px] leading-4 text-white/55">AI Developer pulse</div>
               </div>
             </div>
             <Link
@@ -195,30 +196,31 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
             </Link>
           </div>
 
-          <div className="mb-2.5 inline-flex items-center gap-2 rounded-full border border-blue-300/30 bg-blue-600/20 px-3 py-1 text-[11px] leading-4 text-blue-100">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_0_4px_rgba(34,211,238,0.15)]" />
-            <span>技术来源实时脉冲 · 社区验证</span>
+          <div className="mb-2.5 inline-flex items-center gap-2 rounded-full border border-purple-300/30 bg-purple-600/20 px-3 py-1 text-[11px] leading-4 text-purple-100">
+            <span className="h-1.5 w-1.5 rounded-full bg-pink-300 shadow-[0_0_0_4px_rgba(240,171,252,0.15)]" />
+            <span>AI 技术实时脉冲 · 社区驱动</span>
           </div>
 
           <h1 className="mb-2 max-w-[19rem] text-[22px] font-extrabold leading-[29px] tracking-[-0.032em]">
-            开发者的技术雷达
+            AI 开发者的技术雷达
           </h1>
           <p className="max-w-[18.75rem] text-[11px] leading-4 text-white/65">
-            追踪技术讨论、工具实践与开源协作，发现高质量开发者内容。
+            追踪 AI 工具、模型实践与开发技巧，发现最前沿的 AI 开发者内容。
           </p>
 
           <div className="mt-3 rounded-[15px] border border-white/15 bg-white/10 p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-[13px] font-extrabold leading-5">今日技术热度</div>
-              <div className="text-[13px] font-extrabold leading-[18px] text-cyan-200">{heatScore}</div>
+              <div className="text-[13px] font-extrabold leading-5">今日 AI 热度</div>
+              <div className="text-[13px] font-extrabold leading-[18px] text-pink-200">{heatScore}</div>
             </div>
             <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-white/15">
-              <div className="h-full rounded-full bg-sky-400" style={{ width: `${heatScore}%` }} />
+              <div className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500" style={{ width: `${heatScore}%` }} />
             </div>
-            <div className="flex gap-2 text-[11px] leading-4 text-white/75">
-              <span className="rounded-full bg-white/10 px-2 py-0.5">开源项目</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5">前端开发</span>
-              <span className="rounded-full bg-white/10 px-2 py-0.5">后端开发</span>
+            <div className="flex flex-wrap gap-2 text-[11px] leading-4 text-white/75">
+              <span className="rounded-full bg-white/10 px-2 py-0.5">AI 工具</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5">大模型</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5">Agent 开发</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5">Prompt</span>
             </div>
           </div>
         </div>

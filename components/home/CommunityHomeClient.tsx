@@ -345,53 +345,53 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
       {/* ============ 1. Hero 社区横幅 ============ */}
       <section className="relative overflow-hidden bg-slate-900 text-white">
         {/* 渐变背景 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-indigo-700 to-slate-900" />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-800 via-violet-800 to-slate-900" />
         {/* 网格纹理 */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[length:56px_56px] [mask-image:radial-gradient(ellipse_80%_60%_at_50%_40%,black,transparent)]" />
         {/* 光效 */}
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-blue-500/30 blur-3xl" />
-        <div className="absolute -bottom-40 -right-32 h-[28rem] w-[28rem] rounded-full bg-indigo-500/30 blur-3xl" />
-        <div className="absolute top-1/3 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-purple-500/20 blur-3xl" />
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-purple-500/30 blur-3xl" />
+        <div className="absolute -bottom-40 -right-32 h-[28rem] w-[28rem] rounded-full bg-pink-500/20 blur-3xl" />
+        <div className="absolute top-1/3 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-500/20 blur-3xl" />
 
         <Container className="relative py-16 text-center sm:py-20 md:py-28">
           {/* 活跃状态徽标 */}
-          <div className="mb-7 inline-flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100 backdrop-blur sm:gap-2 sm:px-4 sm:text-sm">
+          <div className="mb-7 inline-flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-purple-100 backdrop-blur sm:gap-2 sm:px-4 sm:text-sm">
             <OnlineCounter variant="hero" />
             <span className="text-white/30">·</span>
-            <span>社区活跃中</span>
+            <span>AI 社区活跃中</span>
             <span className="hidden sm:inline text-white/30">·</span>
-            <span className="hidden sm:inline whitespace-nowrap">今日新增 {stats.todayPostCount} 篇帖子</span>
+            <span className="hidden sm:inline whitespace-nowrap">今日新增 {stats.todayPostCount} 篇内容</span>
           </div>
 
           {/* 主标题 */}
-          <h1 className="mb-5 bg-gradient-to-r from-white via-blue-100 to-blue-300 bg-clip-text text-4xl font-bold text-transparent md:text-6xl lg:text-7xl">
-            {siteName}
+          <h1 className="mb-5 bg-gradient-to-r from-white via-purple-100 to-pink-200 bg-clip-text text-4xl font-bold text-transparent md:text-6xl lg:text-7xl">
+            {siteName} AI
           </h1>
 
           {/* 副标题 - 社区定位 */}
-          <p className="mb-4 text-xl font-medium text-blue-100 md:text-2xl">
-            开发者交流、分享、成长的社区
+          <p className="mb-4 text-xl font-medium text-purple-100 md:text-2xl">
+            AI 开发者的技术雷达
           </p>
-          <p className="mx-auto mb-10 max-w-2xl text-base leading-relaxed text-blue-200/80 md:text-lg">
-            连接开发者，共建 AI 工具生态。在这里分享经验、讨论技术、一起成长。
+          <p className="mx-auto mb-10 max-w-2xl text-base leading-relaxed text-purple-200/80 md:text-lg">
+            追踪 AI 工具、模型实践与开发技巧，发现最前沿的 AI 开发者内容。在这里分享经验、讨论技术、一起成长。
           </p>
 
           {/* CTA 按钮 */}
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link
-              href="/forum"
-              className="group inline-flex items-center justify-center rounded-xl bg-white px-8 py-3.5 font-semibold text-blue-700 shadow-lg shadow-blue-900/30 transition-all hover:-translate-y-0.5 hover:bg-blue-50 hover:shadow-xl"
+              href="/ai-agents"
+              className="group inline-flex items-center justify-center rounded-xl bg-white px-8 py-3.5 font-semibold text-purple-700 shadow-lg shadow-purple-900/30 transition-all hover:-translate-y-0.5 hover:bg-purple-50 hover:shadow-xl"
             >
-              加入社区
+              探索 AI Agent
               <svg className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5-5 5M6 12h12" />
               </svg>
             </Link>
             <Link
-              href="/collab"
+              href="/forum"
               className="inline-flex items-center justify-center rounded-xl border border-white/30 bg-white/5 px-8 py-3.5 font-semibold text-white backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-white/15"
             >
-              协同创作
+              加入社区
             </Link>
           </div>
 
@@ -399,21 +399,21 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
           <div className="mx-auto mt-14 grid max-w-2xl grid-cols-3 gap-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 backdrop-blur">
               <div className="text-3xl font-bold text-white">
-                {stats.userCount.toLocaleString()}<span className="text-blue-300">+</span>
+                {stats.userCount.toLocaleString()}<span className="text-purple-300">+</span>
               </div>
-              <div className="mt-1 text-sm text-blue-200">社区成员</div>
+              <div className="mt-1 text-sm text-purple-200">社区成员</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 backdrop-blur">
               <div className="text-3xl font-bold text-white">
-                {stats.postCount.toLocaleString()}<span className="text-blue-300">+</span>
+                {stats.postCount.toLocaleString()}<span className="text-purple-300">+</span>
               </div>
-              <div className="mt-1 text-sm text-blue-200">讨论帖子</div>
+              <div className="mt-1 text-sm text-purple-200">AI 讨论</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 backdrop-blur">
               <div className="text-3xl font-bold text-white">
-                {stats.commentCount.toLocaleString()}<span className="text-blue-300">+</span>
+                {stats.commentCount.toLocaleString()}<span className="text-purple-300">+</span>
               </div>
-              <div className="mt-1 text-sm text-blue-200">社区评论</div>
+              <div className="mt-1 text-sm text-purple-200">社区评论</div>
             </div>
           </div>
         </Container>
