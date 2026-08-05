@@ -137,6 +137,9 @@ export async function generateMetadata(): Promise<Metadata> {
       title: defaultTitle,
       description: siteDescription,
     },
+    other: {
+      'baidu-site-verification': 'codeva-YMU9NvuvBK',
+    },
   };
 }
 
