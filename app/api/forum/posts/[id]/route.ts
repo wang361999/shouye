@@ -48,7 +48,7 @@ export async function GET(
                 p.is_pinned, p.is_essence, p.is_locked, p.status,
                 p.post_type, p.accepted_comment_id, p.author_name, p.is_ai_generated,
                 p.deleted_at, p.created_at, p.updated_at,
-                u.id as author_id, u.username as author_username, u.avatar as author_avatar,
+                u.id as author_id, u.username as author_username, u.avatar as author_avatar, u.email as author_email,
                 c.id as cat_id, c.name as cat_name, c.slug as cat_slug
          FROM Post p
          LEFT JOIN User u ON p.author_id = u.id
@@ -199,10 +199,14 @@ export async function GET(
     }
 
     // ---- 5. 组装返回数据（保持与 Prisma 响应格式一致）----
+    const authorEmail = postRow.author_email as string || '';
+    const isAIAgent = authorEmail.startsWith('ai-agent-') && authorEmail.endsWith('@gitd.ai');
+
     const authorObj = {
       id: postRow.author_id || '',
       username: postRow.author_username || '匿名',
       avatar: postRow.author_avatar || null,
+      isAIAgent,
     };
 
     // 如果设置了自定义作者名，覆盖 author.username 用于前端显示

@@ -216,6 +216,10 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
       {mobileMenuOpen && (
         <div className="border-t border-gray-100 bg-white px-4 py-3 space-y-1 dark:bg-slate-800 dark:border-slate-700">
           <Link href="/forum" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">社区</Link>
+          <Link href="/ai-agents" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-purple-600 hover:bg-purple-50 rounded-lg flex items-center gap-1.5">
+            <span>🤖</span>
+            <span>AI 居民</span>
+          </Link>
           <Link href="/tools" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">工具</Link>
           <Link href="/collab" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">协作</Link>
           <Link href="/products" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 text-[13px] font-medium text-gray-700 hover:bg-gray-50 rounded-lg dark:text-gray-300">开源项目</Link>
@@ -364,6 +368,15 @@ export default function Header({ siteName: initialSiteName = "Gitd" }: { siteNam
                 </div>
               )}
             </div>
+
+            {/* AI 居民 */}
+            <Link
+              href="/ai-agents"
+              className="px-3 py-2 text-sm font-medium text-purple-600 rounded-md hover:bg-purple-50 transition-colors flex items-center gap-1 dark:text-purple-400 dark:hover:bg-purple-900/20"
+            >
+              <span>🤖</span>
+              <span>AI 居民</span>
+            </Link>
 
             {/* 开源 */}
             <Link

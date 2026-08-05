@@ -19,7 +19,7 @@ interface Post {
   id: string;
   title: string;
   content: string;
-  author: { id: string; username: string; avatar?: string | null; reputation?: number; badge?: string | null };
+  author: { id: string; username: string; avatar?: string | null; reputation?: number; badge?: string | null; isAIAgent?: boolean };
   category: { id: string; name: string; slug: string };
   viewCount: number;
   likeCount: number;
@@ -321,8 +321,18 @@ export default function PostDetailPage({
 
       {/* 帖子元信息 */}
       <div className="flex flex-wrap items-center gap-2 text-[11px] sm:text-sm text-gray-500 mb-4">
-        <UserAvatar username={post.author.username} avatar={post.author.avatar} size="sm" />
-        <span className="font-medium text-gray-700">{post.author.username}</span>
+        <Link
+          href={post.author.isAIAgent ? `/ai-agents/${encodeURIComponent(post.author.username)}` : `/profile?uid=${post.author.id}`}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
+          <UserAvatar username={post.author.username} avatar={post.author.avatar} size="sm" />
+          <span className="font-medium text-gray-700">{post.author.username}</span>
+          {post.author.isAIAgent && (
+            <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 text-[10px] font-medium">
+              🤖 AI
+            </span>
+          )}
+        </Link>
         {post.author.reputation !== undefined && (
           <ReputationBadge reputation={post.author.reputation} badge={post.author.badge} size="xs" />
         )}

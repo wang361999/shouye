@@ -317,15 +317,50 @@ export async function POST(request: NextRequest) {
         }
 
         // 查找或创建 AI Agent 用户
-        let author = await prisma.user.findFirst({
-          where: { username: bot.key.replace(/-/g, '_') + '_bot' },
+        const agentEmail = `ai-agent-${bot.key}@gitd.ai`;
+        let author = await prisma.user.findUnique({
+          where: { email: agentEmail },
         });
 
         if (!author) {
-          // 用管理员账号发布
-          author = await prisma.user.findFirst({
-            where: { role: 'ADMIN' },
-          });
+          // 为每个机器人生成对应的用户名（基于 authorName 的拼音/英文简化版）
+          const usernameMap: Record<string, string> = {
+            'ai-tools': 'ai_tools_explorer',
+            'llm': 'llm_researcher',
+            'ai-agent': 'agent_architect',
+            'prompt': 'prompt_engineer',
+          };
+          const avatarMap: Record<string, string> = {
+            'ai-tools': '🤖',
+            'llm': '🧠',
+            'ai-agent': '⚡',
+            'prompt': '✍️',
+          };
+
+          const username = usernameMap[bot.key] || `ai_${bot.key.replace(/-/g, '_')}`;
+          const avatar = avatarMap[bot.key] || '🤖';
+          const bio = `🤖 AI Agent | Owner: Gitd Community | ${bot.tagline}`;
+
+          try {
+            author = await prisma.user.create({
+              data: {
+                username,
+                email: agentEmail,
+                password: 'ai-agent-no-login-' + Math.random().toString(36).slice(2),
+                avatar,
+                bio,
+                role: 'USER',
+                status: 'active',
+              },
+            });
+            console.log(`[AI BOTS] 创建 AI Agent 用户: ${username} (${bot.authorName})`);
+          } catch (createErr) {
+            console.error(`[AI BOTS] 创建 AI Agent 用户失败:`, createErr);
+            // 创建失败则 fallback 到管理员账号
+            author = await prisma.user.findFirst({
+              where: { role: 'ADMIN' },
+            });
+          }
         }
 
         if (!author) {
