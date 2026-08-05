@@ -64,19 +64,26 @@ interface MobileHomeProps {
   siteDesc: string;
 }
 
+const EMPTY_POSTS: CommunityPost[] = [];
+const EMPTY_PROJECTS: CollabProject[] = [];
+const EMPTY_TOOLS: FeaturedTool[] = [];
+
 function formatNumber(value: number) {
   if (value >= 10000) return `${(value / 10000).toFixed(1)}万`;
   return value.toLocaleString();
 }
 
-/** Fisher-Yates 随机打乱，返回新数组 */
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+function uniquePosts(posts: CommunityPost[]) {
+  const seen = new Set<string>();
+  return posts.filter((post) => {
+    if (seen.has(post.id)) return false;
+    seen.add(post.id);
+    return true;
+  });
+}
+
+function getPostScore(post: CommunityPost) {
+  return post.commentCount * 5 + post.likeCount * 3 + post.viewCount * 0.05 + (post.isEssence ? 20 : 0);
 }
 
 function getPostSource(post?: CommunityPost | null) {
@@ -103,15 +110,15 @@ function ChannelCard({
   className?: string;
 }) {
   return (
-    <Link href={href} className="rounded-2xl border border-slate-200 bg-white p-2.5 active:scale-[0.99]">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className={`grid h-7 w-7 place-items-center rounded-xl text-[11px] font-extrabold text-white ${className}`}>
+    <Link href={href} className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-2 active:scale-[0.99]">
+      <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-extrabold text-white ${className}`}>
           {icon}
-        </span>
-        <span className="text-[11px] font-bold leading-4 text-blue-600">{count}</span>
-      </div>
-      <div className="text-[13px] font-extrabold leading-5 text-slate-950">{title}</div>
-      <div className="text-[11px] leading-4 text-slate-500">{desc}</div>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[12px] font-extrabold leading-4 text-slate-950">{title}</span>
+        <span className="block truncate text-[10px] leading-3 text-slate-500">{desc}</span>
+      </span>
+      <span className="text-[10px] font-bold leading-3 text-blue-600">{count}</span>
     </Link>
   );
 }
@@ -147,22 +154,21 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
   }, []);
 
   const stats = data?.stats ?? { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 };
-  const latestPosts = data?.latestPosts ?? [];
-  const hotPosts = data?.hotPosts ?? [];
-  const projects = data?.collabProjects ?? [];
-  const tools = data?.featuredTools ?? [];
+  const latestPosts = data?.latestPosts ?? EMPTY_POSTS;
+  const hotPosts = data?.hotPosts ?? EMPTY_POSTS;
+  const projects = data?.collabProjects ?? EMPTY_PROJECTS;
+  const tools = data?.featuredTools ?? EMPTY_TOOLS;
   const leadPost = latestPosts[0] ?? hotPosts[0] ?? null;
-  // 正在讨论：合并 hotPosts + latestPosts 去重，排除公告分类帖和置顶帖，随机取 5 条
+  // 正在讨论：合并 hotPosts + latestPosts 去重，排除公告/置顶，按互动热度稳定排序
   const discussionPosts = useMemo(
-    () => shuffle(
-      [...hotPosts, ...latestPosts]
-        .filter((post, idx, arr) => arr.findIndex((p) => p.id === post.id) === idx)
-        .filter((post) => post.id !== leadPost?.id)
-        .filter((post) => !post.isPinned && post.category?.slug !== 'announcement')
-    ).slice(0, 5),
+    () => uniquePosts([...hotPosts, ...latestPosts])
+      .filter((post) => post.id !== leadPost?.id)
+      .filter((post) => !post.isPinned && post.category?.slug !== "announcement")
+      .sort((a, b) => getPostScore(b) - getPostScore(a))
+      .slice(0, 5),
     [hotPosts, latestPosts, leadPost?.id],
   );
-  const randomTools = useMemo(() => shuffle(tools).slice(0, 4), [tools]);
+  const featuredTools = useMemo(() => tools.slice(0, 4), [tools]);
   const challengeProject = projects[0] ?? null;
   const heatScore = Math.min(99, Math.max(36, stats.todayPostCount * 6 + discussionPosts.length * 8 + projects.length * 5));
 
@@ -221,13 +227,20 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
       <section className="relative -mt-4 px-4">
         <Link
           href="/search"
-          className="mb-2.5 flex items-center justify-between gap-3 rounded-[15px] border border-slate-200 bg-white px-3 py-2.5 text-[13px] leading-5 text-slate-500 shadow-[0_12px_30px_rgba(37,99,235,0.10)]"
+          className="mb-2.5 block rounded-[18px] border border-blue-100 bg-white p-3 shadow-[0_12px_28px_rgba(37,99,235,0.12)]"
         >
-          <span>搜索技术主题、工具、项目</span>
-          <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-[11px] font-semibold leading-4 text-blue-600">⌘K</span>
+          <span className="flex items-center justify-between gap-3">
+            <span className="text-[14px] font-extrabold leading-5 text-slate-950">搜索技术主题、工具、项目</span>
+            <span className="rounded-lg bg-blue-50 px-2 py-0.5 text-[11px] font-semibold leading-4 text-blue-600">⌘K</span>
+          </span>
+          <span className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-semibold leading-4 text-slate-500">
+            {["Next.js", "React", "PostgreSQL", "开源项目"].map((keyword) => (
+              <span key={keyword} className="rounded-full bg-slate-50 px-2 py-0.5">{keyword}</span>
+            ))}
+          </span>
         </Link>
 
-        <div className="mb-2.5 grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-slate-200 bg-white p-2">
             <div className="text-[13px] font-extrabold leading-[18px] text-slate-950">{formatNumber(stats.userCount)}</div>
             <div className="text-[11px] leading-4 text-slate-500">开发者</div>
@@ -250,13 +263,6 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
       )}
 
       <section className="mt-3 px-4">
-        <div className="mb-3 grid grid-cols-2 gap-2">
-          <ChannelCard icon="OS" title="开源项目" desc="项目推荐" count={latestPosts.length || 7} href="/forum/category/open-source" className="bg-violet-600" />
-          <ChannelCard icon="FE" title="前端开发" desc="技术讨论" count={latestPosts.length || 6} href="/forum/category/frontend" className="bg-teal-700" />
-          <ChannelCard icon="BE" title="后端开发" desc="架构实践" count={latestPosts.length || 5} href="/forum/category/backend" className="bg-blue-600" />
-          <ChannelCard icon="🤝" title="协作" desc="项目招募" count={projects.length || 4} href="/collab" className="bg-orange-600" />
-        </div>
-
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-[15px] font-extrabold leading-[22px] text-slate-950">今日重点</h2>
           <Link href="/forum" className="text-[11px] font-semibold leading-4 text-blue-600">更多</Link>
@@ -265,10 +271,10 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
         {loading ? (
           <div className="h-32 animate-pulse rounded-[17px] border border-slate-200 bg-white" />
         ) : leadPost ? (
-          <Link href={`/forum/post/${leadPost.id}`} className="mb-2.5 block overflow-hidden rounded-[17px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold leading-4 text-blue-600">
+          <Link href={`/forum/post/${leadPost.id}`} className="block overflow-hidden rounded-[17px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.055)]">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold leading-4 text-blue-600">
               <span>{getPostSource(leadPost)} · {leadPost.timeAgo}</span>
-              <span>已验证</span>
+              <span>{leadPost.commentCount > 0 ? `${leadPost.commentCount} 评论` : "新内容"}</span>
             </div>
             <div className="p-3">
               <div className="mb-2 flex gap-2">
@@ -279,7 +285,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
                 )}
                 {leadPost.isEssence && <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold leading-4 text-violet-600">工程实践</span>}
               </div>
-              <h3 className="mb-1 line-clamp-2 text-[13px] font-extrabold leading-5 text-slate-950">{leadPost.title}</h3>
+              <h3 className="mb-1 line-clamp-2 text-[14px] font-extrabold leading-5 text-slate-950">{leadPost.title}</h3>
               {leadPost.summary && <p className="mb-2 line-clamp-2 text-[11px] leading-4 text-slate-500">{leadPost.summary}</p>}
               <div className="flex items-center justify-between gap-2 text-[11px] leading-4 text-slate-500">
                 <span>{leadPost.author.username} · 技术作者</span>
@@ -315,6 +321,19 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
         </div>
       </section>
 
+      <section className="mt-3 px-4">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-[15px] font-extrabold leading-[22px] text-slate-950">快速进入</h2>
+          <Link href="/forum" className="text-[11px] font-semibold leading-4 text-blue-600">全部频道</Link>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <ChannelCard icon="OS" title="开源项目" desc="项目推荐" count={latestPosts.length || 7} href="/forum/category/open-source" className="bg-violet-600" />
+          <ChannelCard icon="FE" title="前端开发" desc="技术讨论" count={latestPosts.length || 6} href="/forum/category/frontend" className="bg-teal-700" />
+          <ChannelCard icon="BE" title="后端开发" desc="架构实践" count={latestPosts.length || 5} href="/forum/category/backend" className="bg-blue-600" />
+          <ChannelCard icon="协" title="协作" desc="项目招募" count={projects.length || 4} href="/collab" className="bg-orange-600" />
+        </div>
+      </section>
+
       <section className="mt-4 px-4">
         <div className="rounded-[17px] bg-blue-700 p-3 text-white">
           <div className="mb-1 text-[15px] font-extrabold leading-[22px]">
@@ -341,14 +360,14 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
         </div>
       </section>
 
-      {randomTools.length > 0 && (
+      {featuredTools.length > 0 && (
         <section className="mt-4 px-4">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[15px] font-extrabold leading-[22px] text-slate-950">工具实践</h2>
             <Link href="/tools" className="text-[11px] font-semibold leading-4 text-blue-600">工具箱</Link>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {randomTools.map((tool) => (
+            {featuredTools.map((tool) => (
               <Link key={tool.id} href={`/tools/${tool.id}`} className="rounded-2xl border border-slate-200 bg-white p-3">
                 <div className="mb-2 text-[11px] font-bold leading-4 text-blue-600">{tool.category || "开发工具"}</div>
                 <h3 className="line-clamp-1 text-[13px] font-extrabold leading-5 text-slate-950">{tool.name}</h3>
