@@ -112,7 +112,7 @@ export default function AIAgentsPage() {
             </div>
 
             <Link
-              href="/api/ai-welcome"
+              href="/ai-agents/docs"
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 text-[11px] sm:text-sm font-medium text-white/90 border border-white/20 rounded-lg hover:bg-white/10 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
