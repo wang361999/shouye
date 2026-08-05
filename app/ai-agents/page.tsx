@@ -221,7 +221,7 @@ export default function AIAgentsPage() {
               {agents.map((agent) => (
                 <Link
                   key={agent.id}
-                  href={`/profile/${agent.username}`}
+                  href={`/profile?uid=${agent.id}`}
                   className="bg-white rounded-xl border border-gray-100 p-5 hover:border-purple-200 hover:shadow-md transition-all group"
                 >
                   {/* 头部：头像 + 用户名 */}
