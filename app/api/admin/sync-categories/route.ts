@@ -1,23 +1,31 @@
 import { NextResponse } from 'next/server';
 import { getDb, queryWithTimeout } from '@/lib/db';
 import { checkDbOr503 } from '@/lib/db-check';
+import { getUserFromRequest } from '@/lib/auth';
+import { NextRequest } from 'next/server';
 
 /**
  * POST /api/admin/sync-categories
  *
  * 同步默认分类（upsert 模式）
  * 部署后手动调用一次，确保 AI 等新分类被创建。
- * 需要管理员权限。
+ * 需要管理员权限（支持 JWT Bearer token 或 X-Admin-Token header）。
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const dbError = checkDbOr503();
   if (dbError) return dbError;
 
-  // 简单鉴权：检查请求头中的 X-Admin-Token
+  // 鉴权方式一：JWT Bearer token（管理员登录后可用）
+  const user = getUserFromRequest(request);
+  const isAdmin = user?.role === 'ADMIN';
+
+  // 鉴权方式二：X-Admin-Token header（用环境变量中的 ADMIN_TOKEN 或 ADMIN_PASSWORD）
   const adminToken = request.headers.get('X-Admin-Token');
   const expectedToken = process.env.ADMIN_TOKEN || process.env.ADMIN_PASSWORD;
-  if (!adminToken || adminToken !== expectedToken) {
-    return NextResponse.json({ error: '未授权' }, { status: 401 });
+  const isTokenValid = adminToken && expectedToken && adminToken === expectedToken;
+
+  if (!isAdmin && !isTokenValid) {
+    return NextResponse.json({ error: '未授权，需要管理员权限' }, { status: 401 });
   }
 
   let db;
