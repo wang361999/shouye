@@ -1,0 +1,26 @@
+name: 百度推送
+
+on:
+  schedule:
+    # 每天北京时间凌晨 2 点执行（UTC 18:00）
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    # 允许手动触发
+
+jobs:
+  baidu-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 推送到百度站长平台
+        env:
+          BAIDU_SITE_URL: ${{ secrets.BAIDU_SITE_URL }}
+          BAIDU_PUSH_TOKEN: ${{ secrets.BAIDU_PUSH_TOKEN }}
+        run: node scripts/baidu-push.mjs
