@@ -363,8 +363,18 @@ export async function POST(request: NextRequest) {
         };
 
         try {
+          // 发送初始状态
+          send({ type: 'status', status: 'thinking', message: isChatMode ? '正在思考你的问题...' : '正在分析你的需求...', step: 0, totalSteps: maxIterations });
+
           for (let i = 0; i < maxIterations; i++) {
             console.log(`[CODER] ${isChatMode ? '聊天' : '编程'}模式 流式 loop 第 ${i + 1}/${maxIterations} 轮`);
+
+            // 发送当前轮次状态
+            if (!isChatMode && i > 0) {
+              send({ type: 'status', status: 'analyzing', message: `第 ${i + 1} 轮分析：根据已读取的文件内容继续分析...`, step: i + 1, totalSteps: maxIterations });
+            } else if (!isChatMode) {
+              send({ type: 'status', status: 'calling_ai', message: '正在调用 AI 模型，分析你的需求...', step: i + 1, totalSteps: maxIterations });
+            }
 
             let rawResponse = '';
             let sentLength = 0;
@@ -435,14 +445,19 @@ export async function POST(request: NextRequest) {
 
             // 没有读取动作 = 分析完成
             if (readActions.length === 0) {
+              if (writeActions.length > 0) {
+                send({ type: 'status', status: 'generating', message: `正在生成修改方案：${writeActions.length} 个文件变更`, step: maxIterations, totalSteps: maxIterations });
+              }
               send({ type: 'changes', changes: proposedChanges });
               send({ type: 'readLogs', readLogs });
+              send({ type: 'status', status: 'done', message: '分析完成', step: maxIterations, totalSteps: maxIterations });
               send({ type: 'done' });
               controller.close();
               return;
             }
 
             // 执行文件读取
+            send({ type: 'status', status: 'reading', message: `正在读取 ${readActions.length} 个文件...`, step: i + 1, totalSteps: maxIterations });
             const readResults: string[] = [];
             for (const action of readActions) {
               try {
@@ -486,6 +501,7 @@ export async function POST(request: NextRequest) {
           }
 
           // 达到最大迭代次数
+          send({ type: 'status', status: 'done', message: `已达到最大分析轮次（${maxIterations} 轮）`, step: maxIterations, totalSteps: maxIterations });
           if (!isChatMode) {
             send({ type: 'changes', changes: proposedChanges });
             send({ type: 'readLogs', readLogs });

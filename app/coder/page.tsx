@@ -199,6 +199,16 @@ interface RepoInfo {
 // ============ 主页面组件 ============
 type ChatMode = 'chat' | 'code';
 
+// AI 工作状态类型
+type AIStatus = 'thinking' | 'calling_ai' | 'analyzing' | 'reading' | 'generating' | 'done';
+
+interface StreamingStatus {
+  status: AIStatus;
+  message: string;
+  step: number;
+  totalSteps: number;
+}
+
 export default function CoderPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -214,9 +224,12 @@ export default function CoderPage() {
   const [customRepo, setCustomRepo] = useState('');
   const [streamingText, setStreamingText] = useState('');
   const [streamingReads, setStreamingReads] = useState<string[]>([]);
+  const [streamingStatus, setStreamingStatus] = useState<StreamingStatus | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const [chatMode, setChatMode] = useState<ChatMode>('code');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const startTimeRef = useRef<number>(0);
 
   // 获取仓库列表
   const fetchRepos = useCallback(async () => {
@@ -253,7 +266,21 @@ export default function CoderPage() {
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading, streamingText, streamingReads]);
+  }, [messages, loading, streamingText, streamingReads, streamingStatus]);
+
+  // 计时器：loading 时每秒更新已用时间
+  useEffect(() => {
+    if (loading) {
+      startTimeRef.current = Date.now();
+      setElapsedTime(0);
+      const timer = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }, 1000);
+      return () => clearInterval(timer);
+    } else {
+      setElapsedTime(0);
+    }
+  }, [loading]);
 
   // 自动调整输入框高度
   useEffect(() => {
@@ -298,6 +325,7 @@ export default function CoderPage() {
     setError('');
     setStreamingText('');
     setStreamingReads([]);
+    setStreamingStatus(null);
 
     try {
       const token = getToken();
@@ -360,6 +388,14 @@ export default function CoderPage() {
                 replyText += data.content;
                 setStreamingText(replyText);
                 break;
+              case 'status':
+                setStreamingStatus({
+                  status: data.status,
+                  message: data.message,
+                  step: data.step,
+                  totalSteps: data.totalSteps,
+                });
+                break;
               case 'read':
                 setStreamingReads((prev) => [...prev, data.message]);
                 break;
@@ -405,6 +441,7 @@ export default function CoderPage() {
       setLoading(false);
       setStreamingText('');
       setStreamingReads([]);
+      setStreamingStatus(null);
     }
   };
 
@@ -497,6 +534,7 @@ export default function CoderPage() {
     setError('');
     setStreamingText('');
     setStreamingReads([]);
+    setStreamingStatus(null);
   };
 
   // 切换仓库
@@ -825,30 +863,100 @@ export default function CoderPage() {
           {loading && (
             <div className="flex justify-start mb-4 sm:mb-6">
               <div className="max-w-[85%] sm:max-w-3xl flex flex-col gap-2 w-full">
-                {/* 文件读取活动 */}
-                {streamingReads.length > 0 && (
-                  <div className="text-xs text-gray-500 bg-gray-900/50 rounded-lg px-3 py-2 border border-gray-800/50">
-                    {streamingReads.map((log, i) => (
-                      <div key={i} className="ml-2">{log}</div>
-                    ))}
+                {/* AI 实时活动面板 */}
+                {streamingStatus && !streamingText && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+                    {/* 状态头部 */}
+                    <div className="flex items-center gap-3 px-3 sm:px-4 py-2.5 border-b border-gray-800/50">
+                      {/* 动态图标 */}
+                      <div className="relative shrink-0">
+                        {streamingStatus.status === 'reading' ? (
+                          <span className="text-lg animate-pulse">📄</span>
+                        ) : streamingStatus.status === 'generating' ? (
+                          <span className="text-lg animate-pulse">✏️</span>
+                        ) : streamingStatus.status === 'done' ? (
+                          <span className="text-lg">✅</span>
+                        ) : (
+                          <>
+                            <span className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce inline-block" style={{ animationDelay: '0ms' }} />
+                            <span className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce inline-block ml-1" style={{ animationDelay: '150ms' }} />
+                            <span className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce inline-block ml-1" style={{ animationDelay: '300ms' }} />
+                          </>
+                        )}
+                      </div>
+                      {/* 状态文字 */}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-gray-300">{streamingStatus.message}</span>
+                      </div>
+                      {/* 计时器 */}
+                      <span className="text-xs text-gray-500 font-mono shrink-0">
+                        {elapsedTime > 0 ? `${elapsedTime}s` : ''}
+                      </span>
+                    </div>
+
+                    {/* 进度条（编程模式） */}
+                    {streamingStatus.totalSteps > 1 && (
+                      <div className="px-3 sm:px-4 py-1.5 border-b border-gray-800/50">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
+                              style={{
+                                width: `${Math.min((streamingStatus.step / streamingStatus.totalSteps) * 100, 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-gray-500 shrink-0 font-mono">
+                            {streamingStatus.step}/{streamingStatus.totalSteps}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 文件读取活动列表 */}
+                    {streamingReads.length > 0 && (
+                      <div className="px-3 sm:px-4 py-2 space-y-1">
+                        {streamingReads.map((log, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs text-gray-400">
+                            <span className="text-green-400 shrink-0">
+                              {i === streamingReads.length - 1 && streamingStatus.status === 'reading' ? '⏳' : '✓'}
+                            </span>
+                            <span className="font-mono truncate">{log}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* 流式文本或加载指示器 */}
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3">
-                  {streamingText ? (
+                {/* 流式文本 */}
+                {streamingText && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3">
                     <MarkdownContent content={streamingText} />
-                  ) : (
+                    {/* 流式输出时底部状态条 */}
+                    {streamingStatus && streamingStatus.status !== 'done' && (
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-800/50">
+                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse shrink-0" />
+                        <span className="text-[10px] text-gray-500">{streamingStatus.message}</span>
+                        <span className="text-[10px] text-gray-600 ml-auto font-mono shrink-0">{elapsedTime}s</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 既没有状态也没有文本时的兜底 */}
+                {!streamingStatus && !streamingText && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3">
                     <div className="flex items-center gap-3">
                       <div className="flex gap-1">
                         <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                         <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                         <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
-                      <span className="text-sm text-gray-400">AI 正在分析代码...</span>
+                      <span className="text-sm text-gray-400">AI 正在准备...</span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
