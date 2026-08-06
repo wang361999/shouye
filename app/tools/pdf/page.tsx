@@ -2358,8 +2358,36 @@ function PdfToImageTool() {
   const [quality, setQuality] = useState(2);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState<{ url: string; name: string; page: number }[]>([]);
+  const [pdfjsReady, setPdfjsReady] = useState(false);
+  const pdfjsRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // 初始化 pdf.js（从 CDN 加载，避免 SSR 问题）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // @ts-ignore
+    if (window.pdfjsLib) {
+      pdfjsRef.current = (window as any).pdfjsLib;
+      setPdfjsReady(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      // @ts-ignore
+      const pdfjs = window.pdfjsLib;
+      if (pdfjs) {
+        pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        pdfjsRef.current = pdfjs;
+        setPdfjsReady(true);
+      }
+    };
+    script.onerror = () => {
+      console.error("pdf.js CDN 加载失败");
+    };
+    document.head.appendChild(script);
+  }, []);
 
   const handleFile = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -2391,65 +2419,44 @@ function PdfToImageTool() {
       toast.error("请先选择 PDF 文件");
       return;
     }
+    if (!pdfjsReady || !pdfjsRef.current) {
+      toast.error("PDF 引擎加载中，请稍候再试");
+      return;
+    }
     try {
       setProcessing(true);
-      const buf = await file.file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(buf);
-      const pages = pdfDoc.getPages();
+      const arrayBuffer = await file.file.arrayBuffer();
+
+      // 使用 pdf.js 渲染每一页到 canvas
+      const pdf = await pdfjsRef.current.getDocument({ data: arrayBuffer }).promise;
+      const totalPages = pdf.numPages;
       const outputFiles: { url: string; name: string; page: number }[] = [];
 
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        const { width, height } = page.getSize();
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: quality });
 
-        // 创建 canvas
         const canvas = document.createElement("canvas");
-        canvas.width = width * quality;
-        canvas.height = height * quality;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
 
-        // pdf-lib 不支持直接渲染 PDF 到 canvas
-        // 这里我们显示页面信息占位图
-        // 实际项目中建议使用 pdf.js 来渲染
+        // 白色背景（JPEG 格式需要）
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#333333";
-        ctx.font = `${16 * quality}px system-ui, sans-serif`;
-        ctx.textAlign = "center";
-        ctx.fillText(`第 ${i + 1} 页 / 共 ${pages.length} 页`, canvas.width / 2, 50 * quality);
-        ctx.font = `${12 * quality}px system-ui, sans-serif`;
-        ctx.fillStyle = "#666666";
-        ctx.fillText(
-          `页面尺寸：${Math.round(width)} × ${Math.round(height)} pt`,
-          canvas.width / 2,
-          80 * quality
-        );
-        ctx.strokeStyle = "#dddddd";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(20 * quality, 20 * quality, canvas.width - 40 * quality, canvas.height - 40 * quality);
 
-        // 页面内容占位提示
-        ctx.fillStyle = "#999999";
-        ctx.font = `${14 * quality}px system-ui, sans-serif`;
-        ctx.fillText(
-          "PDF 内容渲染",
-          canvas.width / 2,
-          canvas.height / 2
-        );
-        ctx.font = `${11 * quality}px system-ui, sans-serif`;
-        ctx.fillStyle = "#bbbbbb";
-        ctx.fillText(
-          "如需完整渲染请接入 pdf.js",
-          canvas.width / 2,
-          canvas.height / 2 + 30 * quality
-        );
+        // 渲染 PDF 页面到 canvas
+        await page.render({
+          canvasContext: ctx,
+          viewport: viewport,
+        }).promise;
 
         const dataUrl = canvas.toDataURL(`image/${format}`, format === "jpeg" ? 0.92 : undefined);
         outputFiles.push({
           url: dataUrl,
-          name: `${file.name.replace(/\.pdf$/i, "")}_page${i + 1}.${format}`,
-          page: i + 1,
+          name: `${file.name.replace(/\.pdf$/i, "")}_page${i}.${format}`,
+          page: i,
         });
       }
 
@@ -2600,24 +2607,12 @@ function PdfToImageTool() {
         </div>
       )}
 
-      {/* 隐藏 canvas */}
-      <canvas ref={canvasRef} className="hidden" />
-
-      {/* 提示 */}
-      {file && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-xs text-amber-800">
-            💡 提示：PDF 转图片目前使用简化渲染（提取文本+占位），如需完整精准渲染，建议后续接入 pdf.js 库。
-          </p>
-        </div>
-      )}
-
       {/* 操作按钮 */}
       {file && (
         <div className="flex justify-end gap-3">
           <button
             onClick={handleConvert}
-            disabled={processing}
+            disabled={processing || !pdfjsReady}
             className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "转换中..." : "开始转换"}
