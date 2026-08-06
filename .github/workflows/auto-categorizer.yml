@@ -27,9 +27,9 @@ jobs:
       SITE_URL: ${{ secrets.SITE_URL }}
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      AI_API_KEY: ${{ secrets.AI_API_KEY }}
-      AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
-      AI_MODEL: gemini-3.6-flash
+      # 多模型配置：优先使用 GitHub Secret 中的 AI_MODELS_CONFIG
+      # 如果未配置 Secret，使用内置默认配置（GLM 主力 + Agnes 兜底）
+      AI_MODELS_CONFIG: ${{ secrets.AI_MODELS_CONFIG }}
 
     steps:
       - name: Checkout
@@ -41,4 +41,16 @@ jobs:
           node-version: 20
 
       - name: Run auto categorizer
-        run: node scripts/auto-categorizer.mjs
+        env:
+          # 兜底：如果 AI_MODELS_CONFIG 未设置，使用内置默认模型配置
+          # 与 lib/ai.ts 中的 DEFAULT_MODELS_CONFIG 保持一致
+          AI_FALLBACK_MODELS_CONFIG: '[{"name":"GLM-5.2","apiKey":"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","apiBase":"https://integrate.api.nvidia.com/v1/chat/completions","model":"z-ai/glm-5.2"},{"name":"Agnes-2.5-flash","apiKey":"sk-cLl30kp5lGb1p8RUmrQRepLg3YcqUYBHbVk1qk4SrL3UKCNh","apiBase":"https://api.agnes-ai.cn/v1/chat/completions","model":"agnes-2.5-flash"}]'
+        run: |
+          if [ -z "$AI_MODELS_CONFIG" ]; then
+            echo "AI_MODELS_CONFIG 未设置，使用内置默认模型配置"
+            export AI_MODELS_CONFIG="$AI_FALLBACK_MODELS_CONFIG"
+          else
+            echo "使用 GitHub Secret 中的 AI_MODELS_CONFIG"
+          fi
+
+          node scripts/auto-categorizer.mjs

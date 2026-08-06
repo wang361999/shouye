@@ -18,10 +18,10 @@
  *   node scripts/auto-ai-bots.mjs            # 正式发帖
  *   node scripts/auto-ai-bots.mjs --dry-run  # 预览生成内容但不发布
  *
- * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL
+ * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_MODELS_CONFIG (或 AI_API_KEY/AI_API_BASE/AI_MODEL)
  */
 
-import { callAI, siteFetch, robustJSONParse, extractPostFromText } from './lib/ai-client.mjs';
+import { callAI, siteFetch, robustJSONParse, extractPostFromText, checkAIHealth } from './lib/ai-client.mjs';
 import {
   appendProfessionalFooter,
   assertGeneratedPostQuality,
@@ -657,7 +657,7 @@ async function publishPost(token, bot, postData, categories) {
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(body),
-    });
+    }, 30_000); // 发帖请求给 30 秒超时
 
     if (res.ok) {
       const data = await res.json();
@@ -682,6 +682,14 @@ async function main() {
   log('开始执行 AI 分类机器人自动发帖（深度优化版）...');
   log(`模式：${DRY_RUN ? '预览（dry-run）' : '正式发帖'}`);
   log(`机器人数量：${BOTS.length}`);
+
+  // AI 模型健康检查（无论 dry-run 还是正式发帖都需要 AI 生成内容）
+  log('正在检查 AI 模型可用性...');
+  const healthResult = await checkAIHealth(TAG);
+  if (!healthResult) {
+    fail('AI 模型全部不可用，请检查 AI_MODELS_CONFIG 或 AI_API_KEY/AI_API_BASE/AI_MODEL 环境变量');
+  }
+  log(`AI 模型检查通过，主力模型：${healthResult.name}`);
 
   let token = null;
   let categories = [];

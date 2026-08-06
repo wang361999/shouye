@@ -348,20 +348,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const latestPost = await prisma.post.findFirst({
-      where: { authorId: user.userId },
-      orderBy: { createdAt: 'desc' },
-      select: { createdAt: true },
-    });
-    if (latestPost) {
-      const COOLDOWN_MS = 60 * 1000;
-      const elapsedMs = Date.now() - latestPost.createdAt.getTime();
-      if (elapsedMs < COOLDOWN_MS) {
-        const waitSec = Math.ceil((COOLDOWN_MS - elapsedMs) / 1000);
-        return NextResponse.json(
-          { error: `发帖过于频繁，请 ${waitSec} 秒后再试` },
-          { status: 429 }
-        );
+    // 管理员和 AI 机器人发帖跳过频率限制
+    const skipCooldown = user.role === 'ADMIN' || isAIGenerated === true;
+    if (!skipCooldown) {
+      const latestPost = await prisma.post.findFirst({
+        where: { authorId: user.userId },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      if (latestPost) {
+        const COOLDOWN_MS = 60 * 1000;
+        const elapsedMs = Date.now() - latestPost.createdAt.getTime();
+        if (elapsedMs < COOLDOWN_MS) {
+          const waitSec = Math.ceil((COOLDOWN_MS - elapsedMs) / 1000);
+          return NextResponse.json(
+            { error: `发帖过于频繁，请 ${waitSec} 秒后再试` },
+            { status: 429 }
+          );
+        }
       }
     }
 

@@ -9,9 +9,10 @@
  *
  * 用法：在 GitHub Actions 中运行（见 .github/workflows/auto-ci-fix.yml）
  * 环境变量：
- *   AI_API_KEY      AI 接口密钥（必填）
- *   AI_API_BASE     AI 接口地址（默认 Gemini OpenAI 兼容端点）
- *   AI_MODEL        模型名（默认 gemini-3.6-flash）
+ *   AI_MODELS_CONFIG  AI 模型配置（JSON 数组，优先级递减，推荐）
+ *   AI_API_KEY      AI 接口密钥（向后兼容，单模型模式）
+ *   AI_API_BASE     AI 接口地址（向后兼容）
+ *   AI_MODEL        模型名（向后兼容）
  *   GH_TOKEN        GitHub Token（用于 gh 命令，必填）
  *   GITHUB_TOKEN    GitHub Token（备用，用于 git push）
  *   PR_NUMBER       PR 编号（必填，用于发布评论）
