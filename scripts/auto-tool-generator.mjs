@@ -281,7 +281,7 @@ async function generateTool(idea) {
   const content = await callAI({
     prompt,
     systemPrompt: '你是前端开发专家，擅长创建美观实用的在线工具。必须只输出一个有效的 JSON 对象，htmlContent 字段包含完整的 HTML 文件代码。不要包含任何 markdown 代码块标记或其他文字。',
-    maxTokens: 12000,
+    maxTokens: 24000,
     responseFormat: { type: 'json_object' },
     tag: TAG,
   });
