@@ -60,60 +60,88 @@ async function getCachedFileTree(ctx?: Partial<RepoContext>): Promise<string> {
   return trimmed;
 }
 
-// ============ GLM 流式调用 ============
+// ============ GLM 流式调用（带重试） ============
 /**
  * 调用 GLM-5.2 并以 async generator 形式逐 token 返回
+ * 自动重试：超时或网络错误时最多重试 2 次
  */
 async function* callGLMStream(messages: ChatMessage[]): AsyncGenerator<string> {
-  const response = await fetch(GLM_API_BASE, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${GLM_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: GLM_MODEL,
-      messages,
-      max_tokens: 8192,
-      temperature: 0.3,
-      stream: true,
-    }),
-    signal: AbortSignal.timeout(90_000),
-  });
+  const MAX_RETRIES = 2;
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`GLM API ${response.status}: ${text.slice(0, 300)}`);
-  }
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(GLM_API_BASE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${GLM_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: GLM_MODEL,
+          messages,
+          max_tokens: 8192,
+          temperature: 0.3,
+          stream: true,
+        }),
+        signal: AbortSignal.timeout(180_000), // 3分钟超时
+      });
 
-  if (!response.body) throw new Error('GLM 返回空响应体');
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith('data: ')) continue;
-
-      const data = trimmed.slice(6);
-      if (data === '[DONE]') return;
-
-      try {
-        const parsed = JSON.parse(data);
-        const content = parsed?.choices?.[0]?.delta?.content;
-        if (content) yield content;
-      } catch {
-        // 忽略解析错误
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`GLM API ${response.status}: ${text.slice(0, 300)}`);
       }
+
+      if (!response.body) throw new Error('GLM 返回空响应体');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let receivedAny = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+          const data = trimmed.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed?.choices?.[0]?.delta?.content;
+            if (content) {
+              receivedAny = true;
+              yield content;
+            }
+          } catch {
+            // 忽略解析错误
+          }
+        }
+      }
+
+      // 正常结束
+      return;
+    } catch (err) {
+      const isTimeout = err instanceof Error && (
+        err.name === 'TimeoutError' ||
+        err.message.includes('timeout') ||
+        err.message.includes('aborted')
+      );
+
+      if (attempt < MAX_RETRIES) {
+        console.log(`[CODER] GLM 调用失败 (第${attempt + 1}次)，${isTimeout ? '超时' : '错误'}，${2 - attempt}秒后重试...`);
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        continue;
+      }
+
+      throw err;
     }
   }
 }

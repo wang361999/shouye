@@ -388,7 +388,15 @@ export default function CoderPage() {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      // 友好化错误提示
+      if (errMsg.includes('timeout') || errMsg.includes('aborted')) {
+        setError('AI 响应超时，请稍后重试。如果持续超时，可以尝试缩小问题范围。');
+      } else if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
+        setError('网络连接失败，请检查网络后重试。');
+      } else {
+        setError(errMsg);
+      }
     } finally {
       setLoading(false);
       setStreamingText('');
@@ -802,8 +810,24 @@ export default function CoderPage() {
 
           {/* 错误提示 */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg px-4 py-3 mb-4">
-              {error}
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg px-3 sm:px-4 py-3 mb-4 flex items-center justify-between gap-2">
+              <span className="flex-1">{error}</span>
+              <button
+                onClick={() => {
+                  setError('');
+                  // 找到最后一条用户消息，填回输入框方便重试
+                  for (let i = messages.length - 1; i >= 0; i--) {
+                    if (messages[i].role === 'user') {
+                      setInput(messages[i].content);
+                      setMessages((prev) => prev.slice(0, i)); // 移除该条及之后的回复
+                      break;
+                    }
+                  }
+                }}
+                className="text-xs bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg transition-colors shrink-0"
+              >
+                重试
+              </button>
             </div>
           )}
 
