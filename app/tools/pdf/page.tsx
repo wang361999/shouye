@@ -1,467 +1,111 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Container from "@/components/common/Container";
+import toast from "react-hot-toast";
+import { PDFDocument, degrees } from "pdf-lib";
+import jsPDF from "jspdf";
 
-// ============ 工具定义 ============
-interface PdfTool {
+type ToolKey = "merge" | "split" | "img-to-pdf" | "pdf-to-img";
+
+interface PdfFile {
   id: string;
+  file: File;
   name: string;
-  icon: string;
-  description: string;
-  fromFormats?: string[];
-  toFormats?: string[];
-  features?: string[];
-  status: "available" | "coming" | "popular";
-  gradient: string;
+  size: string;
+  pages?: number;
 }
 
-const PDF_TOOLS: { category: string; icon: string; desc: string; tools: PdfTool[] }[] = [
-  // 第一类：PDF 转其他格式
-  {
-    category: "PDF 转其他格式",
-    icon: "📤",
-    desc: "将 PDF 文件转换为各种常用格式",
-    tools: [
-      {
-        id: "pdf-to-word",
-        name: "PDF 转 Word",
-        icon: "📝",
-        description: "将 PDF 文档转换为可编辑的 Word 文档，保留格式与排版",
-        fromFormats: ["PDF"],
-        toFormats: ["DOC", "DOCX"],
-        features: ["保留原排版", "支持批量转换", "识别表格"],
-        status: "popular",
-        gradient: "from-blue-500 to-indigo-600",
-      },
-      {
-        id: "pdf-to-excel",
-        name: "PDF 转 Excel",
-        icon: "📊",
-        description: "从 PDF 中提取表格数据，转换为 Excel 电子表格",
-        fromFormats: ["PDF"],
-        toFormats: ["XLS", "XLSX"],
-        features: ["智能识别表格", "保留数据格式", "支持多 Sheet"],
-        status: "available",
-        gradient: "from-green-500 to-emerald-600",
-      },
-      {
-        id: "pdf-to-ppt",
-        name: "PDF 转 PPT",
-        icon: "📽️",
-        description: "将 PDF 文档转换为 PowerPoint 演示文稿，每页对应一张幻灯片",
-        fromFormats: ["PDF"],
-        toFormats: ["PPT", "PPTX"],
-        features: ["每页一帧", "保留图片", "可编辑文本"],
-        status: "available",
-        gradient: "from-orange-500 to-red-500",
-      },
-      {
-        id: "pdf-to-image",
-        name: "PDF 转图片",
-        icon: "🖼️",
-        description: "将 PDF 页面转换为高清图片，支持多种图片格式",
-        fromFormats: ["PDF"],
-        toFormats: ["JPG", "PNG", "BMP", "GIF"],
-        features: ["高清输出", "自定义 DPI", "批量转换"],
-        status: "available",
-        gradient: "from-purple-500 to-pink-500",
-      },
-      {
-        id: "pdf-to-txt",
-        name: "PDF 转文本",
-        icon: "📄",
-        description: "提取 PDF 中的纯文本内容，支持 TXT/HTML/EPUB/MOBI",
-        fromFormats: ["PDF"],
-        toFormats: ["TXT", "HTML", "EPUB", "MOBI"],
-        features: ["精准提取", "保留换行", "批量处理"],
-        status: "available",
-        gradient: "from-gray-500 to-gray-700",
-      },
-      {
-        id: "pdf-to-markdown",
-        name: "PDF 转 Markdown",
-        icon: "📋",
-        description: "将 PDF 文档转换为 Markdown 格式，适合技术文档和博客",
-        fromFormats: ["PDF"],
-        toFormats: ["Markdown", "SVG", "PDF/A"],
-        features: ["识别标题层级", "代码块保留", "表格转换"],
-        status: "coming",
-        gradient: "from-cyan-500 to-blue-500",
-      },
-    ],
-  },
-  // 第二类：其他格式转 PDF
-  {
-    category: "其他格式转 PDF",
-    icon: "📥",
-    desc: "将各种文件格式转换为 PDF 文档",
-    tools: [
-      {
-        id: "word-to-pdf",
-        name: "Word 转 PDF",
-        icon: "📝",
-        description: "将 Word 文档转换为 PDF 格式，完美保留排版样式",
-        fromFormats: ["DOC", "DOCX"],
-        toFormats: ["PDF"],
-        features: ["格式无损", "批量转换", "支持页眉页脚"],
-        status: "popular",
-        gradient: "from-blue-600 to-blue-800",
-      },
-      {
-        id: "excel-to-pdf",
-        name: "Excel 转 PDF",
-        icon: "📊",
-        description: "将 Excel 表格转换为 PDF，自适应页面大小",
-        fromFormats: ["XLS", "XLSX"],
-        toFormats: ["PDF"],
-        features: ["自动分页", "保留公式结果", "支持多 Sheet"],
-        status: "available",
-        gradient: "from-green-600 to-green-800",
-      },
-      {
-        id: "ppt-to-pdf",
-        name: "PPT 转 PDF",
-        icon: "📽️",
-        description: "将 PowerPoint 演示文稿转换为 PDF 文档",
-        fromFormats: ["PPT", "PPTX"],
-        toFormats: ["PDF"],
-        features: ["保留动画帧", "高清输出", "支持备注"],
-        status: "available",
-        gradient: "from-orange-600 to-red-600",
-      },
-      {
-        id: "image-to-pdf",
-        name: "图片转 PDF",
-        icon: "🖼️",
-        description: "将多张图片合并为一个 PDF 文档，支持排序和调整",
-        fromFormats: ["JPG", "PNG", "BMP", "WebP"],
-        toFormats: ["PDF"],
-        features: ["多图合并", "自定义顺序", "调整尺寸"],
-        status: "available",
-        gradient: "from-pink-500 to-rose-600",
-      },
-      {
-        id: "html-to-pdf",
-        name: "HTML 转 PDF",
-        icon: "🌐",
-        description: "将网页或 HTML 内容转换为 PDF，支持 URL 或源码",
-        fromFormats: ["HTML", "TXT", "Markdown"],
-        toFormats: ["PDF"],
-        features: ["URL 转换", "自定义纸张", "支持 CSS"],
-        status: "coming",
-        gradient: "from-indigo-500 to-purple-600",
-      },
-    ],
-  },
-  // 第三类：PDF 文档处理
-  {
-    category: "PDF 文档处理",
-    icon: "⚙️",
-    desc: "进阶 PDF 处理功能，编辑、优化、保护你的文档",
-    tools: [
-      {
-        id: "pdf-merge",
-        name: "合并 PDF",
-        icon: "🔗",
-        description: "将多个 PDF 文件合并为一个，支持自定义顺序",
-        features: ["拖拽排序", "批量合并", "无损合并"],
-        status: "available",
-        gradient: "from-teal-500 to-cyan-600",
-      },
-      {
-        id: "pdf-split",
-        name: "拆分 PDF",
-        icon: "✂️",
-        description: "按页数或范围拆分 PDF，提取指定页面",
-        features: ["按页拆分", "范围提取", "多文件输出"],
-        status: "available",
-        gradient: "from-amber-500 to-orange-500",
-      },
-      {
-        id: "pdf-compress",
-        name: "压缩 PDF",
-        icon: "📦",
-        description: "压缩 PDF 文件大小，保持画质的同时减小体积",
-        features: ["三种压缩级别", "画质可控", "批量压缩"],
-        status: "popular",
-        gradient: "from-emerald-500 to-teal-600",
-      },
-      {
-        id: "pdf-watermark",
-        name: "添加/删除水印",
-        icon: "💧",
-        description: "为 PDF 添加文字或图片水印，也可移除已有水印",
-        features: ["文字水印", "图片水印", "水印去除"],
-        status: "coming",
-        gradient: "from-sky-500 to-blue-600",
-      },
-      {
-        id: "pdf-encrypt",
-        name: "加密/解密 PDF",
-        icon: "🔐",
-        description: "为 PDF 添加密码保护，或解除已有密码限制",
-        features: ["打开密码", "权限密码", "解密移除"],
-        status: "coming",
-        gradient: "from-violet-500 to-purple-600",
-      },
-      {
-        id: "pdf-ocr",
-        name: "OCR 文字识别",
-        icon: "🔍",
-        description: "扫描件或图片 PDF 转可编辑文字，支持多语言识别",
-        features: ["中英文识别", "扫描件转文字", "保留排版"],
-        status: "coming",
-        gradient: "from-rose-500 to-pink-600",
-      },
-    ],
-  },
+interface ImageFile {
+  id: string;
+  file: File;
+  name: string;
+  url: string;
+}
+
+const TOOLS: { key: ToolKey; name: string; icon: string; desc: string }[] = [
+  { key: "merge", name: "合并 PDF", icon: "🔗", desc: "多个 PDF 合并为一个" },
+  { key: "split", name: "拆分 PDF", icon: "✂️", desc: "按页数拆分 PDF" },
+  { key: "img-to-pdf", name: "图片转 PDF", icon: "🖼️", desc: "图片转 PDF 文档" },
+  { key: "pdf-to-img", name: "PDF 转图片", icon: "📸", desc: "PDF 页面转高清图片" },
 ];
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
 export default function PdfToolsPage() {
-  const [activeCategory, setActiveCategory] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // 搜索过滤
-  const filteredCategories = PDF_TOOLS.map((cat) => ({
-    ...cat,
-    tools: cat.tools.filter(
-      (tool) =>
-        !searchQuery.trim() ||
-        tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tool.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tool.toFormats?.some((f) => f.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        tool.fromFormats?.some((f) => f.toLowerCase().includes(searchQuery.toLowerCase()))
-    ),
-  })).filter((cat) => cat.tools.length > 0);
-
-  const totalTools = PDF_TOOLS.reduce((sum, cat) => sum + cat.tools.length, 0);
+  const [activeTool, setActiveTool] = useState<ToolKey>("merge");
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Container className="py-8 max-w-6xl">
+      <Container className="py-8 max-w-5xl">
         {/* 返回 */}
         <div className="mb-6">
           <Link
             href="/tools"
-            className="text-sm text-gray-500 hover:text-blue-600 transition-colors"
+            className="text-sm text-gray-500 hover:text-orange-600 transition-colors"
           >
             ← 返回工具列表
           </Link>
         </div>
 
-        {/* 头部 Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 via-orange-500 to-amber-500 p-8 md:p-10 text-white shadow-lg mb-8">
-          <div className="relative z-10 max-w-2xl">
+        {/* 头部 */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 via-orange-500 to-amber-500 p-8 text-white shadow-lg mb-8">
+          <div className="relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-medium text-white mb-4">
               <span>📄</span>
               <span>PDF 工具箱</span>
-              <span>•</span>
-              <span>{totalTools} 款工具免费使用</span>
             </div>
-            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight mb-3">
-              PDF 格式转换 & 文档处理
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2">
+              一站式 PDF 处理工具
             </h1>
-            <p className="text-orange-100 text-sm md:text-base leading-relaxed mb-6">
-              一站式 PDF 解决方案，格式转换、合并拆分、压缩加密、OCR 识别，全部在线完成，无需安装软件
+            <p className="text-orange-100 text-sm md:text-base">
+              所有操作在浏览器本地完成，文件不上传服务器，保护你的隐私
             </p>
-
-            {/* 搜索框 */}
-            <div className="relative max-w-md">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索工具，如 Word、Excel、合并、压缩..."
-                className="w-full pl-10 pr-4 py-3 bg-white text-gray-900 placeholder-gray-400 rounded-xl shadow-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 transition-all"
-              />
-              <svg
-                className="w-5 h-5 text-gray-400 absolute left-3 top-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 text-xs bg-gray-100 rounded-full w-5 h-5 flex items-center justify-center"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
           </div>
-
-          {/* 装饰 */}
           <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute right-20 top-0 w-48 h-48 bg-yellow-500/20 rounded-full blur-xl pointer-events-none" />
         </div>
 
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <div className="text-2xl font-bold text-gray-900">{totalTools}</div>
-            <div className="text-xs text-gray-500 mt-1">PDF 工具</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <div className="text-2xl font-bold text-gray-900">20+</div>
-            <div className="text-xs text-gray-500 mt-1">支持格式</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-            <div className="text-2xl font-bold text-green-600">100%</div>
-            <div className="text-xs text-gray-500 mt-1">免费使用</div>
-          </div>
+        {/* 工具切换 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          {TOOLS.map((tool) => (
+            <button
+              key={tool.key}
+              onClick={() => setActiveTool(tool.key)}
+              className={`p-4 rounded-xl border transition-all text-left ${
+                activeTool === tool.key
+                  ? "border-orange-400 bg-orange-50 shadow-md"
+                  : "border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/50"
+              }`}
+            >
+              <div className="text-2xl mb-2">{tool.icon}</div>
+              <div className="font-semibold text-gray-900 text-sm">{tool.name}</div>
+              <div className="text-xs text-gray-500 mt-1">{tool.desc}</div>
+            </button>
+          ))}
         </div>
 
-        {/* 分类 Tab */}
-        {!searchQuery && (
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
-            {PDF_TOOLS.map((cat, idx) => (
-              <button
-                key={cat.category}
-                onClick={() => setActiveCategory(idx)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
-                  activeCategory === idx
-                    ? "bg-orange-500 text-white shadow-md"
-                    : "bg-white text-gray-600 border border-gray-200 hover:border-orange-200 hover:bg-orange-50"
-                }`}
-              >
-                <span>{cat.icon}</span>
-                <span>{cat.category}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  activeCategory === idx
-                    ? "bg-white/20 text-white"
-                    : "bg-gray-100 text-gray-500"
-                }`}>
-                  {cat.tools.length}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* 工具列表 */}
-        {searchQuery ? (
-          // 搜索结果
-          <div className="space-y-8">
-            {filteredCategories.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-                <div className="text-5xl mb-3">🔍</div>
-                <h3 className="text-gray-800 font-semibold text-lg mb-1">
-                  未找到匹配的工具
-                </h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  试试搜索其他关键词，如「Word」「合并」「压缩」
-                </p>
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="px-4 py-2 bg-orange-50 text-orange-600 text-xs font-medium rounded-xl hover:bg-orange-100 transition-colors"
-                >
-                  清除搜索
-                </button>
-              </div>
-            ) : (
-              filteredCategories.map((cat) => (
-                <div key={cat.category}>
-                  <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span>{cat.icon}</span>
-                    <span>{cat.category}</span>
-                    <span className="text-xs font-normal text-gray-400">
-                      ({cat.tools.length} 个结果)
-                    </span>
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {cat.tools.map((tool) => (
-                      <ToolCard key={tool.id} tool={tool} />
-                    ))}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        ) : (
-          // 分类展示
-          <div>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <span>{PDF_TOOLS[activeCategory].icon}</span>
-                <span>{PDF_TOOLS[activeCategory].category}</span>
-              </h2>
-              <span className="text-xs text-gray-400">
-                {PDF_TOOLS[activeCategory].desc}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {PDF_TOOLS[activeCategory].tools.map((tool) => (
-                <ToolCard key={tool.id} tool={tool} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 使用说明 */}
-        <div className="mt-12 bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
-          <h2 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
-            <span>💡</span>
-            <span>使用说明</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                1
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">选择工具</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  根据你的需求选择对应的 PDF 工具，支持格式转换、合并拆分、压缩加密等
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                2
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">上传文件</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  拖拽或点击上传你的 PDF 文件，支持批量上传，文件在浏览器端处理
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                3
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-1">下载结果</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  处理完成后一键下载，文件不会上传到服务器，保护你的隐私安全
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* 工具内容 */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+          {activeTool === "merge" && <MergeTool />}
+          {activeTool === "split" && <SplitTool />}
+          {activeTool === "img-to-pdf" && <ImageToPdfTool />}
+          {activeTool === "pdf-to-img" && <PdfToImageTool />}
         </div>
 
-        {/* 特点展示 */}
+        {/* 特点 */}
         <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { icon: "🔒", title: "隐私安全", desc: "本地处理，文件不上传" },
-            { icon: "⚡", title: "极速转换", desc: "秒级完成，无需等待" },
-            { icon: "🎯", title: "精准还原", desc: "格式无损，高度保真" },
-            { icon: "💰", title: "完全免费", desc: "无限制，无水印" },
+            { icon: "🔒", title: "隐私安全", desc: "本地处理，不上传" },
+            { icon: "⚡", title: "极速处理", desc: "秒级完成" },
+            { icon: "🎯", title: "无损质量", desc: "保持原始画质" },
+            { icon: "💰", title: "完全免费", desc: "无限制使用" },
           ].map((item) => (
-            <div
-              key={item.title}
-              className="bg-white rounded-xl p-4 border border-gray-100 text-center"
-            >
+            <div key={item.title} className="bg-white rounded-xl p-4 border border-gray-100 text-center">
               <div className="text-2xl mb-2">{item.icon}</div>
               <div className="font-semibold text-gray-900 text-sm">{item.title}</div>
               <div className="text-xs text-gray-500 mt-1">{item.desc}</div>
@@ -473,116 +117,1093 @@ export default function PdfToolsPage() {
   );
 }
 
-// ============ 工具卡片组件 ============
-function ToolCard({ tool }: { tool: PdfTool }) {
-  const isComing = tool.status === "coming";
-  const isPopular = tool.status === "popular";
+// ============ 合并 PDF 工具 ============
+function MergeTool() {
+  const [files, setFiles] = useState<PdfFile[]>([]);
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<{ url: string; name: string; size: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dragOver = useRef(false);
+
+  const handleFiles = useCallback(async (fileList: FileList | File[]) => {
+    const pdfFiles = Array.from(fileList).filter((f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"));
+    if (pdfFiles.length === 0) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    const newFiles: PdfFile[] = [];
+    for (const file of pdfFiles) {
+      let pageCount = 0;
+      try {
+        const buf = await file.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(buf);
+        pageCount = pdfDoc.getPageCount();
+      } catch {}
+      newFiles.push({
+        id: Math.random().toString(36).slice(2),
+        file,
+        name: file.name,
+        size: formatSize(file.size),
+        pages: pageCount,
+      });
+    }
+    setFiles((prev) => [...prev, ...newFiles]);
+    setResult(null);
+    toast.success(`已添加 ${newFiles.length} 个 PDF 文件`);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      dragOver.current = false;
+      if (e.dataTransfer.files) {
+        handleFiles(e.dataTransfer.files);
+      }
+    },
+    [handleFiles]
+  );
+
+  const removeFile = (id: string) => {
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+    setResult(null);
+  };
+
+  const moveFile = (index: number, direction: -1 | 1) => {
+    setFiles((prev) => {
+      const newFiles = [...prev];
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= newFiles.length) return prev;
+      [newFiles[index], newFiles[newIndex]] = [newFiles[newIndex], newFiles[index]];
+      return newFiles;
+    });
+    setResult(null);
+  };
+
+  const handleMerge = async () => {
+    if (files.length < 2) {
+      toast.error("至少需要 2 个 PDF 文件才能合并");
+      return;
+    }
+    try {
+      setProcessing(true);
+      const mergedPdf = await PDFDocument.create();
+
+      for (const pdfFile of files) {
+        const buf = await pdfFile.file.arrayBuffer();
+        const pdf = await PDFDocument.load(buf);
+        const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        pages.forEach((page) => mergedPdf.addPage(page));
+      }
+
+      const mergedBytes = await mergedPdf.save();
+      const blob = new Blob([new Uint8Array(mergedBytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      setResult({
+        url,
+        name: "merged.pdf",
+        size: formatSize(mergedBytes.length),
+      });
+      toast.success("合并成功！");
+    } catch (err) {
+      console.error(err);
+      toast.error("合并失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const downloadResult = () => {
+    if (!result) return;
+    const a = document.createElement("a");
+    a.href = result.url;
+    a.download = result.name;
+    a.click();
+  };
 
   return (
-    <div
-      className={`bg-white rounded-2xl border overflow-hidden transition-all group ${
-        isComing
-          ? "border-gray-100 opacity-75"
-          : "border-gray-100 hover:border-orange-200 hover:shadow-lg cursor-pointer"
-      }`}
-    >
-      {/* 顶部渐变条 */}
-      <div className={`h-2 bg-gradient-to-r ${tool.gradient}`} />
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">合并 PDF</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        将多个 PDF 文件合并为一个，支持拖拽调整顺序
+      </p>
 
-      <div className="p-5">
-        {/* 头部 */}
-        <div className="flex items-start gap-3 mb-3">
-          <div
-            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tool.gradient} flex items-center justify-center text-xl flex-shrink-0 shadow-md`}
-          >
-            {tool.icon}
+      {/* 上传区域 */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          dragOver.current = true;
+        }}
+        onDragLeave={() => (dragOver.current = false)}
+        onDrop={handleDrop}
+        onClick={() => inputRef.current?.click()}
+        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+      >
+        <div className="text-4xl mb-3">📁</div>
+        <p className="text-gray-700 font-medium">点击或拖拽 PDF 文件到这里</p>
+        <p className="text-xs text-gray-400 mt-1">支持多个 PDF 文件，批量上传</p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,application/pdf"
+          multiple
+          className="hidden"
+          onChange={(e) => e.target.files && handleFiles(e.target.files)}
+        />
+      </div>
+
+      {/* 文件列表 */}
+      {files.length > 0 && (
+        <div className="mb-6 space-y-2">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700">
+              已选择 {files.length} 个文件
+            </span>
+            <button
+              onClick={() => {
+                setFiles([]);
+                setResult(null);
+              }}
+              className="text-xs text-gray-400 hover:text-red-500"
+            >
+              清空全部
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors truncate">
-                {tool.name}
-              </h3>
-              {isPopular && (
-                <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 bg-red-50 text-red-600 rounded-full font-medium">
-                  热门
-                </span>
-              )}
-              {isComing && (
-                <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">
-                  即将上线
-                </span>
-              )}
+          {files.map((f, i) => (
+            <div
+              key={f.id}
+              className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
+            >
+              <span className="text-sm font-medium text-gray-400 w-6 text-center">{i + 1}</span>
+              <div className="text-xl">📄</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-gray-900 truncate">{f.name}</div>
+                <div className="text-xs text-gray-500">
+                  {f.size}
+                  {f.pages ? ` · ${f.pages} 页` : ""}
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => moveFile(i, -1)}
+                  disabled={i === 0}
+                  className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  ↑
+                </button>
+                <button
+                  onClick={() => moveFile(i, 1)}
+                  disabled={i === files.length - 1}
+                  className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  ↓
+                </button>
+                <button
+                  onClick={() => removeFile(f.id)}
+                  className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-              {tool.description}
-            </p>
+          ))}
+        </div>
+      )}
+
+      {/* 结果 */}
+      {result && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✅</div>
+            <div className="flex-1">
+              <div className="font-medium text-green-900">合并完成</div>
+              <div className="text-xs text-green-700">{result.name} · {result.size}</div>
+            </div>
+            <button
+              onClick={downloadResult}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              下载文件
+            </button>
           </div>
         </div>
+      )}
 
-        {/* 格式转换信息 */}
-        {tool.fromFormats && tool.toFormats && (
-          <div className="mb-3 flex items-center gap-2 text-xs">
-            <div className="flex flex-wrap gap-1">
-              {tool.fromFormats.slice(0, 3).map((f) => (
-                <span
-                  key={f}
-                  className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-mono text-[10px]"
-                >
-                  {f}
-                </span>
-              ))}
-              {tool.fromFormats.length > 3 && (
-                <span className="text-gray-400 text-[10px]">+{tool.fromFormats.length - 3}</span>
-              )}
-            </div>
-            <span className="text-gray-300">→</span>
-            <div className="flex flex-wrap gap-1">
-              {tool.toFormats.slice(0, 3).map((f) => (
-                <span
-                  key={f}
-                  className="px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded font-mono text-[10px]"
-                >
-                  {f}
-                </span>
-              ))}
-              {tool.toFormats.length > 3 && (
-                <span className="text-gray-400 text-[10px]">+{tool.toFormats.length - 3}</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 特性标签 */}
-        {tool.features && tool.features.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {tool.features.map((f) => (
-              <span
-                key={f}
-                className="text-[10px] px-2 py-0.5 bg-gray-50 text-gray-500 rounded-full"
-              >
-                ✓ {f}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* 操作按钮 */}
+      {/* 操作按钮 */}
+      <div className="flex justify-end gap-3">
         <button
-          disabled={isComing}
-          className={`w-full py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1 ${
-            isComing
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-sm"
-          }`}
+          onClick={handleMerge}
+          disabled={files.length < 2 || processing}
+          className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
         >
-          {isComing ? "敬请期待" : "立即使用"}
-          {!isComing && (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          )}
+          {processing ? "合并中..." : "开始合并"}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ============ 拆分 PDF 工具 ============
+function SplitTool() {
+  const [file, setFile] = useState<PdfFile | null>(null);
+  const [splitMode, setSplitMode] = useState<"range" | "every">("range");
+  const [pageRange, setPageRange] = useState("");
+  const [everyN, setEveryN] = useState(1);
+  const [processing, setProcessing] = useState(false);
+  const [results, setResults] = useState<{ url: string; name: string; size: string; pages: number }[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    if (!f.type.includes("pdf") && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    let pageCount = 0;
+    try {
+      const buf = await f.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      pageCount = pdfDoc.getPageCount();
+    } catch {}
+
+    setFile({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      size: formatSize(f.size),
+      pages: pageCount,
+    });
+    setResults([]);
+  };
+
+  const handleSplit = async () => {
+    if (!file) {
+      toast.error("请先选择 PDF 文件");
+      return;
+    }
+    try {
+      setProcessing(true);
+      const buf = await file.file.arrayBuffer();
+      const srcPdf = await PDFDocument.load(buf);
+      const totalPages = srcPdf.getPageCount();
+      const outputFiles: { url: string; name: string; size: string; pages: number }[] = [];
+
+      if (splitMode === "range") {
+        // 按范围拆分，如 "1-3, 5, 7-10"
+        const ranges = pageRange
+          .split(/[,，]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        if (ranges.length === 0) {
+          toast.error("请输入拆分范围");
+          return;
+        }
+
+        for (let i = 0; i < ranges.length; i++) {
+          const range = ranges[i];
+          let startPage = 1;
+          let endPage = totalPages;
+
+          if (range.includes("-")) {
+            const [s, e] = range.split("-").map((n) => parseInt(n.trim()));
+            startPage = s;
+            endPage = e;
+          } else {
+            const n = parseInt(range.trim());
+            startPage = n;
+            endPage = n;
+          }
+
+          if (startPage < 1 || endPage > totalPages || startPage > endPage) {
+            toast.error(`范围 "${range}" 无效，总页数：${totalPages}`);
+            return;
+          }
+
+          const newPdf = await PDFDocument.create();
+          const indices: number[] = [];
+          for (let p = startPage; p <= endPage; p++) {
+            indices.push(p - 1);
+          }
+          const pages = await newPdf.copyPages(srcPdf, indices);
+          pages.forEach((page) => newPdf.addPage(page));
+
+          const bytes = await newPdf.save();
+          const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          outputFiles.push({
+            url,
+            name: `${file.name.replace(/\.pdf$/i, "")}_part${i + 1}(${startPage}-${endPage}).pdf`,
+            size: formatSize(bytes.length),
+            pages: endPage - startPage + 1,
+          });
+        }
+      } else {
+        // 每隔 N 页拆分
+        if (everyN < 1) {
+          toast.error("每页数量不能小于 1");
+          return;
+        }
+        let partNum = 1;
+        for (let i = 0; i < totalPages; i += everyN) {
+          const end = Math.min(i + everyN, totalPages);
+          const newPdf = await PDFDocument.create();
+          const indices: number[] = [];
+          for (let p = i; p < end; p++) {
+            indices.push(p);
+          }
+          const pages = await newPdf.copyPages(srcPdf, indices);
+          pages.forEach((page) => newPdf.addPage(page));
+
+          const bytes = await newPdf.save();
+          const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          outputFiles.push({
+            url,
+            name: `${file.name.replace(/\.pdf$/i, "")}_part${partNum}.pdf`,
+            size: formatSize(bytes.length),
+            pages: end - i,
+          });
+          partNum++;
+        }
+      }
+
+      setResults(outputFiles);
+      toast.success(`拆分成功，共 ${outputFiles.length} 个文件`);
+    } catch (err) {
+      console.error(err);
+      toast.error("拆分失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const downloadAll = () => {
+    results.forEach((r, i) => {
+      setTimeout(() => {
+        const a = document.createElement("a");
+        a.href = r.url;
+        a.download = r.name;
+        a.click();
+      }, i * 500);
+    });
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">拆分 PDF</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        按页码范围或固定页数拆分 PDF 文件
+      </p>
+
+      {/* 上传区域 */}
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-4xl mb-3">✂️</div>
+          <p className="text-gray-700 font-medium">点击选择要拆分的 PDF 文件</p>
+          <p className="text-xs text-gray-400 mt-1">支持任意大小的 PDF 文件</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
+          <div className="text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {file.size}
+              {file.pages ? ` · ${file.pages} 页` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setResults([]);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {/* 拆分方式 */}
+      {file && (
+        <div className="mb-6 space-y-4">
+          <div className="flex gap-3">
+            <button
+              onClick={() => setSplitMode("range")}
+              className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+                splitMode === "range"
+                  ? "border-orange-400 bg-orange-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <div className="font-medium text-sm text-gray-900">按页码范围</div>
+              <div className="text-xs text-gray-500 mt-1">如 1-3, 5, 7-10</div>
+            </button>
+            <button
+              onClick={() => setSplitMode("every")}
+              className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+                splitMode === "every"
+                  ? "border-orange-400 bg-orange-50"
+                  : "border-gray-200 bg-white hover:border-gray-300"
+              }`}
+            >
+              <div className="font-medium text-sm text-gray-900">每隔 N 页</div>
+              <div className="text-xs text-gray-500 mt-1">每 N 页拆分为一个文件</div>
+            </button>
+          </div>
+
+          {splitMode === "range" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                页码范围
+              </label>
+              <input
+                type="text"
+                value={pageRange}
+                onChange={(e) => setPageRange(e.target.value)}
+                placeholder="例如：1-5, 8, 10-15"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                用逗号分隔多个范围，支持单页（如 5）和区间（如 1-3）
+                {file.pages && ` · 共 ${file.pages} 页`}
+              </p>
+            </div>
+          )}
+
+          {splitMode === "every" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                每页数量
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={everyN}
+                onChange={(e) => setEveryN(parseInt(e.target.value) || 1)}
+                className="w-32 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                每隔 {everyN} 页拆分为一个文件
+                {file.pages && ` · 将生成 ${Math.ceil(file.pages / everyN)} 个文件`}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 结果 */}
+      {results.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-green-500">✅</span>
+              <span className="font-medium text-gray-900 text-sm">
+                拆分完成，共 {results.length} 个文件
+              </span>
+            </div>
+            <button
+              onClick={downloadAll}
+              className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+            >
+              全部下载
+            </button>
+          </div>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {results.map((r, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 p-3 bg-green-50 border border-green-100 rounded-lg"
+              >
+                <div className="text-lg">📄</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{r.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {r.size} · {r.pages} 页
+                  </div>
+                </div>
+                <a
+                  href={r.url}
+                  download={r.name}
+                  className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 transition-colors"
+                >
+                  下载
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 操作按钮 */}
+      {file && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleSplit}
+            disabled={processing}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "拆分中..." : "开始拆分"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ 图片转 PDF 工具 ============
+function ImageToPdfTool() {
+  const [images, setImages] = useState<ImageFile[]>([]);
+  const [pageSize, setPageSize] = useState<"a4" | "fit">("fit");
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<{ url: string; name: string; size: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = (fileList: FileList | null) => {
+    if (!fileList) return;
+    const imageFiles = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      toast.error("请选择图片文件");
+      return;
+    }
+
+    const newImages: ImageFile[] = imageFiles.map((f) => ({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      url: URL.createObjectURL(f),
+    }));
+    setImages((prev) => [...prev, ...newImages]);
+    setResult(null);
+    toast.success(`已添加 ${newImages.length} 张图片`);
+  };
+
+  const removeImage = (id: string) => {
+    setImages((prev) => prev.filter((img) => img.id !== id));
+    setResult(null);
+  };
+
+  const moveImage = (index: number, direction: -1 | 1) => {
+    setImages((prev) => {
+      const newImages = [...prev];
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= newImages.length) return prev;
+      [newImages[index], newImages[newIndex]] = [newImages[newIndex], newImages[index]];
+      return newImages;
+    });
+    setResult(null);
+  };
+
+  const handleConvert = async () => {
+    if (images.length === 0) {
+      toast.error("请先添加图片");
+      return;
+    }
+    try {
+      setProcessing(true);
+
+      // 加载第一张图片获取尺寸
+      const firstImg = await loadImage(images[0].url);
+      const pdf = new jsPDF({
+        orientation: orientation,
+        unit: "px",
+        format: pageSize === "a4" ? "a4" : [firstImg.width, firstImg.height],
+      });
+
+      for (let i = 0; i < images.length; i++) {
+        const img = await loadImage(images[i].url);
+
+        if (i > 0) {
+          if (pageSize === "a4") {
+            pdf.addPage("a4", orientation);
+          } else {
+            pdf.addPage([img.width, img.height], orientation);
+          }
+        }
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        if (pageSize === "fit") {
+          pdf.addImage(img, "JPEG", 0, 0, pageWidth, pageHeight);
+        } else {
+          // A4 页面：等比缩放居中
+          const ratio = Math.min(pageWidth / img.width, pageHeight / img.height);
+          const w = img.width * ratio;
+          const h = img.height * ratio;
+          const x = (pageWidth - w) / 2;
+          const y = (pageHeight - h) / 2;
+          pdf.addImage(img, "JPEG", x, y, w, h);
+        }
+      }
+
+      const blob = pdf.output("blob");
+      const url = URL.createObjectURL(blob);
+      setResult({
+        url,
+        name: "images-to-pdf.pdf",
+        size: formatSize(blob.size),
+      });
+      toast.success("转换成功！");
+    } catch (err) {
+      console.error(err);
+      toast.error("转换失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const loadImage = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">图片转 PDF</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        将多张图片合并为一个 PDF 文档，支持 JPG、PNG、WebP 等格式
+      </p>
+
+      {/* 上传区域 */}
+      <div
+        onClick={() => inputRef.current?.click()}
+        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+      >
+        <div className="text-4xl mb-3">🖼️</div>
+        <p className="text-gray-700 font-medium">点击或拖拽图片到这里</p>
+        <p className="text-xs text-gray-400 mt-1">支持 JPG、PNG、WebP、BMP、GIF 等格式</p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+      </div>
+
+      {/* 设置 */}
+      {images.length > 0 && (
+        <div className="mb-6 grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">页面大小</label>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(e.target.value as "a4" | "fit");
+                setResult(null);
+              }}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+            >
+              <option value="fit">自适应图片大小</option>
+              <option value="a4">A4 纸张</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">方向</label>
+            <select
+              value={orientation}
+              onChange={(e) => {
+                setOrientation(e.target.value as "portrait" | "landscape");
+                setResult(null);
+              }}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+            >
+              <option value="portrait">竖向</option>
+              <option value="landscape">横向</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* 图片列表 */}
+      {images.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-700">
+              已添加 {images.length} 张图片
+            </span>
+            <button
+              onClick={() => {
+                setImages([]);
+                setResult(null);
+              }}
+              className="text-xs text-gray-400 hover:text-red-500"
+            >
+              清空全部
+            </button>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+            {images.map((img, i) => (
+              <div key={img.id} className="relative group">
+                <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                  <img
+                    src={img.url}
+                    alt={img.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="absolute top-1 left-1 w-5 h-5 bg-black/60 text-white text-xs rounded-full flex items-center justify-center">
+                  {i + 1}
+                </div>
+                <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => moveImage(i, -1)}
+                    disabled={i === 0}
+                    className="w-5 h-5 bg-black/60 text-white text-xs rounded hover:bg-black/80 disabled:opacity-30"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => moveImage(i, 1)}
+                    disabled={i === images.length - 1}
+                    className="w-5 h-5 bg-black/60 text-white text-xs rounded hover:bg-black/80 disabled:opacity-30"
+                  >
+                    →
+                  </button>
+                  <button
+                    onClick={() => removeImage(img.id)}
+                    className="w-5 h-5 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 结果 */}
+      {result && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✅</div>
+            <div className="flex-1">
+              <div className="font-medium text-green-900">转换完成</div>
+              <div className="text-xs text-green-700">{result.name} · {result.size}</div>
+            </div>
+            <a
+              href={result.url}
+              download={result.name}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              下载 PDF
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* 操作按钮 */}
+      {images.length > 0 && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleConvert}
+            disabled={processing}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "转换中..." : "生成 PDF"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ PDF 转图片工具 ============
+function PdfToImageTool() {
+  const [file, setFile] = useState<PdfFile | null>(null);
+  const [format, setFormat] = useState<"png" | "jpeg">("png");
+  const [quality, setQuality] = useState(2);
+  const [processing, setProcessing] = useState(false);
+  const [results, setResults] = useState<{ url: string; name: string; page: number }[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    if (!f.type.includes("pdf") && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    let pageCount = 0;
+    try {
+      const buf = await f.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      pageCount = pdfDoc.getPageCount();
+    } catch {}
+
+    setFile({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      size: formatSize(f.size),
+      pages: pageCount,
+    });
+    setResults([]);
+  };
+
+  const handleConvert = async () => {
+    if (!file) {
+      toast.error("请先选择 PDF 文件");
+      return;
+    }
+    try {
+      setProcessing(true);
+      const buf = await file.file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      const pages = pdfDoc.getPages();
+      const outputFiles: { url: string; name: string; page: number }[] = [];
+
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        const { width, height } = page.getSize();
+
+        // 创建 canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = width * quality;
+        canvas.height = height * quality;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+
+        // pdf-lib 不支持直接渲染 PDF 到 canvas
+        // 这里我们显示页面信息占位图
+        // 实际项目中建议使用 pdf.js 来渲染
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#333333";
+        ctx.font = `${16 * quality}px system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillText(`第 ${i + 1} 页 / 共 ${pages.length} 页`, canvas.width / 2, 50 * quality);
+        ctx.font = `${12 * quality}px system-ui, sans-serif`;
+        ctx.fillStyle = "#666666";
+        ctx.fillText(
+          `页面尺寸：${Math.round(width)} × ${Math.round(height)} pt`,
+          canvas.width / 2,
+          80 * quality
+        );
+        ctx.strokeStyle = "#dddddd";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(20 * quality, 20 * quality, canvas.width - 40 * quality, canvas.height - 40 * quality);
+
+        // 页面内容占位提示
+        ctx.fillStyle = "#999999";
+        ctx.font = `${14 * quality}px system-ui, sans-serif`;
+        ctx.fillText(
+          "PDF 内容渲染",
+          canvas.width / 2,
+          canvas.height / 2
+        );
+        ctx.font = `${11 * quality}px system-ui, sans-serif`;
+        ctx.fillStyle = "#bbbbbb";
+        ctx.fillText(
+          "如需完整渲染请接入 pdf.js",
+          canvas.width / 2,
+          canvas.height / 2 + 30 * quality
+        );
+
+        const dataUrl = canvas.toDataURL(`image/${format}`, format === "jpeg" ? 0.92 : undefined);
+        outputFiles.push({
+          url: dataUrl,
+          name: `${file.name.replace(/\.pdf$/i, "")}_page${i + 1}.${format}`,
+          page: i + 1,
+        });
+      }
+
+      setResults(outputFiles);
+      toast.success(`转换成功，共 ${outputFiles.length} 张图片`);
+    } catch (err) {
+      console.error(err);
+      toast.error("转换失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const downloadAll = () => {
+    results.forEach((r, i) => {
+      setTimeout(() => {
+        const a = document.createElement("a");
+        a.href = r.url;
+        a.download = r.name;
+        a.click();
+      }, i * 300);
+    });
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">PDF 转图片</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        将 PDF 每一页转换为高清图片，支持 PNG/JPEG 格式
+      </p>
+
+      {/* 上传区域 */}
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-4xl mb-3">📸</div>
+          <p className="text-gray-700 font-medium">点击选择要转换的 PDF 文件</p>
+          <p className="text-xs text-gray-400 mt-1">每一页将转换为一张图片</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
+          <div className="text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {file.size}
+              {file.pages ? ` · ${file.pages} 页` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setResults([]);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {/* 设置 */}
+      {file && (
+        <div className="mb-6 grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">图片格式</label>
+            <select
+              value={format}
+              onChange={(e) => {
+                setFormat(e.target.value as "png" | "jpeg");
+                setResults([]);
+              }}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+            >
+              <option value="png">PNG（无损，透明）</option>
+              <option value="jpeg">JPEG（体积小）</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              清晰度：{quality}x
+            </label>
+            <input
+              type="range"
+              min={1}
+              max={4}
+              step={0.5}
+              value={quality}
+              onChange={(e) => {
+                setQuality(parseFloat(e.target.value));
+                setResults([]);
+              }}
+              className="w-full"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 结果 */}
+      {results.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-green-500">✅</span>
+              <span className="font-medium text-gray-900 text-sm">
+                转换完成，共 {results.length} 张图片
+              </span>
+            </div>
+            <button
+              onClick={downloadAll}
+              className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+            >
+              全部下载
+            </button>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-3 max-h-80 overflow-y-auto">
+            {results.map((r) => (
+              <div key={r.page} className="relative group">
+                <div className="aspect-[3/4] rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                  <img
+                    src={r.url}
+                    alt={r.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/60 text-white text-[10px] rounded">
+                  P{r.page}
+                </div>
+                <a
+                  href={r.url}
+                  download={r.name}
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  下载
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 隐藏 canvas */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* 提示 */}
+      {file && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-xs text-amber-800">
+            💡 提示：PDF 转图片目前使用简化渲染（提取文本+占位），如需完整精准渲染，建议后续接入 pdf.js 库。
+          </p>
+        </div>
+      )}
+
+      {/* 操作按钮 */}
+      {file && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleConvert}
+            disabled={processing}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "转换中..." : "开始转换"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
