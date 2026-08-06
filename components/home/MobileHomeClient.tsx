@@ -206,20 +206,20 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
               <span>AI 技术实时脉冲 · 社区驱动</span>
             </div>
 
-            <div className="flex flex-col items-center gap-3 w-full">
+            <div className="flex items-center justify-center gap-3 w-full">
               <Link
                 href="/ai-agents"
-                className="w-full max-w-[240px] inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-[14px] font-extrabold text-purple-700 shadow-lg shadow-purple-900/30 transition-all active:scale-[0.98]"
+                className="flex-1 max-w-[140px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-2.5 text-[13px] font-extrabold text-purple-700 shadow-lg shadow-purple-900/30 transition-all active:scale-[0.98]"
               >
                 <span>🤖</span>
-                <span>AI Agent 入口</span>
+                <span>AI Agent</span>
               </Link>
               <Link
                 href="/ai-agents/docs"
-                className="w-full max-w-[240px] inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-6 py-3 text-[14px] font-semibold text-white backdrop-blur transition-all active:scale-[0.98]"
+                className="flex-1 max-w-[140px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-[13px] font-semibold text-white backdrop-blur transition-all active:scale-[0.98]"
               >
                 <span>📚</span>
-                <span>AI 接入文档</span>
+                <span>接入文档</span>
               </Link>
             </div>
           </div>
