@@ -25,7 +25,6 @@ import {
   Icons,
   Spinner,
 } from "@/components/admin/ui";
-import WechatAdaptModal from "@/components/admin/WechatAdaptModal";
 
 interface Post {
   id: string;
@@ -72,9 +71,6 @@ export default function ForumPostsPage() {
   const [deleting, setDeleting] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [wechatSyncing, setWechatSyncing] = useState<string | null>(null);
-  // 公众号适配弹窗
-  const [wechatAdaptOpen, setWechatAdaptOpen] = useState(false);
-  const [wechatAdaptPost, setWechatAdaptPost] = useState<Post | null>(null);
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -402,23 +398,9 @@ export default function ForumPostsPage() {
                         title={post.isLocked ? "解锁" : "锁定"}
                       />
                       <IconButton
-                        icon={
-                          wechatSyncing === post.id ? (
-                            <Spinner className="w-4 h-4" />
-                          ) : (
-                            <span className="text-base leading-none">💬</span>
-                          )
-                        }
+                        icon={<span className="text-base leading-none">📱</span>}
                         onClick={() => handleWechatSync(post)}
                         title="同步到微信"
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">📱</span>}
-                        onClick={() => {
-                          setWechatAdaptPost(post);
-                          setWechatAdaptOpen(true);
-                        }}
-                        title="生成公众号版"
                       />
                       {post.status !== "DELETED" && (
                         <IconButton
@@ -467,17 +449,6 @@ export default function ForumPostsPage() {
           if (!deleting) setDeleteTarget(null);
         }}
         danger
-      />
-
-      {/* 公众号适配弹窗 */}
-      <WechatAdaptModal
-        postId={wechatAdaptPost?.id || ""}
-        postTitle={wechatAdaptPost?.title || ""}
-        open={wechatAdaptOpen}
-        onClose={() => {
-          setWechatAdaptOpen(false);
-          setWechatAdaptPost(null);
-        }}
       />
     </AdminLayout>
   );

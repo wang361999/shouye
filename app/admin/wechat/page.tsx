@@ -23,6 +23,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import { adminFetch } from "@/lib/admin-fetch";
 import toast from "react-hot-toast";
+import ContentAdaptModal from "@/components/admin/ContentAdaptModal";
 
 // ============ Types ============
 type SyncStatus = "draft" | "published" | "failed" | "deleted" | "generated";
@@ -190,6 +191,11 @@ export default function WeChatSyncPage() {
   const [postTotalPages, setPostTotalPages] = useState(1);
   const [postTotal, setPostTotal] = useState(0);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
+  // 预览加载中
+  const [adaptOpen, setAdaptOpen] = useState(false);
+  const [adaptPostId, setAdaptPostId] = useState("");
+  const [adaptPostTitle, setAdaptPostTitle] = useState("");
 
   const isPersonal = config.accountType === "personal";
   const isConfigured = config.configured;
@@ -635,6 +641,53 @@ export default function WeChatSyncPage() {
                 </p>
               </div>
             )}
+          </CardBody>
+        </Card>
+
+        {/* 多平台内容适配 */}
+        <Card>
+          <CardHeader
+            title="多平台内容适配"
+            subtitle="AI 一键生成公众号版/头条版内容，标题、正文、封面图全套搞定"
+            action={
+              <Button
+                onClick={() => {
+                  setAdaptPostId("");
+                  setAdaptPostTitle("");
+                  setAdaptOpen(true);
+                }}
+              >
+                <span className="mr-1.5">✨</span>
+                开始适配
+              </Button>
+            }
+          />
+          <CardBody>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                <div className="text-lg mb-2">📱 公众号版</div>
+                <ul className="text-xs text-gray-600 space-y-1">
+                  <li>✓ 3个爆款标题候选</li>
+                  <li>✓ 开头钩子 + 口语化改写</li>
+                  <li>✓ 分段优化 + 重点加粗</li>
+                  <li>✓ 封面图文案 + AI绘图提示词</li>
+                  <li>✓ 核心要点提炼</li>
+                </ul>
+              </div>
+              <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border border-orange-100">
+                <div className="text-lg mb-2">📰 头条版</div>
+                <ul className="text-xs text-gray-600 space-y-1">
+                  <li>✓ 5个不同风格标题</li>
+                  <li>✓ 原创优化（个人化表达）</li>
+                  <li>✓ 配图建议 + 金句提炼</li>
+                  <li>✓ 话题标签推荐</li>
+                  <li>✓ 四连互动引导</li>
+                </ul>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-3">
+              💡 提示：头条版加入了原创优化，多用"我觉得""亲测"等个人化表达，提高原创通过率
+            </p>
           </CardBody>
         </Card>
 
@@ -1152,6 +1205,14 @@ export default function WeChatSyncPage() {
           </div>
         </div>
       )}
+
+      {/* 多平台内容适配弹窗 */}
+      <ContentAdaptModal
+        defaultPostId={adaptPostId}
+        defaultPostTitle={adaptPostTitle}
+        open={adaptOpen}
+        onClose={() => setAdaptOpen(false)}
+      />
     </AdminLayout>
   );
 }
