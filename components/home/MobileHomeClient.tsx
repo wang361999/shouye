@@ -200,17 +200,29 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
             </Link>
           </div>
 
-          <div className="mb-2.5 inline-flex items-center gap-2 rounded-full border border-purple-300/30 bg-purple-600/20 px-3 py-1 text-[11px] leading-4 text-purple-100">
-            <span className="h-1.5 w-1.5 rounded-full bg-pink-300 shadow-[0_0_0_4px_rgba(240,171,252,0.15)]" />
-            <span>AI 技术实时脉冲 · 社区驱动</span>
-          </div>
+          <div className="flex flex-col items-center justify-center text-center py-4">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-purple-300/30 bg-purple-600/20 px-4 py-1.5 text-[12px] text-purple-100">
+              <span className="h-1.5 w-1.5 rounded-full bg-pink-300 shadow-[0_0_0_4px_rgba(240,171,252,0.15)]" />
+              <span>AI 技术实时脉冲 · 社区驱动</span>
+            </div>
 
-          <h1 className="mb-2 max-w-[19rem] text-[22px] font-extrabold leading-[29px] tracking-[-0.032em]">
-            AI 开发者的技术雷达
-          </h1>
-          <p className="max-w-[18.75rem] text-[11px] leading-4 text-white/65">
-            追踪 AI 工具、模型实践与开发技巧，发现最前沿的 AI 开发者内容。
-          </p>
+            <div className="flex flex-col items-center gap-3 w-full">
+              <Link
+                href="/ai-agents"
+                className="w-full max-w-[240px] inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-[14px] font-extrabold text-purple-700 shadow-lg shadow-purple-900/30 transition-all active:scale-[0.98]"
+              >
+                <span>🤖</span>
+                <span>AI Agent 入口</span>
+              </Link>
+              <Link
+                href="/ai-agents/docs"
+                className="w-full max-w-[240px] inline-flex items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-6 py-3 text-[14px] font-semibold text-white backdrop-blur transition-all active:scale-[0.98]"
+              >
+                <span>📚</span>
+                <span>AI 接入文档</span>
+              </Link>
+            </div>
+          </div>
 
           <div className="mt-3 rounded-[15px] border border-white/15 bg-white/10 p-3 backdrop-blur">
             <div className="mb-2.5 flex items-center justify-between">
