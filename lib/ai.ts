@@ -1,32 +1,154 @@
 /**
  * 统一 AI 调用模块
  *
- * 主力：GLM-5.2（智谱 AI 旗舰模型，NVIDIA 平台托管，编程/推理能力强）
- * 一级兜底：Agnes AI（免费，新加坡 Sapiens AI）
- * 二级兜底：环境变量配置的 AI 服务（Gemini 等）
+ * 模型优先级和配置由后台管理面板控制（系统设置 ai_models_config）。
+ * 后台未配置时使用内置默认值。
  *
  * 策略：
- *   1. 优先调用 GLM-5.2，失败时自动降级到 Agnes AI
- *   2. Agnes AI 也失败时，降级到环境变量配置的服务
- *   3. 三个都失败才抛出错误
+ *   1. 按后台配置的优先级顺序依次尝试启用的模型
+ *   2. 某个模型失败后自动降级到下一个
+ *   3. 所有启用的模型都失败才抛出错误
  */
 
-/** GLM-5.2 配置（主力，NVIDIA 平台） */
-const GLM_API_KEY = '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';
-const GLM_API_BASE = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const GLM_MODEL = 'z-ai/glm-5.2';
+import prisma from '@/lib/prisma';
 
-/** Agnes AI 配置（一级兜底） */
-const AGNES_API_KEY = 'sk-cLl30kp5lGb1p8RUmrQRepLg3YcqUYBHbVk1qk4SrL3UKCNh';
-const AGNES_API_BASE = 'https://api.agnes-ai.cn/v1/chat/completions';
-const AGNES_MODEL = 'agnes-2.5-flash';
+// ============ 类型定义 ============
 
-/** 二级兜底 AI 配置（从环境变量读取，默认 Gemini） */
-const FALLBACK_API_KEY = process.env.AI_API_KEY || '';
-const FALLBACK_API_BASE =
-  process.env.AI_API_BASE ||
-  'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const FALLBACK_MODEL = process.env.AI_MODEL || 'gemini-3.6-flash';
+export interface AIModelConfig {
+  /** 模型唯一标识 */
+  id: string;
+  /** 显示名称 */
+  name: string;
+  /** 提供商描述 */
+  provider: string;
+  /** API Key */
+  apiKey: string;
+  /** API 端点（OpenAI 兼容格式） */
+  apiBase: string;
+  /** 模型名称 */
+  model: string;
+  /** 是否启用 */
+  enabled: boolean;
+  /** 优先级（数字越小越优先，1 = 主力） */
+  priority: number;
+}
+
+export interface AIModelsConfig {
+  /** 模型列表 */
+  models: AIModelConfig[];
+}
+
+// ============ 内置默认配置 ============
+
+const DEFAULT_MODELS_CONFIG: AIModelsConfig = {
+  models: [
+    {
+      id: 'glm',
+      name: 'GLM-5.2',
+      provider: '智谱 AI (NVIDIA 平台托管)',
+      apiKey: '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',
+      apiBase: 'https://integrate.api.nvidia.com/v1/chat/completions',
+      model: 'z-ai/glm-5.2',
+      enabled: true,
+      priority: 1,
+    },
+    {
+      id: 'agnes',
+      name: 'Agnes-2.5-flash',
+      provider: 'Agnes AI (新加坡 Sapiens AI)',
+      apiKey: 'sk-cLl30kp5lGb1p8RUmrQRepLg3YcqUYBHbVk1qk4SrL3UKCNh',
+      apiBase: 'https://api.agnes-ai.cn/v1/chat/completions',
+      model: 'agnes-2.5-flash',
+      enabled: true,
+      priority: 2,
+    },
+    {
+      id: 'gemini',
+      name: 'Gemini 3.6-flash',
+      provider: 'Google',
+      apiKey: '',
+      apiBase: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      model: 'gemini-3.6-flash',
+      enabled: false,
+      priority: 3,
+    },
+  ],
+};
+
+// ============ 配置缓存 ============
+
+let cachedConfig: AIModelsConfig | null = null;
+let cacheExpiry = 0;
+const CACHE_TTL = 30_000; // 30 秒缓存，平衡性能与实时性
+
+/**
+ * 从数据库读取 AI 模型配置
+ * 如果数据库未配置，返回内置默认值
+ */
+export async function getAIModelsConfig(): Promise<AIModelsConfig> {
+  // 检查缓存
+  const now = Date.now();
+  if (cachedConfig && now < cacheExpiry) {
+    return cachedConfig;
+  }
+
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'ai_models_config' },
+    });
+
+    if (setting?.value) {
+      const parsed = JSON.parse(setting.value) as AIModelsConfig;
+      if (parsed.models && Array.isArray(parsed.models) && parsed.models.length > 0) {
+        cachedConfig = parsed;
+        cacheExpiry = now + CACHE_TTL;
+        return parsed;
+      }
+    }
+  } catch {
+    // 数据库不可用时降级使用默认值
+  }
+
+  cachedConfig = DEFAULT_MODELS_CONFIG;
+  cacheExpiry = now + CACHE_TTL;
+  return DEFAULT_MODELS_CONFIG;
+}
+
+/**
+ * 同步获取缓存的 AI 模型配置（不查询数据库）
+ * 如果缓存为空则返回默认值
+ */
+export function getAIModelsConfigSync(): AIModelsConfig {
+  if (cachedConfig) return cachedConfig;
+  return DEFAULT_MODELS_CONFIG;
+}
+
+/**
+ * 清除配置缓存（保存配置后调用）
+ */
+export function clearAIConfigCache(): void {
+  cachedConfig = null;
+  cacheExpiry = 0;
+}
+
+/**
+ * 获取默认配置（用于后台初始化）
+ */
+export function getDefaultAIModelsConfig(): AIModelsConfig {
+  return JSON.parse(JSON.stringify(DEFAULT_MODELS_CONFIG));
+}
+
+/**
+ * 获取按优先级排序的已启用模型列表
+ */
+export async function getEnabledModels(): Promise<AIModelConfig[]> {
+  const config = await getAIModelsConfig();
+  return config.models
+    .filter((m) => m.enabled && m.apiKey)
+    .sort((a, b) => a.priority - b.priority);
+}
+
+// ============ 调用选项与结果 ============
 
 export interface AICallOptions {
   /** 系统提示词 */
@@ -45,18 +167,22 @@ export interface AICallResult {
   /** AI 返回的文本内容 */
   content: string;
   /** 实际使用的服务名称 */
-  provider: 'glm' | 'agnes' | 'fallback';
+  provider: string;
+  /** 实际使用的模型 ID */
+  modelId: string;
 }
 
+// ============ 核心 AI 调用函数 ============
+
 /**
- * 调用 AI 补全接口（带三级兜底）
+ * 调用 AI 补全接口（按后台配置的优先级自动降级）
  *
- * 优先调用 GLM-5.2，失败时自动降级到 Agnes AI，再降级到环境变量配置的服务。
+ * 按优先级依次尝试已启用的模型，某个失败后自动降级到下一个。
  *
  * @param prompt 用户提示词
  * @param options 调用选项
- * @returns AI 返回内容和使用的服务名称
- * @throws 所有服务都失败时抛出错误
+ * @returns AI 返回内容和使用的服务信息
+ * @throws 所有启用的模型都失败时抛出错误
  */
 export async function callAICompletion(
   prompt: string,
@@ -138,38 +264,36 @@ export async function callAICompletion(
     }
   }
 
+  // 获取已启用的模型（按优先级排序）
+  const enabledModels = await getEnabledModels();
+
+  if (enabledModels.length === 0) {
+    throw new Error('没有可用的 AI 模型，请在后台启用至少一个模型并配置 API Key');
+  }
+
   const errors: string[] = [];
 
-  // 1. 尝试 GLM-5.2（主力）
-  try {
-    const content = await requestWithJsonFallback(GLM_API_BASE, GLM_API_KEY, GLM_MODEL, jsonMode);
-    return { content: content.trim(), provider: 'glm' };
-  } catch (err) {
-    errors.push(`GLM-5.2: ${err instanceof Error ? err.message : '失败'}`);
-    console.warn('[AI] GLM-5.2 调用失败，降级到 Agnes AI:', err instanceof Error ? err.message : String(err));
+  for (const modelConfig of enabledModels) {
+    try {
+      const content = await requestWithJsonFallback(
+        modelConfig.apiBase,
+        modelConfig.apiKey,
+        modelConfig.model,
+        jsonMode,
+      );
+      return {
+        content: content.trim(),
+        provider: modelConfig.name,
+        modelId: modelConfig.id,
+      };
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : '失败';
+      errors.push(`${modelConfig.name}: ${errMsg}`);
+      console.warn(`[AI] ${modelConfig.name} 调用失败，尝试下一个模型:`, errMsg);
+    }
   }
 
-  // 2. 尝试 Agnes AI（一级兜底）
-  try {
-    const content = await requestWithJsonFallback(AGNES_API_BASE, AGNES_API_KEY, AGNES_MODEL, jsonMode);
-    return { content: content.trim(), provider: 'agnes' };
-  } catch (err) {
-    errors.push(`Agnes: ${err instanceof Error ? err.message : '失败'}`);
-    console.warn('[AI] Agnes AI 调用失败，降级到兜底服务:', err instanceof Error ? err.message : String(err));
-  }
-
-  // 3. 降级到环境变量配置的服务（二级兜底）
-  if (!FALLBACK_API_KEY) {
-    throw new Error(`AI 服务全部不可用。${errors.join('; ')}`);
-  }
-
-  try {
-    const content = await requestWithJsonFallback(FALLBACK_API_BASE, FALLBACK_API_KEY, FALLBACK_MODEL, jsonMode);
-    return { content: content.trim(), provider: 'fallback' };
-  } catch (err) {
-    errors.push(`兜底: ${err instanceof Error ? err.message : '失败'}`);
-    throw new Error(`AI 服务全部不可用。${errors.join('; ')}`);
-  }
+  throw new Error(`AI 服务全部不可用。${errors.join('; ')}`);
 }
 
 /**
@@ -189,7 +313,15 @@ export async function callAI(
 /**
  * 检查 AI 服务是否可用
  */
-export function isAIAvailable(): boolean {
-  // GLM-5.2 和 Agnes 始终可用（密钥内置），或者兜底服务已配置
-  return true;
+export async function isAIAvailable(): Promise<boolean> {
+  const enabled = await getEnabledModels();
+  return enabled.length > 0;
+}
+
+/**
+ * 同步检查（基于缓存）
+ */
+export function isAIAvailableSync(): boolean {
+  const config = getAIModelsConfigSync();
+  return config.models.some((m) => m.enabled && m.apiKey);
 }

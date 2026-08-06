@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth';
 import { getFileTree, readFile, listDir, type FileChange, type RepoContext } from '@/lib/github-file-api';
+import { getEnabledModels, type AIModelConfig } from '@/lib/ai';
 
 /**
  * POST /api/coder/chat
  *
  * AI 编程助手聊天接口（流式版本）
- * 使用 GLM-5.2 模型，通过 agentic loop 自动读取文件、分析代码、提出修改方案
+ * 使用后台配置的主力 AI 模型，通过 agentic loop 自动读取文件、分析代码、提出修改方案
  * 使用 SSE (Server-Sent Events) 流式返回，用户可实时看到 AI 的回复
  *
  * 事件类型：
@@ -16,10 +17,6 @@ import { getFileTree, readFile, listDir, type FileChange, type RepoContext } fro
  *   done    — 完成
  *   error   — 出错
  */
-
-const GLM_API_KEY = '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';
-const GLM_API_BASE = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const GLM_MODEL = 'z-ai/glm-5.2';
 
 const MAX_ITERATIONS = 5;
 
@@ -60,24 +57,31 @@ async function getCachedFileTree(ctx?: Partial<RepoContext>): Promise<string> {
   return trimmed;
 }
 
-// ============ GLM 流式调用（带重试） ============
+// ============ AI 流式调用（带重试） ============
 /**
- * 调用 GLM-5.2 并以 async generator 形式逐 token 返回
+ * 调用主力 AI 模型并以 async generator 形式逐 token 返回
  * 自动重试：超时或网络错误时最多重试 2 次
  */
-async function* callGLMStream(messages: ChatMessage[]): AsyncGenerator<string> {
+async function* callAIStream(messages: ChatMessage[]): AsyncGenerator<string> {
+  // 获取后台配置的已启用模型（按优先级排序）
+  const enabledModels = await getEnabledModels();
+  if (enabledModels.length === 0) {
+    throw new Error('没有可用的 AI 模型，请在后台启用至少一个模型');
+  }
+
+  const primaryModel = enabledModels[0];
   const MAX_RETRIES = 2;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await fetch(GLM_API_BASE, {
+      const response = await fetch(primaryModel.apiBase, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${GLM_API_KEY}`,
+          Authorization: `Bearer ${primaryModel.apiKey}`,
         },
         body: JSON.stringify({
-          model: GLM_MODEL,
+          model: primaryModel.model,
           messages,
           max_tokens: 8192,
           temperature: 0.3,
@@ -88,10 +92,10 @@ async function* callGLMStream(messages: ChatMessage[]): AsyncGenerator<string> {
 
       if (!response.ok) {
         const text = await response.text().catch(() => '');
-        throw new Error(`GLM API ${response.status}: ${text.slice(0, 300)}`);
+        throw new Error(`AI API ${response.status}: ${text.slice(0, 300)}`);
       }
 
-      if (!response.body) throw new Error('GLM 返回空响应体');
+      if (!response.body) throw new Error('AI 返回空响应体');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -136,7 +140,7 @@ async function* callGLMStream(messages: ChatMessage[]): AsyncGenerator<string> {
       );
 
       if (attempt < MAX_RETRIES) {
-        console.log(`[CODER] GLM 调用失败 (第${attempt + 1}次)，${isTimeout ? '超时' : '错误'}，${2 - attempt}秒后重试...`);
+        console.log(`[CODER] ${primaryModel.name} 调用失败 (第${attempt + 1}次)，${isTimeout ? '超时' : '错误'}，${2 - attempt}秒后重试...`);
         await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
         continue;
       }
@@ -292,7 +296,7 @@ export async function POST(request: NextRequest) {
             let sentLength = 0;
             const JSON_MARKER = '```json';
 
-            for await (const token of callGLMStream(conversation)) {
+            for await (const token of callAIStream(conversation)) {
               rawResponse += token;
 
               // 检测 JSON 代码块，只发送 JSON 之前的可读文本

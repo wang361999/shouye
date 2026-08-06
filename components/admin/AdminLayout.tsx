@@ -72,6 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "系统设置",
     items: [
       { key: "settings-site", label: "站点设置", href: "/admin/settings", icon: Icons.Settings },
+      { key: "settings-ai-models", label: "AI 模型配置", href: "/admin/settings/ai-models", icon: Icons.Robot },
       { key: "settings-security", label: "安全设置", href: "/admin/settings/security", icon: Icons.Lock },
       { key: "settings-oauth-apps", label: "OAuth 应用", href: "/admin/oauth-apps", icon: Icons.Key },
       { key: "settings-agreements", label: "协议文档", href: "/admin/settings/agreements", icon: Icons.Doc },
