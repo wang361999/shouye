@@ -7,6 +7,7 @@ import { Container } from '@/components/common/Container';
 import UserAvatar from '@/components/common/UserAvatar';
 import CommentList from '@/components/forum/CommentList';
 import MarkdownRenderer from '@/components/forum/MarkdownRenderer';
+import PostSEO, { extractSummary } from '@/components/forum/PostSEO';
 import { ReputationBadge, FollowButton } from '@/components/forum/ReputationBadge';
 import { useAppStore } from '@/lib/store';
 import toast from 'react-hot-toast';
@@ -19,6 +20,7 @@ interface Post {
   id: string;
   title: string;
   content: string;
+  summary?: string;
   author: { id: string; username: string; avatar?: string | null; reputation?: number; badge?: string | null; isAIAgent?: boolean };
   category: { id: string; name: string; slug: string };
   viewCount: number;
@@ -73,6 +75,7 @@ function normalizePost(data: any): Post {
     id: String(data?.id || ""),
     title: data?.title || "无标题帖子",
     content: typeof data?.content === "string" ? data.content : "",
+    summary: data?.summary || undefined,
     author,
     category,
     viewCount: Number(data?.viewCount || 0),
@@ -299,8 +302,26 @@ export default function PostDetailPage({
   const isQuestion = post.postType === 'question';
 
   return (
-    <Container className="py-8 max-w-4xl">
-      {/* 返回链接 */}
+    <>
+      {/* SEO 结构化数据 + Meta Description */}
+      <PostSEO
+        title={post.title}
+        description={post.summary || extractSummary(post.content)}
+        author={post.author.username}
+        datePublished={post.createdAt}
+        dateModified={post.createdAt}
+        tags={post.tags?.map(t => t.tag.name) || []}
+        url={`/forum/post/${id}`}
+      />
+
+      {/* 阅读进度条（固定在顶部） */}
+      <ReadingProgressBar />
+
+      <Container className="py-8 max-w-4xl relative">
+        {/* 浮动目录（仅桌面端显示，贴在内容右侧） */}
+        <TableOfContents content={post.content} />
+
+        {/* 返回链接 */}
       <Link
         href="/forum"
         className="inline-block text-[11px] sm:text-sm text-gray-500 hover:text-blue-600 transition-colors mb-4"
@@ -490,6 +511,9 @@ export default function PostDetailPage({
         </div>
       )}
 
+      {/* 上一篇/下一篇导航 */}
+      <PostNavigation postId={id} />
+
       {/* 分割线 */}
       <hr className="border-gray-200 mb-6" />
 
@@ -510,6 +534,7 @@ export default function PostDetailPage({
         />
       </div>
     </Container>
+    </>
   );
 }
 
@@ -569,6 +594,214 @@ function ReportForm({ onSubmit, onCancel }: { onSubmit: (reason: string, descrip
           提交举报
         </button>
       </div>
+    </div>
+  );
+}
+
+// ========== 上一篇/下一篇导航组件 ==========
+interface NavPost {
+  id: string;
+  title: string;
+}
+
+function PostNavigation({ postId }: { postId: string }) {
+  const [prevPost, setPrevPost] = useState<NavPost | null>(null);
+  const [nextPost, setNextPost] = useState<NavPost | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch(`/api/forum/posts/${postId}/related?limit=5`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!mounted) return;
+        if (data?.prevPost) setPrevPost(data.prevPost);
+        if (data?.nextPost) setNextPost(data.nextPost);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [postId]);
+
+  if (loading || (!prevPost && !nextPost)) return null;
+
+  return (
+    <div className="mt-8 mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* 上一篇 */}
+      {prevPost ? (
+        <Link
+          href={`/forum/post/${prevPost.id}`}
+          className="block p-4 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-200 transition-colors group"
+        >
+          <div className="text-[11px] text-gray-400 mb-1 flex items-center gap-1">
+            <span>&larr;</span>
+            <span>上一篇</span>
+          </div>
+          <div className="text-sm font-medium text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+            {prevPost.title}
+          </div>
+        </Link>
+      ) : (
+        <div />
+      )}
+
+      {/* 下一篇 */}
+      {nextPost ? (
+        <Link
+          href={`/forum/post/${nextPost.id}`}
+          className="block p-4 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-200 transition-colors group text-right"
+        >
+          <div className="text-[11px] text-gray-400 mb-1 flex items-center justify-end gap-1">
+            <span>下一篇</span>
+            <span>&rarr;</span>
+          </div>
+          <div className="text-sm font-medium text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+            {nextPost.title}
+          </div>
+        </Link>
+      ) : (
+        <div />
+      )}
+    </div>
+  );
+}
+
+// ========== 阅读进度条组件 ==========
+function ReadingProgressBar() {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const updateProgress = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (docHeight > 0) {
+        setProgress(Math.min(100, (scrollTop / docHeight) * 100));
+      }
+    };
+
+    updateProgress();
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    window.addEventListener('resize', updateProgress);
+    return () => {
+      window.removeEventListener('scroll', updateProgress);
+      window.removeEventListener('resize', updateProgress);
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 h-1 bg-transparent z-50"
+      style={{ pointerEvents: 'none' }}
+    >
+      <div
+        className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-150 ease-out"
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  );
+}
+
+// ========== 文章目录（TOC）组件 ==========
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
+function extractHeadings(content: string): TocItem[] {
+  const headings: TocItem[] = [];
+  const lines = content.split('\n');
+  let inCodeBlock = false;
+
+  for (const line of lines) {
+    if (line.trim().startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (inCodeBlock) continue;
+
+    const match = line.match(/^(#{2,3})\s+(.+)$/);
+    if (match) {
+      const level = match[1].length; // 2 或 3
+      const text = match[2].trim().replace(/[#*`]/g, '').trim();
+      const id = text
+        .toLowerCase()
+        .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      if (text && id) {
+        headings.push({ id, text, level });
+      }
+    }
+  }
+
+  return headings.slice(0, 20); // 最多显示 20 个标题
+}
+
+function TableOfContents({ content }: { content: string }) {
+  const [headings, setHeadings] = useState<TocItem[]>([]);
+  const [activeId, setActiveId] = useState<string>('');
+
+  useEffect(() => {
+    const items = extractHeadings(content);
+    setHeadings(items);
+  }, [content]);
+
+  useEffect(() => {
+    if (headings.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter(e => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          setActiveId(visible[0].target.id);
+        }
+      },
+      { rootMargin: '-80px 0px -70% 0px', threshold: 0 }
+    );
+
+    headings.forEach(h => {
+      const el = document.getElementById(h.id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [headings]);
+
+  if (headings.length < 3) return null; // 标题太少不显示目录
+
+  return (
+    <div className="hidden lg:block fixed top-24 right-[calc(50%-40rem)] w-56 max-h-[calc(100vh-8rem)] overflow-y-auto text-sm">
+      <div className="mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        目录
+      </div>
+      <nav className="space-y-1 border-l-2 border-gray-100">
+        {headings.map((h) => (
+          <a
+            key={h.id}
+            href={`#${h.id}`}
+            className={`block py-1 pr-2 text-xs transition-colors border-l-2 -ml-[2px] ${
+              h.level === 3 ? 'pl-6' : 'pl-3'
+            } ${
+              activeId === h.id
+                ? 'text-blue-600 border-blue-500 font-medium'
+                : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={(e) => {
+              e.preventDefault();
+              const el = document.getElementById(h.id);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }}
+          >
+            {h.text.length > 30 ? h.text.slice(0, 28) + '...' : h.text}
+          </a>
+        ))}
+      </nav>
     </div>
   );
 }

@@ -52,6 +52,7 @@ interface CollabProject {
 interface CommunityData {
   latestPosts: CommunityPost[];
   hotPosts: CommunityPost[];
+  essencePosts: CommunityPost[];
   aiHotPosts: CommunityPost[];
   activeMembers: ActiveMember[];
   collabProjects: CollabProject[];
@@ -341,6 +342,7 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
 
   const stats = data?.stats ?? { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 };
   const aiHotPosts = data?.aiHotPosts ?? [];
+  const essencePosts = data?.essencePosts ?? [];
 
   return (
     <div className="min-h-screen bg-white">
@@ -469,7 +471,96 @@ export default function CommunityHomeClient({ siteName, siteDesc }: CommunityHom
         </Container>
       </section>
 
-      {/* ============ 2. 社区动态区 ============ */}
+      {/* ============ 2. 精华推荐区 ============ */}
+      {!loading && !loadError && essencePosts.length > 0 && (
+        <section className="bg-white py-12 md:py-16 border-b border-gray-100">
+          <Container>
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <span className="h-px w-8 bg-amber-300" />
+              <span className="text-sm font-medium uppercase tracking-widest text-amber-500">Featured</span>
+              <span className="h-px w-8 bg-amber-300" />
+            </div>
+            <h2 className="mb-3 text-center text-3xl font-bold text-gray-900 md:text-4xl">
+              精华推荐
+            </h2>
+            <p className="mb-10 text-center text-gray-500">
+              社区精选高质量内容，不容错过
+            </p>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {essencePosts.map((post, idx) => (
+                <Link
+                  key={post.id}
+                  href={`/forum/post/${post.id}`}
+                  className="group relative block overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-amber-200"
+                >
+                  {/* 排名角标 */}
+                  {idx < 3 && (
+                    <div className={cn(
+                      "absolute -right-6 -top-6 h-16 w-16 rotate-45 flex items-end justify-center pb-1 text-xs font-bold text-white",
+                      idx === 0 ? "bg-gradient-to-br from-red-400 to-red-500" :
+                      idx === 1 ? "bg-gradient-to-br from-amber-400 to-orange-500" :
+                      "bg-gradient-to-br from-blue-400 to-blue-500"
+                    )}>
+                      <span className="-rotate-0 translate-y-1">TOP {idx + 1}</span>
+                    </div>
+                  )}
+
+                  {/* 标签行 */}
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {post.category && (
+                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                        {post.category.name}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      ⭐ 精华
+                    </span>
+                  </div>
+
+                  {/* 标题 */}
+                  <h3 className="text-base font-bold text-gray-900 group-hover:text-amber-600 transition-colors line-clamp-2 mb-2 leading-snug">
+                    {post.title}
+                  </h3>
+
+                  {/* 摘要 */}
+                  {post.summary && (
+                    <p className="text-sm text-gray-500 line-clamp-2 mb-3 leading-relaxed">
+                      {post.summary}
+                    </p>
+                  )}
+
+                  {/* 底部信息 */}
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <div className="flex items-center gap-1">
+                      <UserAvatar username={post.author.username} avatar={post.author.avatar} size="sm" />
+                      <span className="text-gray-600">{post.author.username}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>👁 {post.viewCount}</span>
+                      <span>💬 {post.commentCount}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-8 text-center">
+              <Link
+                href="/forum?sort=essence"
+                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-amber-600 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors border border-amber-200"
+              >
+                查看全部精华
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+          </Container>
+        </section>
+      )}
+
+      {/* ============ 3. 社区动态区 ============ */}
       <section ref={forumRef} className="bg-gray-50 py-16 md:py-20">
         <Container>
           <div className="mb-4 flex items-center justify-center gap-2">

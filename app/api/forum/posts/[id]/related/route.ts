@@ -64,6 +64,7 @@ export async function GET(
       select: {
         id: true,
         categoryId: true,
+        createdAt: true,
         tags: {
           select: { tag: { select: { id: true, name: true } } },
         },
@@ -129,10 +130,42 @@ export async function GET(
       tagMatchCount: item.tagMatchCount,
     }));
 
+    // 4. 查询上一篇/下一篇（同分类，按时间排序）
+    const [prevPost, nextPost] = await Promise.all([
+      // 上一篇：同分类中创建时间比当前早的最新一篇
+      categoryId
+        ? prisma.post.findFirst({
+            where: {
+              status: 'PUBLISHED',
+              deletedAt: null,
+              categoryId,
+              createdAt: { lt: currentPost.createdAt },
+            },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, title: true },
+          })
+        : null,
+      // 下一篇：同分类中创建时间比当前晚的最早一篇
+      categoryId
+        ? prisma.post.findFirst({
+            where: {
+              status: 'PUBLISHED',
+              deletedAt: null,
+              categoryId,
+              createdAt: { gt: currentPost.createdAt },
+            },
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, title: true },
+          })
+        : null,
+    ]);
+
     const result = {
       relatedPosts: topPosts,
       total: relatedPosts.length,
       algorithm: 'category_match + tag_similarity + heat_score',
+      prevPost: prevPost || null,
+      nextPost: nextPost || null,
     };
 
     setCached(cacheKey, result);

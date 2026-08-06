@@ -1,9 +1,9 @@
-name: Auto weekly report
+name: Auto tag optimizer
 
 on:
-  # 每周一上午 9 点（北京时间）自动生成周报
+  # 每天凌晨 3 点运行一次（北京时间）
   schedule:
-    - cron: '0 1 * * 1'
+    - cron: '0 19 * * *'
   workflow_dispatch:
 
 permissions:
@@ -11,14 +11,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: auto-weekly-report
+  group: auto-tag-optimizer
   cancel-in-progress: false
 
 jobs:
-  report:
-    name: Generate weekly community report
+  optimize:
+    name: Auto optimize post tags
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       SITE_URL: ${{ secrets.SITE_URL }}
       ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
@@ -26,7 +26,10 @@ jobs:
       AI_API_KEY: ${{ secrets.AI_API_KEY }}
       AI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
       AI_MODEL: gemini-3.6-flash
-      AUTHOR_NAME: ${{ secrets.WEEKLY_AUTHOR_NAME || 'GitdBot' }}
+      BATCH_SIZE: '15'
+      MIN_TAGS: '2'
+      MAX_TAGS: '5'
+      DRY_RUN: 'false'
 
     steps:
       - name: Checkout
@@ -37,5 +40,5 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Generate and publish weekly report
-        run: node scripts/auto-weekly-report.mjs
+      - name: Optimize tags
+        run: node scripts/auto-tag-optimizer.mjs

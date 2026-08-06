@@ -157,6 +157,31 @@ export default function MarkdownRenderer({
               </a>
             );
           },
+          // 标题加 id（用于目录锚点跳转）
+          h2({ children, ...props }: any) {
+            const text = String(children || '');
+            const id = text
+              .toLowerCase()
+              .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+              .replace(/^-+|-+$/g, '');
+            return (
+              <h2 id={id} className="scroll-mt-20" {...props}>
+                {children}
+              </h2>
+            );
+          },
+          h3({ children, ...props }: any) {
+            const text = String(children || '');
+            const id = text
+              .toLowerCase()
+              .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+              .replace(/^-+|-+$/g, '');
+            return (
+              <h3 id={id} className="scroll-mt-20" {...props}>
+                {children}
+              </h3>
+            );
+          },
         }}
       >
         {processedContent}

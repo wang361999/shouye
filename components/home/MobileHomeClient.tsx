@@ -49,6 +49,7 @@ interface FeaturedTool {
 interface CommunityData {
   latestPosts: CommunityPost[];
   hotPosts: CommunityPost[];
+  essencePosts: CommunityPost[];
   aiHotPosts: CommunityPost[];
   collabProjects: CollabProject[];
   featuredTools: FeaturedTool[];
@@ -157,6 +158,7 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
   const stats = data?.stats ?? { userCount: 0, postCount: 0, commentCount: 0, todayPostCount: 0 };
   const latestPosts = data?.latestPosts ?? EMPTY_POSTS;
   const hotPosts = data?.hotPosts ?? EMPTY_POSTS;
+  const essencePosts = data?.essencePosts ?? EMPTY_POSTS;
   const aiHotPosts = data?.aiHotPosts ?? EMPTY_POSTS;
   const projects = data?.collabProjects ?? EMPTY_PROJECTS;
   const tools = data?.featuredTools ?? EMPTY_TOOLS;
@@ -340,6 +342,49 @@ export default function MobileHomeClient({ siteName, siteDesc: _siteDesc }: Mobi
           </Link>
         ) : null}
       </section>
+
+      {/* 精华推荐 */}
+      {!loading && essencePosts.length > 0 && (
+        <section className="mt-3 px-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-[15px] font-extrabold leading-[22px] text-slate-950 flex items-center gap-1">
+              <span>⭐</span>
+              <span>精华推荐</span>
+            </h2>
+            <Link href="/forum?sort=essence" className="text-[11px] font-semibold leading-4 text-amber-600">更多</Link>
+          </div>
+          <div className="space-y-2">
+            {essencePosts.slice(0, 3).map((post, idx) => (
+              <Link
+                key={post.id}
+                href={`/forum/post/${post.id}`}
+                className="block rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50/50 to-white px-3 py-2.5"
+              >
+                <div className="flex items-start gap-2">
+                  <span className={cn(
+                    "shrink-0 mt-0.5 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold text-white",
+                    idx === 0 ? "bg-gradient-to-br from-red-400 to-red-500" :
+                    idx === 1 ? "bg-gradient-to-br from-amber-400 to-orange-500" :
+                    "bg-gradient-to-br from-blue-400 to-blue-500"
+                  )}>
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-[13px] font-semibold leading-5 text-slate-900 line-clamp-2">
+                      {post.title}
+                    </h3>
+                    <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                      <span className="text-amber-600">⭐ 精华</span>
+                      <span>{post.category?.name || '讨论'}</span>
+                      <span>👁 {formatNumber(post.viewCount)}</span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mt-3 px-4">
         <div className="mb-2 flex items-center justify-between">
