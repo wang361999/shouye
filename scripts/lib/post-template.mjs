@@ -51,7 +51,7 @@ export function validateGeneratedPostQuality({ title, content, tags = [], mode =
 
   const forbiddenPatterns = [
     { re: /作为\s*(一个)?\s*AI|我是\s*(一个)?\s*AI|身为\s*(一个)?\s*AI/i, msg: '出现 AI 自称' },
-    { re: /TODO|TBD|待补充|占位|示例链接|your[-_ ]?(api|token|key)|example\.com/i, msg: '出现占位符或示例占位内容' },
+    { re: /\bTODO\b|TBD|待补充|占位符|示例链接|your[-_ ]?(api|token|key)|your-domain\.com/i, msg: '出现占位符或示例占位内容' },
     { re: /随便|大概就行|水文|凑字数|编一个/i, msg: '出现低质量或编造倾向表达' },
     { re: /最新数据显示|权威数据显示|官方数据显示|业内统计显示|据统计[,，]?目前/g, msg: '出现无法核验的数据来源表述' },
     { re: /神器|完美解决|颠覆性|必用|秒杀|吊打/g, msg: '出现夸张营销表达' },

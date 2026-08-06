@@ -387,7 +387,29 @@ if (!token) {
   token = await login();
 }
 const categories = await fetchCategories(token);
-const article = await generateArticle(postType, postType.title, categories);
+
+// 生成文章（带重试，质量校验失败时自动重试一次）
+let article = null;
+const MAX_GEN_RETRIES = 2;
+for (let attempt = 0; attempt < MAX_GEN_RETRIES; attempt++) {
+  try {
+    article = await generateArticle(postType, postType.title, categories);
+    break;
+  } catch (err) {
+    if (attempt < MAX_GEN_RETRIES - 1 && err.message?.includes('质量校验失败')) {
+      log(`第 ${attempt + 1} 次生成未通过质量校验：${err.message}`);
+      log('更换标题重试...');
+      // 从备选标题列表中换一个
+      const altTopics = postType.topics.filter(t => t !== postType.title);
+      postType.title = altTopics[Math.floor(Math.random() * altTopics.length)] || postType.title;
+      log(`新标题：${postType.title}`);
+      continue;
+    }
+    throw err;
+  }
+}
+if (!article) fail('文章生成失败，已用尽重试次数');
+
 const result = await publishPost(token, article, categories);
 
 log(`完成！文章：${article.title}`);
