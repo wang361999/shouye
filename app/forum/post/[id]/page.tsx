@@ -493,6 +493,12 @@ export default function PostDetailPage({
       {/* 分割线 */}
       <hr className="border-gray-200 mb-6" />
 
+      {/* 相关文章推荐 */}
+      <RelatedPosts postId={id} />
+
+      {/* 分割线 */}
+      <hr className="border-gray-200 mb-6" />
+
       {/* 评论区 */}
       <div id="comment-section">
         <CommentList
@@ -562,6 +568,80 @@ function ReportForm({ onSubmit, onCancel }: { onSubmit: (reason: string, descrip
         >
           提交举报
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ========== 相关文章推荐组件 ==========
+interface RelatedPost {
+  id: string;
+  title: string;
+  category: { name: string; slug: string };
+  viewCount: number;
+  commentCount: number;
+  likeCount: number;
+  isEssence: boolean;
+  createdAt: string;
+  tagMatchCount: number;
+}
+
+function RelatedPosts({ postId }: { postId: string }) {
+  const [posts, setPosts] = useState<RelatedPost[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch(`/api/forum/posts/${postId}/related?limit=5`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!mounted) return;
+        if (data?.relatedPosts?.length > 0) {
+          setPosts(data.relatedPosts);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [postId]);
+
+  if (loading || posts.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+        <span>📚</span>
+        <span>相关文章</span>
+      </h3>
+      <div className="space-y-2">
+        {posts.map((p) => (
+          <Link
+            key={p.id}
+            href={`/forum/post/${p.id}`}
+            className="block p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 hover:border-blue-200 transition-colors group"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-medium text-gray-800 group-hover:text-blue-600 transition-colors line-clamp-1">
+                  {p.isEssence && <span className="text-violet-500 mr-1">⭐</span>}
+                  {p.title}
+                </h4>
+                <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-400">
+                  <span>{p.category?.name || '讨论'}</span>
+                  <span>👁 {p.viewCount}</span>
+                  <span>💬 {p.commentCount}</span>
+                </div>
+              </div>
+              {p.tagMatchCount > 0 && (
+                <span className="shrink-0 text-[10px] text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                  {p.tagMatchCount} 个标签匹配
+                </span>
+              )}
+            </div>
+          </Link>
+        ))}
       </div>
     </div>
   );

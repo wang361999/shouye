@@ -29,6 +29,7 @@ import {
   pickDiverseTopic,
   estimateSimilarity,
 } from './lib/post-template.mjs';
+import { getRandomChallenge, CHALLENGE_IDEAS } from './lib/content-types.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -405,6 +406,81 @@ ${topic}
   return parsed;
 }
 
+// ===== 生成话题挑战帖子（UGC 引导）=====
+async function generateChallengePost(persona, categories) {
+  const challenge = getRandomChallenge();
+  const categoryNames = categories.map(c => c.name).join('、') || '综合讨论';
+
+  const prompt = `你是社区活跃用户"${persona.name}"，${persona.desc}。
+你的说话风格：${persona.style}
+
+请发起一个社区话题挑战，引导大家参与讨论。
+
+## 挑战主题
+${challenge.title}
+${challenge.description}
+
+## 要求
+1. 用第一人称写，像真实用户在发起活动一样有感染力。
+2. 内容用 Markdown 格式，结构清晰，有明确的参与规则。
+3. 长度 400-800 字，简洁有力，不要太长。
+4. 要有号召力，能激发大家的参与欲望。
+5. 必须体现你的人设特点和说话风格。
+6. 不要写"作为 AI""我是 AI"之类表达。
+7. 结尾要有明确的行动号召，告诉大家怎么参与。
+
+## 内容结构建议
+
+## 本期挑战
+（一句话说明挑战是什么，简洁有吸引力）
+
+## 为什么发起这个挑战
+（简单说一下背景，为什么值得参与）
+
+## 参与规则
+1. 规则一
+2. 规则二
+3. 参与方式说明
+
+## 举个例子
+（给一个简单的示例，降低参与门槛）
+
+## 怎么参与
+（具体步骤：发帖、加标签、评论区回复等）
+
+## 输出格式
+只输出一个 JSON 对象，不要任何其他文字：
+{
+  "title": "吸引人的挑战标题，带【挑战】或【征集】前缀",
+  "content": "Markdown 格式正文，换行用 \\\\n",
+  "tags": ["挑战", "标签2", "标签3"]
+}
+
+论坛分类：${categoryNames}
+建议选择一个合适的分类发帖。`;
+
+  const content = await callAI({
+    prompt,
+    systemPrompt: `你是社区活跃用户${persona.name}，发起有趣的话题挑战引导大家参与。你的风格：${persona.style}。必须只输出一个有效 JSON 对象。`,
+    maxTokens: 2000,
+    responseFormat: { type: 'json_object' },
+    tag: TAG,
+  });
+
+  const parsed = robustJSONParse(content);
+  if (!parsed.title || !parsed.content) {
+    throw new Error('AI 生成的挑战帖缺少 title 或 content');
+  }
+  parsed.title = normalizeTitle(parsed.title, challenge.title);
+  parsed.tags = normalizeTags([...(parsed.tags || []), ...challenge.tags], persona.tags || ['讨论']);
+  parsed.content = appendProfessionalFooter(parsed.content, {
+    discussionQuestion: '你打算怎么参与这个挑战？来评论区说说你的想法吧！',
+    includeAiNote: false,
+  });
+  log(`挑战帖：${parsed.title}`);
+  return parsed;
+}
+
 // ===== 发布帖子 =====
 async function publishPost(token, postData, categories, persona) {
   let categoryId = null;
@@ -544,10 +620,21 @@ async function main() {
   try {
     if (action < 0.5 || action >= 0.8) {
       log('--- 执行发帖 ---');
-      const postData = await generatePost(
-        agent.persona || { name: agent.username, desc: '社区用户', style: '自然分享', tags: ['开发经验', '技术讨论'] },
-        categories
-      );
+      // 20% 概率发起话题挑战帖（UGC 引导）
+      const isChallenge = Math.random() < 0.2;
+      let postData;
+      if (isChallenge) {
+        log('本次发布：话题挑战帖');
+        postData = await generateChallengePost(
+          agent.persona || { name: agent.username, desc: '社区用户', style: '自然分享', tags: ['开发经验', '技术讨论'] },
+          categories
+        );
+      } else {
+        postData = await generatePost(
+          agent.persona || { name: agent.username, desc: '社区用户', style: '自然分享', tags: ['开发经验', '技术讨论'] },
+          categories
+        );
+      }
       await publishPost(agent.token, postData, categories, agent.persona);
       didPost = true;
     }

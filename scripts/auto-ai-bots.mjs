@@ -33,6 +33,14 @@ import {
   getRandomContentAngle,
   pickRandom,
 } from './lib/post-template.mjs';
+import {
+  pickRandomContentType,
+  getContentTypeTemplate,
+  getRandomSeriesTopic,
+  buildSeriesPrefix,
+  getRandomChallenge,
+  CONTENT_SERIES,
+} from './lib/content-types.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
@@ -431,25 +439,94 @@ function autoFixContent(content) {
   return fixed.trim();
 }
 
-// ===== 调用 AI 生成帖子（多样化版本）=====
-async function generatePostContent(bot, title, categories, angle) {
+// ===== 调用 AI 生成帖子（多样化版本 + 多种内容类型）=====
+async function generatePostContent(bot, title, categories, angle, contentType = 'normal', extraMeta = {}) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
-  const { rules, meta } = buildDiversePromptRules({ mode: 'deep', botPersona: bot.authorName, topic: title });
+
+  // 根据内容类型选择结构模板
+  let structure;
+  let lengthRange;
+  let typeName = '普通文章';
+  const contentTypeTemplate = getContentTypeTemplate(contentType);
+
+  if (contentTypeTemplate) {
+    structure = { name: contentTypeTemplate.typeName, structure: contentTypeTemplate.structure };
+    lengthRange = contentTypeTemplate.lengthRange;
+    typeName = contentTypeTemplate.typeName;
+  } else {
+    const { meta } = buildDiversePromptRules({ mode: 'deep', botPersona: bot.authorName, topic: title });
+    structure = meta.structure;
+    lengthRange = meta.structure.lengthRange;
+  }
+
+  // 构建通用的多样化规则（风格、开头、结尾、讨论问题）
+  const { rules, meta: baseMeta } = buildDiversePromptRules({ mode: 'deep', botPersona: bot.authorName, topic: title });
+
+  // 系列文章特殊处理
+  let seriesIntro = '';
+  let extraTags = [];
+  if (contentType === 'series' && extraMeta.seriesInfo) {
+    const prefix = buildSeriesPrefix(extraMeta.seriesInfo);
+    seriesIntro = prefix.intro;
+    extraTags = prefix.tags;
+  }
+
+  // 新闻速递特殊提示
+  let typeSpecificHint = '';
+  if (contentType === 'news-digest') {
+    typeSpecificHint = `
+## 新闻速递特别要求
+
+1. 内容聚焦 AI 领域最近一周的重要动态
+2. 每条新闻要有明确的信息来源感（如"据 X 报道""官方发布"等表述），但不要编造具体来源链接
+3. 新闻要分类清晰，每个分类下 2-5 条
+4. 每条新闻要有简要解读，不只是标题堆砌
+5. 一句话速览部分每条控制在 20 字以内
+6. 不要编造不存在的公司、产品或数据`;
+  } else if (contentType === 'cheatsheet') {
+    typeSpecificHint = `
+## 速查表特别要求
+
+1. 内容要实用、精炼，方便快速查阅
+2. 基础语法部分必须用 Markdown 表格形式呈现
+3. 每个知识点要简洁明了，不要长篇大论
+4. 常见问题部分用 FAQ 形式，问题要典型
+5. 实用工具部分推荐真实存在的工具`;
+  } else if (contentType === 'comparison') {
+    typeSpecificHint = `
+## 对比评测特别要求
+
+1. 对比至少 2-3 个主流方案/工具
+2. 对比维度要全面（功能、性能、易用性、生态、价格等）
+3. 横向对比表必须是标准的 Markdown 表格
+4. 选型建议要分场景给出，不要只说哪个好
+5. 对比要客观中立，不要明显偏向某一方`;
+  } else if (contentType === 'case-study') {
+    typeSpecificHint = `
+## 案例拆解特别要求
+
+1. 选择一个真实可信的项目场景作为案例
+2. 技术架构要描述清楚，有整体感
+3. 关键实现部分要有完整代码示例
+4. 踩过的坑要具体，有实际参考价值
+5. 效果与反思要有数据或具体结论，不要空泛`;
+  }
 
   const prompt = `你是一个技术社区的内容创作者，人设是「${bot.authorName}」，专注${bot.tagline}。请生成一篇高质量的论坛帖子。
 
 ## 要求
 
 1. 标题：${title}
-2. 类型：${bot.promptHint}
-3. 内容用 Markdown 格式，结构清晰。
-4. 文章长度请参考所选结构的推荐长度（约 ${meta.structure.lengthRange[0]}-${meta.structure.lengthRange[1]} 字）。
-5. 语言：中文。
-6. 切入角度：${angle}
-7. 要有实际价值，不要空洞的水文。
-8. 帖子要像高质量技术社区教程一样专业、清晰、可复现，优先保证技术准确性和实践价值。
-9. 不要写"作为 AI""我是 AI"之类表达。
-10. 文章结构类型：${meta.structure.name}
+2. 内容类型：${typeName}
+3. 类型：${bot.promptHint}
+4. 内容用 Markdown 格式，结构清晰。
+5. 文章长度约 ${lengthRange[0]}-${lengthRange[1]} 字。
+6. 语言：中文。
+7. 切入角度：${angle}
+8. 要有实际价值，不要空洞的水文。
+9. 帖子要像高质量技术社区内容一样专业、清晰、可复现，优先保证技术准确性和实践价值。
+10. 不要写"作为 AI""我是 AI"之类表达。
+11. 文章结构类型：${structure.name}
 
 ## 代码块要求（非常重要）
 
@@ -467,7 +544,9 @@ async function generatePostContent(bot, title, categories, angle) {
 2. 关键代码要加注释说明
 3. 命令行示例要说明执行效果或预期输出
 4. 配置文件要说明放在哪个位置、如何使用
-5. 至少包含 1-2 个有价值的代码示例（技术类文章必须有）
+5. 技术类文章至少包含 1-2 个有价值的代码示例
+
+${typeSpecificHint}
 
 ${rules}
 
@@ -485,17 +564,14 @@ ${rules}
 论坛现有分类：${categoryNames}
 本帖目标分类 slug：${bot.categorySlug}（${bot.tagline}）。如果分类里有对应的就推荐一个分类名（放在 categoryId 字段，用分类的 id），没有合适的就不填。`;
 
-  log(`调用 AI 生成帖子：${title}（${meta.structure.name} / ${meta.style.name} / ${angle}）`);
+  log(`调用 AI 生成帖子：${title}（${typeName} / ${baseMeta.style.name} / ${angle}）`);
 
   let lastError = null;
   for (let attempt = 0; attempt <= AI_GENERATE_RETRIES; attempt++) {
     const content = await callAI({
       prompt,
       systemPrompt: `你是技术社区内容创作者「${bot.authorName}」，擅长${bot.tagline}。必须只输出一个有效的 JSON 对象，不要包含任何 markdown 代码块标记或其他文字。`,
-      // 增大 maxTokens 避免内容被截断
-      // 中文 1 字 ≈ 1.5-2 token，加上 Markdown 格式、代码块、JSON 包装
-      // 系数从 2.5 提升到 4.5，确保完整输出
-      maxTokens: Math.floor(meta.structure.lengthRange[1] * 4.5),
+      maxTokens: Math.floor(lengthRange[1] * 4.5),
       responseFormat: { type: 'json_object' },
       tag: TAG,
     });
@@ -504,14 +580,20 @@ ${rules}
       const parsed = robustJSONParse(content);
       if (parsed.title && parsed.content) {
         parsed.title = normalizeTitle(parsed.title, title);
-        parsed.tags = normalizeTags(parsed.tags, bot.defaultTags);
-        // 自动修复常见的内容问题（代码块不闭合、截断的句子等）
+        // 合并额外标签（系列标签等）
+        const allTags = [...(parsed.tags || []), ...extraTags];
+        parsed.tags = normalizeTags(allTags, bot.defaultTags);
+        // 自动修复常见的内容问题
         parsed.content = autoFixContent(parsed.content);
+        // 系列文章加引言
+        if (seriesIntro) {
+          parsed.content = seriesIntro + '\n' + parsed.content;
+        }
         parsed.content = appendProfessionalFooter(parsed.content, {
-          discussionQuestion: meta.discussion,
+          discussionQuestion: baseMeta.discussion,
         });
         assertGeneratedPostQuality(parsed);
-        log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}，结构：${meta.structure.name}`);
+        log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}，类型：${typeName}`);
         return parsed;
       }
       warn(`AI 返回的 JSON 缺少 title 或 content（第 ${attempt + 1} 次）`);
@@ -527,10 +609,14 @@ ${rules}
       const fallback = extractPostFromText(content, title);
       if (fallback.title && fallback.content && fallback.content.length > 50) {
         fallback.title = normalizeTitle(fallback.title, title);
-        fallback.tags = normalizeTags(fallback.tags, bot.defaultTags);
+        const allTags = [...(fallback.tags || []), ...extraTags];
+        fallback.tags = normalizeTags(allTags, bot.defaultTags);
         fallback.content = autoFixContent(fallback.content);
+        if (seriesIntro) {
+          fallback.content = seriesIntro + '\n' + fallback.content;
+        }
         fallback.content = appendProfessionalFooter(fallback.content, {
-          discussionQuestion: meta.discussion,
+          discussionQuestion: baseMeta.discussion,
         });
         assertGeneratedPostQuality(fallback);
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
@@ -631,8 +717,24 @@ async function main() {
     const angle = getRandomContentAngle();
     log(`切入角度：${angle}`);
 
+    // 随机选择内容类型
+    const contentType = pickRandomContentType();
+    log(`内容类型：${contentType}`);
+
+    // 系列文章特殊处理
+    let extraMeta = {};
+    let finalTopic = topic;
+    if (contentType === 'series') {
+      const seriesInfo = getRandomSeriesTopic(recentTitles);
+      if (seriesInfo) {
+        extraMeta.seriesInfo = seriesInfo;
+        finalTopic = seriesInfo.part.title;
+        log(`系列文章：${seriesInfo.series.name} 第 ${seriesInfo.partIndex + 1} 篇`);
+      }
+    }
+
     try {
-      const postData = await generatePostContent(bot, topic, categories, angle);
+      const postData = await generatePostContent(bot, finalTopic, categories, angle, contentType, extraMeta);
 
       if (DRY_RUN) {
         log(`[预览模式] 标题：${postData.title}`);
