@@ -382,15 +382,32 @@ async function generatePostContent(bot, title, categories, angle) {
 
 1. 标题：${title}
 2. 类型：${bot.promptHint}
-3. 内容用 Markdown 格式，结构清晰，必要时包含代码块。
+3. 内容用 Markdown 格式，结构清晰。
 4. 文章长度请参考所选结构的推荐长度（约 ${meta.structure.lengthRange[0]}-${meta.structure.lengthRange[1]} 字）。
 5. 语言：中文。
 6. 切入角度：${angle}
 7. 要有实际价值，不要空洞的水文。
-8. 代码示例或配置要正确可运行；如果涉及工具使用，要说明使用前提。
-9. 帖子要像高质量技术社区教程一样专业、清晰、可复现，优先保证技术准确性和实践价值。
-10. 不要写"作为 AI""我是 AI"之类表达。
-11. 文章结构类型：${meta.structure.name}
+8. 帖子要像高质量技术社区教程一样专业、清晰、可复现，优先保证技术准确性和实践价值。
+9. 不要写"作为 AI""我是 AI"之类表达。
+10. 文章结构类型：${meta.structure.name}
+
+## 代码块要求（非常重要）
+
+涉及代码、命令、配置、JSON 等内容时，**必须使用 Markdown 代码块包裹**，并指定正确的语言类型：
+
+- JavaScript/TypeScript 代码用 \`\`\`javascript 或 \`\`\`typescript
+- Python 代码用 \`\`\`python
+- Shell 命令用 \`\`\`bash
+- JSON/YAML 配置用 \`\`\`json 或 \`\`\`yaml
+- HTML/CSS 用 \`\`\`html 或 \`\`\`css
+- SQL 用 \`\`\`sql
+
+代码块使用规范：
+1. 代码要完整可运行，不要只写片段让读者猜
+2. 关键代码要加注释说明
+3. 命令行示例要说明执行效果或预期输出
+4. 配置文件要说明放在哪个位置、如何使用
+5. 至少包含 1-2 个有价值的代码示例（技术类文章必须有）
 
 ${rules}
 
@@ -399,7 +416,7 @@ ${rules}
 只输出一个 JSON 对象，不要输出任何其他文字，不要用 markdown 代码块包裹：
 {
   "title": "专业、清晰、适合 SEO 的帖子标题",
-  "content": "Markdown 格式的帖子正文，注意：正文中的换行用 \\n 表示",
+  "content": "Markdown 格式的帖子正文，注意：正文中的换行用 \\\\n 表示，代码块用三个反引号包裹",
   "tags": ["标签1", "标签2", "标签3", "标签4"],
   "postType": "discussion",
   "summary": "一句话总结这篇帖子"
