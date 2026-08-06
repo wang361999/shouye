@@ -60,7 +60,7 @@ export default function PdfToolsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Container className="py-8 max-w-5xl">
+      <Container className="py-4 md:py-8 max-w-5xl">
         {/* 返回 */}
         <div className="mb-6">
           <Link
@@ -72,16 +72,16 @@ export default function PdfToolsPage() {
         </div>
 
         {/* 头部 */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 via-orange-500 to-amber-500 p-8 text-white shadow-lg mb-8">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 via-orange-500 to-amber-500 p-5 md:p-8 text-white shadow-lg mb-8">
           <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-medium text-white mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-medium text-white mb-3 md:mb-4">
               <span>📄</span>
               <span>PDF 工具箱</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mb-2">
+            <h1 className="text-xl md:text-3xl font-extrabold tracking-tight mb-2">
               一站式 PDF 处理工具
             </h1>
-            <p className="text-orange-100 text-sm md:text-base">
+            <p className="text-orange-100 text-xs md:text-base">
               所有操作在浏览器本地完成，文件不上传服务器，保护你的隐私
             </p>
           </div>
@@ -89,26 +89,26 @@ export default function PdfToolsPage() {
         </div>
 
         {/* 工具切换 */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-2 md:gap-3 mb-6 md:mb-8">
           {TOOLS.map((tool) => (
             <button
               key={tool.key}
               onClick={() => setActiveTool(tool.key)}
-              className={`p-4 rounded-xl border transition-all text-left ${
+              className={`p-2.5 md:p-4 rounded-xl border transition-all text-left ${
                 activeTool === tool.key
                   ? "border-orange-400 bg-orange-50 shadow-md"
                   : "border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/50"
               }`}
             >
-              <div className="text-2xl mb-2">{tool.icon}</div>
-              <div className="font-semibold text-gray-900 text-sm">{tool.name}</div>
-              <div className="text-xs text-gray-500 mt-1">{tool.desc}</div>
+              <div className="text-xl md:text-2xl mb-1 md:mb-2">{tool.icon}</div>
+              <div className="font-semibold text-gray-900 text-xs md:text-sm">{tool.name}</div>
+              <div className="text-[10px] md:text-xs text-gray-500 mt-0.5 md:mt-1">{tool.desc}</div>
             </button>
           ))}
         </div>
 
         {/* 工具内容 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 md:p-8">
           {activeTool === "merge" && <MergeTool />}
           {activeTool === "split" && <SplitTool />}
           {activeTool === "compress" && <CompressTool />}
@@ -123,17 +123,17 @@ export default function PdfToolsPage() {
         </div>
 
         {/* 特点 */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mt-6 md:mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {[
             { icon: "🔒", title: "隐私安全", desc: "本地处理，不上传" },
             { icon: "⚡", title: "极速处理", desc: "秒级完成" },
             { icon: "🎯", title: "无损质量", desc: "保持原始画质" },
             { icon: "💰", title: "完全免费", desc: "无限制使用" },
           ].map((item) => (
-            <div key={item.title} className="bg-white rounded-xl p-4 border border-gray-100 text-center">
-              <div className="text-2xl mb-2">{item.icon}</div>
-              <div className="font-semibold text-gray-900 text-sm">{item.title}</div>
-              <div className="text-xs text-gray-500 mt-1">{item.desc}</div>
+            <div key={item.title} className="bg-white rounded-xl p-3 md:p-4 border border-gray-100 text-center">
+              <div className="text-xl md:text-2xl mb-1.5 md:mb-2">{item.icon}</div>
+              <div className="font-semibold text-gray-900 text-xs md:text-sm">{item.title}</div>
+              <div className="text-[10px] md:text-xs text-gray-500 mt-0.5 md:mt-1">{item.desc}</div>
             </div>
           ))}
         </div>
@@ -249,8 +249,8 @@ function MergeTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">合并 PDF</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">合并 PDF</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         将多个 PDF 文件合并为一个，支持拖拽调整顺序
       </p>
 
@@ -263,10 +263,10 @@ function MergeTool() {
         onDragLeave={() => (dragOver.current = false)}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
       >
-        <div className="text-4xl mb-3">📁</div>
-        <p className="text-gray-700 font-medium">点击或拖拽 PDF 文件到这里</p>
+        <div className="text-3xl md:text-4xl mb-2 md:mb-3">📁</div>
+        <p className="text-gray-700 text-sm md:text-base font-medium">点击或拖拽 PDF 文件到这里</p>
         <p className="text-xs text-gray-400 mt-1">支持多个 PDF 文件，批量上传</p>
         <input
           ref={inputRef}
@@ -282,7 +282,7 @@ function MergeTool() {
       {files.length > 0 && (
         <div className="mb-6 space-y-2">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-xs md:text-sm font-medium text-gray-700">
               已选择 {files.length} 个文件
             </span>
             <button
@@ -298,7 +298,7 @@ function MergeTool() {
           {files.map((f, i) => (
             <div
               key={f.id}
-              className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
+              className="flex items-center gap-2 md:gap-3 p-2.5 md:p-3 bg-gray-50 rounded-lg border border-gray-100"
             >
               <span className="text-sm font-medium text-gray-400 w-6 text-center">{i + 1}</span>
               <div className="text-xl">📄</div>
@@ -338,16 +338,16 @@ function MergeTool() {
 
       {/* 结果 */}
       {result && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div className="mb-6 p-3 md:p-4 bg-green-50 border border-green-200 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">✅</div>
+            <div className="text-xl md:text-2xl">✅</div>
             <div className="flex-1">
               <div className="font-medium text-green-900">合并完成</div>
               <div className="text-xs text-green-700">{result.name} · {result.size}</div>
             </div>
             <button
               onClick={downloadResult}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
             >
               下载文件
             </button>
@@ -356,11 +356,11 @@ function MergeTool() {
       )}
 
       {/* 操作按钮 */}
-      <div className="flex justify-end gap-3">
+      <div className="flex sm:justify-end gap-3">
         <button
           onClick={handleMerge}
           disabled={files.length < 2 || processing}
-          className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
         >
           {processing ? "合并中..." : "开始合并"}
         </button>
@@ -519,8 +519,8 @@ function SplitTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">拆分 PDF</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">拆分 PDF</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         按页码范围或固定页数拆分 PDF 文件
       </p>
 
@@ -528,10 +528,10 @@ function SplitTool() {
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
         >
-          <div className="text-4xl mb-3">✂️</div>
-          <p className="text-gray-700 font-medium">点击选择要拆分的 PDF 文件</p>
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">✂️</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">点击选择要拆分的 PDF 文件</p>
           <p className="text-xs text-gray-400 mt-1">支持任意大小的 PDF 文件</p>
           <input
             ref={inputRef}
@@ -542,8 +542,8 @@ function SplitTool() {
           />
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
-          <div className="text-2xl">📄</div>
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 truncate">{file.name}</div>
             <div className="text-xs text-gray-500">
@@ -566,7 +566,7 @@ function SplitTool() {
       {/* 拆分方式 */}
       {file && (
         <div className="mb-6 space-y-4">
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <button
               onClick={() => setSplitMode("range")}
               className={`flex-1 p-3 rounded-lg border text-left transition-all ${
@@ -593,7 +593,7 @@ function SplitTool() {
 
           {splitMode === "range" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
                 页码范围
               </label>
               <input
@@ -612,7 +612,7 @@ function SplitTool() {
 
           {splitMode === "every" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
                 每页数量
               </label>
               <input
@@ -676,11 +676,11 @@ function SplitTool() {
 
       {/* 操作按钮 */}
       {file && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleSplit}
             disabled={processing}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "拆分中..." : "开始拆分"}
           </button>
@@ -993,8 +993,8 @@ function PdfToExcelTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">PDF 转 Excel</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">PDF 转 Excel</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         从 PDF 中提取文本和表格数据，导出为 Excel (.xlsx) 文件
       </p>
 
@@ -1002,10 +1002,10 @@ function PdfToExcelTool() {
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
         >
-          <div className="text-4xl mb-3">📊</div>
-          <p className="text-gray-700 font-medium">点击选择要转换的 PDF 文件</p>
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">📊</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">点击选择要转换的 PDF 文件</p>
           <p className="text-xs text-gray-400 mt-1">
             自动识别表格结构，导出为 Excel
           </p>
@@ -1018,8 +1018,8 @@ function PdfToExcelTool() {
           />
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
-          <div className="text-2xl">📄</div>
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 truncate">{file.name}</div>
             <div className="text-xs text-gray-500">
@@ -1043,7 +1043,7 @@ function PdfToExcelTool() {
       {/* 模式选择 */}
       {file && (
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
             提取模式
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -1088,7 +1088,7 @@ function PdfToExcelTool() {
       {/* 结果 */}
       {result && (
         <div className="mb-6 space-y-4">
-          <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-100">
+          <div className="flex items-center justify-between p-3 md:p-4 bg-green-50 rounded-xl border border-green-100">
             <div className="flex items-center gap-2">
               <span className="text-green-500 text-lg">✅</span>
               <div>
@@ -1103,7 +1103,7 @@ function PdfToExcelTool() {
             <a
               href={result.url}
               download={result.name}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
             >
               下载 Excel
             </a>
@@ -1115,7 +1115,7 @@ function PdfToExcelTool() {
               <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-600">
                 数据预览（前 {preview.length} 页，每页前 10 行）
               </div>
-              <div className="max-h-80 overflow-auto">
+              <div className="max-h-80 overflow-auto scrollbar-hide">
                 {preview.map((sheet, sIdx) => (
                   <table
                     key={sIdx}
@@ -1148,11 +1148,11 @@ function PdfToExcelTool() {
 
       {/* 操作按钮 */}
       {file && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleConvert}
             disabled={processing || !pdfjsReady}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "转换中..." : "开始转换"}
           </button>
@@ -1160,7 +1160,7 @@ function PdfToExcelTool() {
       )}
 
       {/* 说明 */}
-      <div className="mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+      <div className="mt-4 md:mt-6 p-3 md:p-4 bg-blue-50/50 rounded-xl border border-blue-100">
         <div className="text-xs text-blue-700 space-y-1">
           <p className="font-medium">使用提示：</p>
           <p>1. 智能表格识别：通过分析文本位置自动还原行列结构，适合有表格的 PDF</p>
@@ -1341,18 +1341,18 @@ function CompressTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">压缩 PDF</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">压缩 PDF</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         减小 PDF 文件大小，支持结构优化和光栅化压缩
       </p>
 
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
         >
-          <div className="text-4xl mb-3">📦</div>
-          <p className="text-gray-700 font-medium">点击选择要压缩的 PDF 文件</p>
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">📦</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">点击选择要压缩的 PDF 文件</p>
           <p className="text-xs text-gray-400 mt-1">支持任意大小的 PDF 文件</p>
           <input
             ref={inputRef}
@@ -1363,8 +1363,8 @@ function CompressTool() {
           />
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
-          <div className="text-2xl">📄</div>
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 truncate">{file.name}</div>
             <div className="text-xs text-gray-500">
@@ -1406,7 +1406,7 @@ function CompressTool() {
                 }`}
               >
                 <div className="font-medium text-sm text-gray-900">{item.label}</div>
-                <div className="text-xs text-gray-500 mt-1">{item.desc}</div>
+                <div className="text-[10px] md:text-xs text-gray-500 mt-0.5 md:mt-1">{item.desc}</div>
               </button>
             ))}
           </div>
@@ -1419,9 +1419,9 @@ function CompressTool() {
       )}
 
       {result && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div className="mb-6 p-3 md:p-4 bg-green-50 border border-green-200 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">✅</div>
+            <div className="text-xl md:text-2xl">✅</div>
             <div className="flex-1">
               <div className="font-medium text-green-900">压缩完成</div>
               <div className="text-xs text-green-700">
@@ -1431,7 +1431,7 @@ function CompressTool() {
             <a
               href={result.url}
               download={result.name}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
             >
               下载
             </a>
@@ -1440,11 +1440,11 @@ function CompressTool() {
       )}
 
       {file && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleCompress}
             disabled={processing || (level !== "low" && !pdfjsReady)}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "压缩中..." : "开始压缩"}
           </button>
@@ -1560,18 +1560,18 @@ function WatermarkTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">添加水印</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">添加水印</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         为 PDF 添加文字水印，保护文档版权
       </p>
 
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
         >
-          <div className="text-4xl mb-3">💧</div>
-          <p className="text-gray-700 font-medium">点击选择要添加水印的 PDF</p>
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">💧</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">点击选择要添加水印的 PDF</p>
           <p className="text-xs text-gray-400 mt-1">支持平铺文字水印</p>
           <input
             ref={inputRef}
@@ -1582,8 +1582,8 @@ function WatermarkTool() {
           />
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
-          <div className="text-2xl">📄</div>
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 truncate">{file.name}</div>
             <div className="text-xs text-gray-500">
@@ -1606,7 +1606,7 @@ function WatermarkTool() {
       {file && (
         <div className="mb-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">水印文字</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">水印文字</label>
             <input
               type="text"
               value={text}
@@ -1619,7 +1619,7 @@ function WatermarkTool() {
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
                 透明度：{opacity.toFixed(2)}
               </label>
               <input
@@ -1636,7 +1636,7 @@ function WatermarkTool() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
                 角度：{rotation}°
               </label>
               <input
@@ -1653,7 +1653,7 @@ function WatermarkTool() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
                 字号：{fontSize}
               </label>
               <input
@@ -1671,7 +1671,7 @@ function WatermarkTool() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">水印颜色</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">水印颜色</label>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -1702,9 +1702,9 @@ function WatermarkTool() {
       )}
 
       {result && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div className="mb-6 p-3 md:p-4 bg-green-50 border border-green-200 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">✅</div>
+            <div className="text-xl md:text-2xl">✅</div>
             <div className="flex-1">
               <div className="font-medium text-green-900">水印添加成功</div>
               <div className="text-xs text-green-700">{result.name} · {result.size}</div>
@@ -1712,7 +1712,7 @@ function WatermarkTool() {
             <a
               href={result.url}
               download={result.name}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
             >
               下载
             </a>
@@ -1721,11 +1721,11 @@ function WatermarkTool() {
       )}
 
       {file && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleAddWatermark}
             disabled={processing}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "处理中..." : "添加水印"}
           </button>
@@ -1862,12 +1862,12 @@ function EncryptTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">加密 / 解密 PDF</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">加密 / 解密 PDF</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         AES-256 真加密，支持权限控制，所有操作本地完成
       </p>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-2 sm:gap-3 mb-4 md:mb-6">
         <button
           onClick={() => {
             setMode("encrypt");
@@ -1901,10 +1901,10 @@ function EncryptTool() {
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
         >
-          <div className="text-4xl mb-3">🔐</div>
-          <p className="text-gray-700 font-medium">
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">🔐</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">
             点击选择要{mode === "encrypt" ? "加密" : "解密"}的 PDF
           </p>
           <p className="text-xs text-gray-400 mt-1">支持加密的 PDF 文件</p>
@@ -1917,8 +1917,8 @@ function EncryptTool() {
           />
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
-          <div className="text-2xl">📄</div>
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 truncate">{file.name}</div>
             <div className="text-xs text-gray-500">
@@ -1943,7 +1943,7 @@ function EncryptTool() {
           {mode === "encrypt" && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">用户密码（打开 PDF 需要）</label>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">用户密码（打开 PDF 需要）</label>
                 <input
                   type="password"
                   value={newPassword}
@@ -1956,7 +1956,7 @@ function EncryptTool() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
                   所有者密码（管理权限需要，可选）
                 </label>
                 <input
@@ -1971,8 +1971,8 @@ function EncryptTool() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">加密算法</label>
-                <div className="flex gap-3">
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">加密算法</label>
+                <div className="flex gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       setAlgorithm("AES-256");
@@ -2002,7 +2002,7 @@ function EncryptTool() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">权限控制</label>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">权限控制</label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -2046,7 +2046,7 @@ function EncryptTool() {
           )}
           {mode === "decrypt" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">PDF 密码</label>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">PDF 密码</label>
               <input
                 type="password"
                 value={password}
@@ -2066,9 +2066,9 @@ function EncryptTool() {
       )}
 
       {result && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div className="mb-6 p-3 md:p-4 bg-green-50 border border-green-200 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">✅</div>
+            <div className="text-xl md:text-2xl">✅</div>
             <div className="flex-1">
               <div className="font-medium text-green-900">
                 {mode === "encrypt" ? "加密完成" : "解密成功"}
@@ -2078,7 +2078,7 @@ function EncryptTool() {
             <a
               href={result.url}
               download={result.name}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
             >
               下载
             </a>
@@ -2087,11 +2087,11 @@ function EncryptTool() {
       )}
 
       {file && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleProcess}
             disabled={processing}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "处理中..." : mode === "encrypt" ? "开始加密" : "开始解密"}
           </button>
@@ -2204,18 +2204,18 @@ function RotateTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">旋转 PDF 页面</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">旋转 PDF 页面</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         调整 PDF 页面的方向，支持 90°/180°/270° 旋转
       </p>
 
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
         >
-          <div className="text-4xl mb-3">🔄</div>
-          <p className="text-gray-700 font-medium">点击选择要旋转的 PDF</p>
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">🔄</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">点击选择要旋转的 PDF</p>
           <p className="text-xs text-gray-400 mt-1">支持顺时针旋转</p>
           <input
             ref={inputRef}
@@ -2226,8 +2226,8 @@ function RotateTool() {
           />
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
-          <div className="text-2xl">📄</div>
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 truncate">{file.name}</div>
             <div className="text-xs text-gray-500">
@@ -2250,7 +2250,7 @@ function RotateTool() {
       {file && (
         <div className="mb-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">旋转角度</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">旋转角度</label>
             <div className="grid grid-cols-4 gap-3">
               {[90, 180, 270, -90].map((deg) => (
                 <button
@@ -2275,8 +2275,8 @@ function RotateTool() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">旋转范围</label>
-            <div className="flex gap-3">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">旋转范围</label>
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   setScope("all");
@@ -2328,9 +2328,9 @@ function RotateTool() {
       )}
 
       {result && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div className="mb-6 p-3 md:p-4 bg-green-50 border border-green-200 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">✅</div>
+            <div className="text-xl md:text-2xl">✅</div>
             <div className="flex-1">
               <div className="font-medium text-green-900">旋转完成</div>
               <div className="text-xs text-green-700">{result.name} · {result.size}</div>
@@ -2338,7 +2338,7 @@ function RotateTool() {
             <a
               href={result.url}
               download={result.name}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
             >
               下载
             </a>
@@ -2347,11 +2347,11 @@ function RotateTool() {
       )}
 
       {file && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleRotate}
             disabled={processing}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "处理中..." : "开始旋转"}
           </button>
@@ -2477,18 +2477,18 @@ function PdfToTextTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">PDF 转文本</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">PDF 转文本</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         提取 PDF 中的文字内容，支持复制和下载
       </p>
 
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
         >
-          <div className="text-4xl mb-3">📝</div>
-          <p className="text-gray-700 font-medium">点击选择要提取文字的 PDF</p>
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">📝</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">点击选择要提取文字的 PDF</p>
           <p className="text-xs text-gray-400 mt-1">支持文字型 PDF（扫描件需 OCR）</p>
           <input
             ref={inputRef}
@@ -2499,8 +2499,8 @@ function PdfToTextTool() {
           />
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
-          <div className="text-2xl">📄</div>
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 truncate">{file.name}</div>
             <div className="text-xs text-gray-500">
@@ -2556,11 +2556,11 @@ function PdfToTextTool() {
       )}
 
       {file && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleExtract}
             disabled={processing || !pdfjsReady}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "提取中..." : "提取文字"}
           </button>
@@ -2670,14 +2670,14 @@ function TextToPdfTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">文本转 PDF</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">文本转 PDF</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         将文字内容转换为 PDF 文档，支持标题和自动分页
       </p>
 
-      <div className="mb-4 grid grid-cols-2 gap-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 md:gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">文档标题</label>
+          <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">文档标题</label>
           <input
             type="text"
             value={title}
@@ -2690,7 +2690,7 @@ function TextToPdfTool() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
             字号：{fontSize}px
           </label>
           <input
@@ -2709,7 +2709,7 @@ function TextToPdfTool() {
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">文字内容</label>
+        <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">文字内容</label>
         <textarea
           value={text}
           onChange={(e) => {
@@ -2725,9 +2725,9 @@ function TextToPdfTool() {
       </div>
 
       {result && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div className="mb-6 p-3 md:p-4 bg-green-50 border border-green-200 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">✅</div>
+            <div className="text-xl md:text-2xl">✅</div>
             <div className="flex-1">
               <div className="font-medium text-green-900">转换完成</div>
               <div className="text-xs text-green-700">{result.name} · {result.size}</div>
@@ -2737,7 +2737,7 @@ function TextToPdfTool() {
               download={result.name}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
             >
               下载 PDF
             </a>
@@ -2745,7 +2745,7 @@ function TextToPdfTool() {
         </div>
       )}
 
-      <div className="flex justify-end gap-3">
+      <div className="flex sm:justify-end gap-3">
         <button
           onClick={() => {
             setText("");
@@ -2758,7 +2758,7 @@ function TextToPdfTool() {
         <button
           onClick={handleConvert}
           disabled={processing}
-          className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
         >
           {processing ? "转换中..." : "生成 PDF"}
         </button>
@@ -2882,18 +2882,18 @@ function ImageToPdfTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">图片转 PDF</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">图片转 PDF</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         将多张图片合并为一个 PDF 文档，支持 JPG、PNG、WebP 等格式
       </p>
 
       {/* 上传区域 */}
       <div
         onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
       >
-        <div className="text-4xl mb-3">🖼️</div>
-        <p className="text-gray-700 font-medium">点击或拖拽图片到这里</p>
+        <div className="text-3xl md:text-4xl mb-2 md:mb-3">🖼️</div>
+        <p className="text-gray-700 text-sm md:text-base font-medium">点击或拖拽图片到这里</p>
         <p className="text-xs text-gray-400 mt-1">支持 JPG、PNG、WebP、BMP、GIF 等格式</p>
         <input
           ref={inputRef}
@@ -2907,9 +2907,9 @@ function ImageToPdfTool() {
 
       {/* 设置 */}
       {images.length > 0 && (
-        <div className="mb-6 grid grid-cols-2 gap-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 md:gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">页面大小</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">页面大小</label>
             <select
               value={pageSize}
               onChange={(e) => {
@@ -2923,7 +2923,7 @@ function ImageToPdfTool() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">方向</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">方向</label>
             <select
               value={orientation}
               onChange={(e) => {
@@ -2999,9 +2999,9 @@ function ImageToPdfTool() {
 
       {/* 结果 */}
       {result && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+        <div className="mb-6 p-3 md:p-4 bg-green-50 border border-green-200 rounded-xl">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">✅</div>
+            <div className="text-xl md:text-2xl">✅</div>
             <div className="flex-1">
               <div className="font-medium text-green-900">转换完成</div>
               <div className="text-xs text-green-700">{result.name} · {result.size}</div>
@@ -3009,7 +3009,7 @@ function ImageToPdfTool() {
             <a
               href={result.url}
               download={result.name}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
             >
               下载 PDF
             </a>
@@ -3019,11 +3019,11 @@ function ImageToPdfTool() {
 
       {/* 操作按钮 */}
       {images.length > 0 && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleConvert}
             disabled={processing}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "转换中..." : "生成 PDF"}
           </button>
@@ -3165,8 +3165,8 @@ function PdfToImageTool() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-gray-900 mb-2">PDF 转图片</h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">PDF 转图片</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
         将 PDF 每一页转换为高清图片，支持 PNG/JPEG 格式
       </p>
 
@@ -3174,10 +3174,10 @@ function PdfToImageTool() {
       {!file ? (
         <div
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
         >
-          <div className="text-4xl mb-3">📸</div>
-          <p className="text-gray-700 font-medium">点击选择要转换的 PDF 文件</p>
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">📸</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">点击选择要转换的 PDF 文件</p>
           <p className="text-xs text-gray-400 mt-1">每一页将转换为一张图片</p>
           <input
             ref={inputRef}
@@ -3188,8 +3188,8 @@ function PdfToImageTool() {
           />
         </div>
       ) : (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
-          <div className="text-2xl">📄</div>
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 truncate">{file.name}</div>
             <div className="text-xs text-gray-500">
@@ -3211,9 +3211,9 @@ function PdfToImageTool() {
 
       {/* 设置 */}
       {file && (
-        <div className="mb-6 grid grid-cols-2 gap-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 md:gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">图片格式</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">图片格式</label>
             <select
               value={format}
               onChange={(e) => {
@@ -3227,7 +3227,7 @@ function PdfToImageTool() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
               清晰度：{quality}x
             </label>
             <input
@@ -3291,11 +3291,11 @@ function PdfToImageTool() {
 
       {/* 操作按钮 */}
       {file && (
-        <div className="flex justify-end gap-3">
+        <div className="flex sm:justify-end gap-3">
           <button
             onClick={handleConvert}
             disabled={processing || !pdfjsReady}
-            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "转换中..." : "开始转换"}
           </button>
