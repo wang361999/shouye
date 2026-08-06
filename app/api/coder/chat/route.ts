@@ -30,7 +30,7 @@ export const dynamic = 'force-dynamic';
  */
 
 // 编程模式最大迭代次数（每轮可以读多个文件）
-const MAX_ITERATIONS_CODE = 10;
+const MAX_ITERATIONS_CODE = 200;
 // 聊天模式不进入 agentic loop，只做一次 AI 调用
 const MAX_ITERATIONS_CHAT = 1;
 
