@@ -17,7 +17,8 @@ type ToolKey =
   | "pdf-to-img"
   | "pdf-to-txt"
   | "txt-to-pdf"
-  | "rotate";
+  | "rotate"
+  | "pdf-to-excel";
 
 interface PdfFile {
   id: string;
@@ -45,6 +46,7 @@ const TOOLS: { key: ToolKey; name: string; icon: string; desc: string }[] = [
   { key: "pdf-to-img", name: "PDF 转图片", icon: "📸", desc: "PDF 页面转图片" },
   { key: "pdf-to-txt", name: "PDF 转文本", icon: "📝", desc: "提取 PDF 文字内容" },
   { key: "txt-to-pdf", name: "文本转 PDF", icon: "📄", desc: "文字/Markdown 转 PDF" },
+  { key: "pdf-to-excel", name: "PDF 转 Excel", icon: "📊", desc: "提取表格导出 Excel" },
 ];
 
 function formatSize(bytes: number): string {
@@ -117,6 +119,7 @@ export default function PdfToolsPage() {
           {activeTool === "pdf-to-img" && <PdfToImageTool />}
           {activeTool === "pdf-to-txt" && <PdfToTextTool />}
           {activeTool === "txt-to-pdf" && <TextToPdfTool />}
+          {activeTool === "pdf-to-excel" && <PdfToExcelTool />}
         </div>
 
         {/* 特点 */}
@@ -683,6 +686,489 @@ function SplitTool() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============ PDF 转 Excel 工具 ============
+function PdfToExcelTool() {
+  const [file, setFile] = useState<PdfFile | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [mode, setMode] = useState<"auto" | "text">("auto");
+  const [result, setResult] = useState<{
+    url: string;
+    name: string;
+    sheets: number;
+    rows: number;
+  } | null>(null);
+  const [preview, setPreview] = useState<string[][][]>([]);
+  const [pdfjsReady, setPdfjsReady] = useState(false);
+  const pdfjsRef = useRef<any>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 初始化 pdf.js（从 CDN 加载，避免 SSR 问题）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // @ts-ignore
+    if (window.pdfjsLib) {
+      pdfjsRef.current = (window as any).pdfjsLib;
+      setPdfjsReady(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      // @ts-ignore
+      const pdfjs = window.pdfjsLib;
+      if (pdfjs) {
+        pdfjs.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        pdfjsRef.current = pdfjs;
+        setPdfjsReady(true);
+      }
+    };
+    script.onerror = () => {
+      console.error("pdf.js CDN 加载失败");
+    };
+    document.head.appendChild(script);
+  }, []);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    if (!f.type.includes("pdf") && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    let pageCount = 0;
+    try {
+      const buf = await f.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      pageCount = pdfDoc.getPageCount();
+    } catch {}
+
+    setFile({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      size: formatSize(f.size),
+      pages: pageCount,
+    });
+    setResult(null);
+    setPreview([]);
+  };
+
+  /**
+   * 从 pdf.js textContent 中提取表格数据
+   *
+   * 算法：
+   * 1. 按 y 坐标聚类文本项为行
+   * 2. 收集所有 x 坐标，聚类为列
+   * 3. 将每个文本项分配到最近的列，构建二维表格
+   */
+  function extractTableFromPage(textContent: any): string[][] {
+    const items: { str: string; x: number; y: number; w: number; h: number }[] = (
+      textContent.items || []
+    )
+      .filter((it: any) => it.str && it.str.trim())
+      .map((it: any) => ({
+        str: it.str,
+        x: it.transform[4],
+        y: it.transform[5],
+        w: it.width || 0,
+        h: it.height || 10,
+      }));
+
+    if (items.length === 0) return [];
+
+    // 估算行高阈值：取文本高度中位数
+    const heights = items.map((i) => i.h).sort((a, b) => a - b);
+    const medianH = heights[Math.floor(heights.length / 2)] || 10;
+    const rowThreshold = medianH * 0.6;
+
+    // 按 y 降序排列（PDF 坐标 y 从下往上，但阅读顺序从上往下）
+    items.sort((a, b) => b.y - a.y);
+
+    // 1. 聚类为行
+    const rowGroups: typeof items[] = [];
+    let currentRow: typeof items = [items[0]];
+    let currentY = items[0].y;
+
+    for (let i = 1; i < items.length; i++) {
+      if (Math.abs(items[i].y - currentY) < rowThreshold) {
+        currentRow.push(items[i]);
+      } else {
+        rowGroups.push(currentRow);
+        currentRow = [items[i]];
+        currentY = items[i].y;
+      }
+    }
+    rowGroups.push(currentRow);
+
+    // 每行内按 x 升序排列
+    rowGroups.forEach((row) => row.sort((a, b) => a.x - b.x));
+
+    // 2. 收集所有 x 坐标并聚类为列
+    const allX = items.map((i) => i.x).sort((a, b) => a - b);
+    const colThreshold = 15; // 列间距阈值（PDF 单位）
+    const columnStarts: number[] = [];
+    let currentColStart = allX[0];
+
+    for (let i = 1; i < allX.length; i++) {
+      if (allX[i] - currentColStart > colThreshold) {
+        columnStarts.push(currentColStart);
+        currentColStart = allX[i];
+      }
+    }
+    columnStarts.push(currentColStart);
+
+    // 3. 构建表格
+    const grid: string[][] = [];
+    for (const row of rowGroups) {
+      const gridRow: string[] = new Array(columnStarts.length).fill("");
+
+      for (const item of row) {
+        // 找到最近的列
+        let nearestCol = 0;
+        let minDist = Infinity;
+        for (let c = 0; c < columnStarts.length; c++) {
+          const dist = Math.abs(item.x - columnStarts[c]);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestCol = c;
+          }
+        }
+
+        if (gridRow[nearestCol]) {
+          gridRow[nearestCol] += " " + item.str;
+        } else {
+          gridRow[nearestCol] = item.str;
+        }
+      }
+
+      grid.push(gridRow);
+    }
+
+    return grid;
+  }
+
+  /**
+   * 简单文本提取模式：每行一个单元格
+   */
+  function extractTextLinesFromPage(textContent: any): string[][] {
+    const items: { str: string; x: number; y: number; h: number }[] = (
+      textContent.items || []
+    )
+      .filter((it: any) => it.str && it.str.trim())
+      .map((it: any) => ({
+        str: it.str,
+        x: it.transform[4],
+        y: it.transform[5],
+        h: it.height || 10,
+      }));
+
+    if (items.length === 0) return [];
+
+    const heights = items.map((i) => i.h).sort((a, b) => a - b);
+    const medianH = heights[Math.floor(heights.length / 2)] || 10;
+    const rowThreshold = medianH * 0.6;
+
+    items.sort((a, b) => b.y - a.y);
+
+    const rows: string[][] = [];
+    let currentRow: typeof items = [items[0]];
+    let currentY = items[0].y;
+
+    for (let i = 1; i < items.length; i++) {
+      if (Math.abs(items[i].y - currentY) < rowThreshold) {
+        currentRow.push(items[i]);
+      } else {
+        currentRow.sort((a, b) => a.x - b.x);
+        rows.push([currentRow.map((i) => i.str).join(" ")]);
+        currentRow = [items[i]];
+        currentY = items[i].y;
+      }
+    }
+    currentRow.sort((a, b) => a.x - b.x);
+    rows.push([currentRow.map((i) => i.str).join(" ")]);
+
+    return rows;
+  }
+
+  const handleConvert = async () => {
+    if (!file) {
+      toast.error("请先选择 PDF 文件");
+      return;
+    }
+    if (!pdfjsReady || !pdfjsRef.current) {
+      toast.error("PDF 引擎加载中，请稍候再试");
+      return;
+    }
+    try {
+      setProcessing(true);
+      setResult(null);
+      setPreview([]);
+
+      // 动态加载 xlsx 库
+      const XLSX = await import("xlsx");
+
+      const arrayBuffer = await file.file.arrayBuffer();
+      const pdf = await pdfjsRef.current.getDocument({ data: arrayBuffer }).promise;
+      const totalPages = pdf.numPages;
+
+      // 动态创建 workbook
+      const wb = XLSX.utils.book_new();
+      const allSheetsData: string[][][] = [];
+      let totalRows = 0;
+
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+
+        const grid =
+          mode === "auto"
+            ? extractTableFromPage(textContent)
+            : extractTextLinesFromPage(textContent);
+
+        if (grid.length > 0) {
+          allSheetsData.push(grid);
+          totalRows += grid.length;
+          const ws = XLSX.utils.aoa_to_sheet(grid);
+
+          // 自动设置列宽
+          const colWidths: { wch: number }[] = [];
+          for (const row of grid) {
+            for (let c = 0; c < row.length; c++) {
+              const len = (row[c] || "").length + 2;
+              if (!colWidths[c] || colWidths[c].wch < len) {
+                colWidths[c] = { wch: Math.min(len, 50) };
+              }
+            }
+          }
+          ws["!cols"] = colWidths;
+
+          const sheetName = `第${i}页`;
+          XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        }
+
+        page.cleanup();
+      }
+
+      if (wb.SheetNames.length === 0) {
+        toast.error("未提取到任何文本数据，该 PDF 可能是扫描件或纯图片");
+        setProcessing(false);
+        return;
+      }
+
+      // 生成 Excel 文件
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([new Uint8Array(wbout)], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const outputName = file.name.replace(/\.pdf$/i, "") + ".xlsx";
+
+      setResult({
+        url,
+        name: outputName,
+        sheets: wb.SheetNames.length,
+        rows: totalRows,
+      });
+
+      // 预览前 3 个 sheet 的前 10 行
+      setPreview(
+        allSheetsData.slice(0, 3).map((sheet) => sheet.slice(0, 10))
+      );
+
+      toast.success(`转换成功，共 ${wb.SheetNames.length} 个工作表，${totalRows} 行数据`);
+    } catch (err) {
+      console.error(err);
+      toast.error("转换失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">PDF 转 Excel</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        从 PDF 中提取文本和表格数据，导出为 Excel (.xlsx) 文件
+      </p>
+
+      {/* 上传区域 */}
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-4xl mb-3">📊</div>
+          <p className="text-gray-700 font-medium">点击选择要转换的 PDF 文件</p>
+          <p className="text-xs text-gray-400 mt-1">
+            自动识别表格结构，导出为 Excel
+          </p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
+          <div className="text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {file.size}
+              {file.pages ? ` · ${file.pages} 页` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setResult(null);
+              setPreview([]);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {/* 模式选择 */}
+      {file && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            提取模式
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                setMode("auto");
+                setResult(null);
+                setPreview([]);
+              }}
+              className={`p-3 rounded-lg border text-left transition-all ${
+                mode === "auto"
+                  ? "border-orange-400 bg-orange-50 ring-1 ring-orange-200"
+                  : "border-gray-200 bg-white hover:border-orange-200"
+              }`}
+            >
+              <div className="font-medium text-sm text-gray-900">📋 智能表格识别</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                自动检测行列结构，适合含表格的 PDF
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                setMode("text");
+                setResult(null);
+                setPreview([]);
+              }}
+              className={`p-3 rounded-lg border text-left transition-all ${
+                mode === "text"
+                  ? "border-orange-400 bg-orange-50 ring-1 ring-orange-200"
+                  : "border-gray-200 bg-white hover:border-orange-200"
+              }`}
+            >
+              <div className="font-medium text-sm text-gray-900">📝 纯文本提取</div>
+              <div className="text-xs text-gray-500 mt-0.5">
+                按行提取文本，适合非表格内容
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 结果 */}
+      {result && (
+        <div className="mb-6 space-y-4">
+          <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-100">
+            <div className="flex items-center gap-2">
+              <span className="text-green-500 text-lg">✅</span>
+              <div>
+                <div className="font-medium text-gray-900 text-sm">
+                  转换完成
+                </div>
+                <div className="text-xs text-gray-500">
+                  {result.sheets} 个工作表 · {result.rows} 行数据
+                </div>
+              </div>
+            </div>
+            <a
+              href={result.url}
+              download={result.name}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              下载 Excel
+            </a>
+          </div>
+
+          {/* 预览 */}
+          {preview.length > 0 && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-600">
+                数据预览（前 {preview.length} 页，每页前 10 行）
+              </div>
+              <div className="max-h-80 overflow-auto">
+                {preview.map((sheet, sIdx) => (
+                  <table
+                    key={sIdx}
+                    className="w-full text-xs border-collapse"
+                  >
+                    <tbody>
+                      {sheet.map((row, rIdx) => (
+                        <tr
+                          key={rIdx}
+                          className={rIdx === 0 ? "bg-orange-50/50 font-medium" : ""}
+                        >
+                          {row.map((cell, cIdx) => (
+                            <td
+                              key={cIdx}
+                              className="px-3 py-1.5 border border-gray-100 text-gray-700 whitespace-nowrap"
+                            >
+                              {cell || ""}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 操作按钮 */}
+      {file && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleConvert}
+            disabled={processing || !pdfjsReady}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "转换中..." : "开始转换"}
+          </button>
+        </div>
+      )}
+
+      {/* 说明 */}
+      <div className="mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+        <div className="text-xs text-blue-700 space-y-1">
+          <p className="font-medium">使用提示：</p>
+          <p>1. 智能表格识别：通过分析文本位置自动还原行列结构，适合有表格的 PDF</p>
+          <p>2. 纯文本提取：按阅读顺序逐行提取，适合非表格内容</p>
+          <p>3. 每个 PDF 页面会生成一个独立的 Excel 工作表</p>
+          <p>4. 扫描件或纯图片 PDF 无法提取文本，需要先使用 OCR 工具</p>
+        </div>
+      </div>
     </div>
   );
 }
