@@ -197,6 +197,8 @@ interface RepoInfo {
 }
 
 // ============ 主页面组件 ============
+type ChatMode = 'chat' | 'code';
+
 export default function CoderPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -212,6 +214,7 @@ export default function CoderPage() {
   const [customRepo, setCustomRepo] = useState('');
   const [streamingText, setStreamingText] = useState('');
   const [streamingReads, setStreamingReads] = useState<string[]>([]);
+  const [chatMode, setChatMode] = useState<ChatMode>('code');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -318,6 +321,7 @@ export default function CoderPage() {
           }),
           repo: selectedRepo || undefined,
           branch: selectedBranch || undefined,
+          mode: chatMode,
         }),
       });
 
@@ -531,7 +535,7 @@ export default function CoderPage() {
     <div className="fixed inset-x-0 top-12 md:top-16 bottom-14 md:bottom-0 bg-gray-950 text-gray-100 flex flex-col overflow-hidden">
       {/* 顶部栏 — 移动端两行布局，桌面端单行 */}
       <header className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm shrink-0">
-        {/* 第一行：Logo + 标题 + 移动端操作按钮 */}
+        {/* 第一行：Logo + 标题 + 模式切换 + 移动端操作按钮 */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm shrink-0">
@@ -539,8 +543,35 @@ export default function CoderPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-bold truncate">AI 编程助手</h1>
-              <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">GLM-5.2 · 通过聊天修改代码并部署</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">
+                {chatMode === 'chat' ? '聊天模式 · 技术问答与讨论' : '编程模式 · 自动读取文件并修改代码'}
+              </p>
             </div>
+          </div>
+          {/* 模式切换器 */}
+          <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-0.5 shrink-0">
+            <button
+              onClick={() => setChatMode('chat')}
+              className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
+                chatMode === 'chat'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+              title="聊天模式：只讨论不修改代码"
+            >
+              💬 聊天
+            </button>
+            <button
+              onClick={() => setChatMode('code')}
+              className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
+                chatMode === 'code'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+              title="编程模式：自动读取文件并修改代码"
+            >
+              💻 编程
+            </button>
           </div>
           {/* 移动端操作按钮 */}
           <div className="flex items-center gap-1 sm:hidden shrink-0">
@@ -695,15 +726,29 @@ export default function CoderPage() {
               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl sm:text-2xl mx-auto mb-4">
                 AI
               </div>
-              <h2 className="text-lg sm:text-xl font-bold mb-2">AI 编程助手</h2>
-              <p className="text-gray-500 mb-6 text-sm sm:text-base px-4">告诉我你想修改什么，我来帮你写代码并推送到仓库</p>
+              <h2 className="text-lg sm:text-xl font-bold mb-2">
+                {chatMode === 'chat' ? 'AI 编程助手 · 聊天模式' : 'AI 编程助手'}
+              </h2>
+              <p className="text-gray-500 mb-6 text-sm sm:text-base px-4">
+                {chatMode === 'chat'
+                  ? '问我任何技术问题，我来帮你分析、解答和讨论'
+                  : '告诉我你想修改什么，我来帮你写代码并推送到仓库'}
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 max-w-2xl mx-auto px-2">
-                {[
-                  '帮我在首页添加一个搜索框',
-                  '给论坛帖子加一个点赞功能',
-                  '优化移动端的导航栏样式',
-                  '修复用户登录后的跳转问题',
-                ].map((suggestion) => (
+                {(chatMode === 'chat'
+                  ? [
+                      '解释一下这个项目的技术架构',
+                      'RAG 和微调有什么区别？',
+                      '如何优化 Next.js 的加载性能？',
+                      '这段代码有什么潜在的安全问题？',
+                    ]
+                  : [
+                      '帮我在首页添加一个搜索框',
+                      '给论坛帖子加一个点赞功能',
+                      '优化移动端的导航栏样式',
+                      '修复用户登录后的跳转问题',
+                    ]
+                ).map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => setInput(suggestion)}
@@ -845,7 +890,10 @@ export default function CoderPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="描述你想修改的功能... (Enter 发送, Shift+Enter 换行)"
+                placeholder={chatMode === 'chat'
+                  ? '问任何技术问题... (Enter 发送, Shift+Enter 换行)'
+                  : '描述你想修改的功能... (Enter 发送, Shift+Enter 换行)'
+                }
                 rows={1}
                 className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 resize-none focus:outline-none focus:border-blue-500 placeholder-gray-500"
                 style={{ maxHeight: '200px' }}
@@ -861,7 +909,10 @@ export default function CoderPage() {
             </button>
           </div>
           <p className="text-[10px] sm:text-xs text-gray-600 mt-1.5 sm:mt-2 text-center">
-            AI 会自动读取项目文件、分析代码并提出修改方案，确认后一键推送到 GitHub
+            {chatMode === 'chat'
+              ? 'AI 根据项目上下文回答技术问题，如需修改代码请切换到编程模式'
+              : 'AI 会自动读取项目文件、分析代码并提出修改方案，确认后一键推送到 GitHub'
+            }
           </p>
         </div>
       </div>

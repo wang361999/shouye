@@ -4,5 +4,13 @@
   "framework": "nextjs",
   "github": {
     "silent": false
+  },
+  "functions": {
+    "app/api/coder/chat/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/coder/apply/route.ts": {
+      "maxDuration": 60
+    }
   }
 }
