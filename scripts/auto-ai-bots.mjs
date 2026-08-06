@@ -1,25 +1,37 @@
 #!/usr/bin/env node
 
 /**
- * AI 分类机器人自动发帖脚本
+ * AI 分类机器人自动发帖脚本（深度优化版）
  * 管理四个 AI 机器人，每个负责一个 AI 分类（AI 工具 / 大模型 / Agent 开发 / Prompt 工程）。
- * 每次运行每个机器人生成并发布一篇帖子，共 4 篇。
+ *
+ * 优化特性：
+ * - 8 种文章结构模板随机选择（教程/对比/踩坑/深度/盘点/实战/观点/工具）
+ * - 4 种写作风格随机切换（专业严谨/轻松分享/干货实战/故事叙述）
+ * - 8 种开头方式随机变化
+ * - 动态主题生成（AI 自动生成新主题，避免固定主题池重复）
+ * - 内容去重检测（避免近期重复主题）
+ * - 10 种不同角度切入（初学者/进阶/团队/性能/工程/成本/安全/可维护性等）
+ * - 多样化结尾和讨论引导
+ * - 内容长度随结构变化（800-2500 字范围）
  *
  * 用法：
  *   node scripts/auto-ai-bots.mjs            # 正式发帖
  *   node scripts/auto-ai-bots.mjs --dry-run  # 预览生成内容但不发布
  *
  * 环境变量：SITE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, AI_API_KEY, AI_API_BASE, AI_MODEL
- *   （AI 相关变量由 lib/ai-client.mjs 内部读取）
  */
 
 import { callAI, siteFetch, robustJSONParse, extractPostFromText } from './lib/ai-client.mjs';
 import {
   appendProfessionalFooter,
   assertGeneratedPostQuality,
-  buildProfessionalPromptRules,
+  buildDiversePromptRules,
+  buildTopicGenerationPrompt,
   normalizeTags,
   normalizeTitle,
+  pickDiverseTopic,
+  getRandomContentAngle,
+  pickRandom,
 } from './lib/post-template.mjs';
 
 const {
@@ -33,33 +45,26 @@ const DRY_RUN = process.argv.includes('--dry-run');
 const AI_GENERATE_RETRIES = 2;
 
 // ===== 内容策略配置 =====
-// 每次运行发布的帖子数量（避免内容堆积）
 const POSTS_PER_RUN = parseInt(process.env.POSTS_PER_RUN || '2', 10);
 
-// 根据时间段选择不同类型的内容策略
+// 时间段策略
 function getTimeBasedSelection() {
-  const hour = new Date().getUTCHours() + 8; // 北京时间
-  // 早间档（8-10点）：工具类 + 干货教程
+  const hour = new Date().getUTCHours() + 8;
   if (hour >= 8 && hour < 11) return ['ai-tools', 'prompt'];
-  // 午间档（14-16点）：深度技术 + 大模型
   if (hour >= 14 && hour < 17) return ['llm', 'ai-agent'];
-  // 晚间档（20-22点）：综合轮换
-  return null; // null 表示随机轮换
+  return null;
 }
 
-// 轮换选择本次要运行的机器人
 function selectBotsForRun(bots) {
   const timeBased = getTimeBasedSelection();
   let selected;
 
   if (timeBased) {
-    // 按时间段策略选择
     selected = bots.filter(b => timeBased.includes(b.key));
   } else {
-    // 随机选择：基于日期哈希确保同一天同一时段选择相同的机器人
     const today = new Date().toISOString().slice(0, 10);
     const hour = new Date().getUTCHours() + 8;
-    const period = Math.floor(hour / 6); // 0-3 四个时段
+    const period = Math.floor(hour / 6);
     const seed = today + '-' + period;
     let hash = 0;
     for (let i = 0; i < seed.length; i++) {
@@ -83,7 +88,6 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// 启动校验
 if (!DRY_RUN) {
   if (!SITE_URL) fail('缺少 SITE_URL');
   if (!ADMIN_PASSWORD) warn('未配置 ADMIN_PASSWORD，将仅依赖 AI Agent 注册');
@@ -201,9 +205,63 @@ const BOTS = [
   },
 ];
 
-function pickTopic(bot) {
-  const pool = bot.topics;
-  return pool[Math.floor(Math.random() * pool.length)];
+// ===== 动态主题生成 =====
+async function generateNewTopics(bot, count = 5) {
+  const prompt = buildTopicGenerationPrompt({ bot, recentTopics: bot.topics.slice(0, 5) });
+
+  try {
+    const content = await callAI({
+      prompt,
+      systemPrompt: '你是技术社区内容策划，专门负责生成高质量的文章主题。只输出 JSON 数组。',
+      maxTokens: 1000,
+      responseFormat: { type: 'json_object' },
+      tag: TAG,
+    });
+
+    const parsed = robustJSONParse(content);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.filter(t => typeof t === 'string' && t.length > 5);
+    }
+    if (Array.isArray(parsed.topics)) return parsed.topics;
+    warn('动态主题生成返回格式异常，使用固定主题池');
+  } catch (e) {
+    warn(`动态主题生成失败：${e.message}，使用固定主题池`);
+  }
+
+  return [];
+}
+
+// ===== 选择主题（带去重） =====
+async function pickTopic(bot, recentPostTitles = []) {
+  // 30% 概率使用动态生成的新主题
+  const useDynamic = Math.random() < 0.3;
+
+  let candidates = [...bot.topics];
+
+  if (useDynamic) {
+    log('尝试动态生成新主题...');
+    const newTopics = await generateNewTopics(bot, 5);
+    if (newTopics.length > 0) {
+      candidates = [...newTopics, ...candidates];
+      log(`生成了 ${newTopics.length} 个新主题`);
+    }
+  }
+
+  // 从候选中选一个和最近帖子标题不重复的
+  const topic = pickDiverseTopic(candidates, recentPostTitles, 0.4);
+  return topic;
+}
+
+// ===== 获取近期帖子标题（用于去重）=====
+async function fetchRecentPostTitles(token, categorySlug, limit = 10) {
+  try {
+    const res = await siteFetch(`${SITE_URL}/api/forum/posts?category=${categorySlug}&limit=${limit}&sort=newest`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.posts || []).map(p => p.title).filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 // ===== 注册 AI Agent =====
@@ -313,10 +371,10 @@ function findCategoryIdBySlug(categories, slug) {
   return null;
 }
 
-// ===== 调用 AI 生成帖子 =====
-async function generatePostContent(bot, title, categories) {
+// ===== 调用 AI 生成帖子（多样化版本）=====
+async function generatePostContent(bot, title, categories, angle) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
-  const promptRules = buildProfessionalPromptRules({ mode: 'forum' });
+  const { rules, meta } = buildDiversePromptRules({ mode: 'deep', botPersona: bot.authorName, topic: title });
 
   const prompt = `你是一个技术社区的内容创作者，人设是「${bot.authorName}」，专注${bot.tagline}。请生成一篇高质量的论坛帖子。
 
@@ -325,14 +383,16 @@ async function generatePostContent(bot, title, categories) {
 1. 标题：${title}
 2. 类型：${bot.promptHint}
 3. 内容用 Markdown 格式，结构清晰，必要时包含代码块。
-4. 内容长度：1200-2400 字。
+4. 文章长度请参考所选结构的推荐长度（约 ${meta.structure.lengthRange[0]}-${meta.structure.lengthRange[1]} 字）。
 5. 语言：中文。
-6. 要有实际价值，不要空洞的水文。
-7. 代码示例或配置要正确可运行；如果涉及工具使用，要说明使用前提。
-8. 帖子要像高质量技术社区教程一样专业、清晰、可复现，优先保证技术准确性和实践价值。
-9. 不要写"作为 AI""我是 AI"之类表达。
+6. 切入角度：${angle}
+7. 要有实际价值，不要空洞的水文。
+8. 代码示例或配置要正确可运行；如果涉及工具使用，要说明使用前提。
+9. 帖子要像高质量技术社区教程一样专业、清晰、可复现，优先保证技术准确性和实践价值。
+10. 不要写"作为 AI""我是 AI"之类表达。
+11. 文章结构类型：${meta.structure.name}
 
-${promptRules}
+${rules}
 
 ## 输出格式
 
@@ -348,14 +408,14 @@ ${promptRules}
 论坛现有分类：${categoryNames}
 本帖目标分类 slug：${bot.categorySlug}（${bot.tagline}）。如果分类里有对应的就推荐一个分类名（放在 categoryId 字段，用分类的 id），没有合适的就不填。`;
 
-  log(`调用 AI 生成帖子：${title}`);
+  log(`调用 AI 生成帖子：${title}（${meta.structure.name} / ${meta.style.name} / ${angle}）`);
 
   let lastError = null;
   for (let attempt = 0; attempt <= AI_GENERATE_RETRIES; attempt++) {
     const content = await callAI({
       prompt,
       systemPrompt: `你是技术社区内容创作者「${bot.authorName}」，擅长${bot.tagline}。必须只输出一个有效的 JSON 对象，不要包含任何 markdown 代码块标记或其他文字。`,
-      maxTokens: 8000,
+      maxTokens: Math.floor(meta.structure.lengthRange[1] * 2.5),
       responseFormat: { type: 'json_object' },
       tag: TAG,
     });
@@ -366,10 +426,10 @@ ${promptRules}
         parsed.title = normalizeTitle(parsed.title, title);
         parsed.tags = normalizeTags(parsed.tags, bot.defaultTags);
         parsed.content = appendProfessionalFooter(parsed.content, {
-          discussionQuestion: bot.discussionQuestion,
+          discussionQuestion: meta.discussion,
         });
         assertGeneratedPostQuality(parsed);
-        log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}`);
+        log(`帖子生成完成，标题：${parsed.title}，内容长度：${parsed.content?.length || 0}，结构：${meta.structure.name}`);
         return parsed;
       }
       warn(`AI 返回的 JSON 缺少 title 或 content（第 ${attempt + 1} 次）`);
@@ -387,7 +447,7 @@ ${promptRules}
         fallback.title = normalizeTitle(fallback.title, title);
         fallback.tags = normalizeTags(fallback.tags, bot.defaultTags);
         fallback.content = appendProfessionalFooter(fallback.content, {
-          discussionQuestion: bot.discussionQuestion,
+          discussionQuestion: meta.discussion,
         });
         assertGeneratedPostQuality(fallback);
         log(`兜底提取成功，标题：${fallback.title}，内容长度：${fallback.content.length}`);
@@ -450,7 +510,7 @@ async function publishPost(token, bot, postData, categories) {
 
 // ===== 主流程 =====
 async function main() {
-  log('开始执行 AI 分类机器人自动发帖...');
+  log('开始执行 AI 分类机器人自动发帖（深度优化版）...');
   log(`模式：${DRY_RUN ? '预览（dry-run）' : '正式发帖'}`);
   log(`机器人数量：${BOTS.length}`);
 
@@ -467,17 +527,29 @@ async function main() {
   const results = { success: 0, failed: 0, skipped: 0 };
   const failedBots = [];
 
-  // 根据内容策略选择本次要运行的机器人
   const selectedBots = selectBotsForRun(BOTS);
   log(`内容策略：本次运行 ${selectedBots.length} 个机器人 - ${selectedBots.map(b => b.authorName).join('、')}`);
 
   for (const bot of selectedBots) {
     log(`\n========== [${bot.authorName}] ==========`);
-    const topic = pickTopic(bot);
+
+    // 获取近期帖子标题用于去重
+    let recentTitles = [];
+    if (!DRY_RUN) {
+      recentTitles = await fetchRecentPostTitles(token, bot.categorySlug, 8);
+      log(`近期已发布 ${recentTitles.length} 篇，将进行内容去重`);
+    }
+
+    // 选择主题（带去重）
+    const topic = await pickTopic(bot, recentTitles);
     log(`选中主题：${topic}`);
 
+    // 随机选择内容切入角度
+    const angle = getRandomContentAngle();
+    log(`切入角度：${angle}`);
+
     try {
-      const postData = await generatePostContent(bot, topic, categories);
+      const postData = await generatePostContent(bot, topic, categories, angle);
 
       if (DRY_RUN) {
         log(`[预览模式] 标题：${postData.title}`);
@@ -501,9 +573,8 @@ async function main() {
         await publishPost(botToken, bot, postData, categories);
         results.success++;
 
-        // 每篇帖子间隔 2 秒
-        if (bot !== BOTS[BOTS.length - 1]) {
-          await sleep(2000);
+        if (bot !== selectedBots[selectedBots.length - 1]) {
+          await sleep(3000);
         }
       }
     } catch (error) {

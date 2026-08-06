@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 
 /**
- * AI Agent 自动注册 + 活跃脚本
+ * AI Agent 自动注册 + 活跃脚本（深度优化版）
  *
  * 每次运行：
  * 1. 注册一个新的 AI Agent（随机人设）
  * 2. 用该 Agent 账号发一篇帖子（50%概率）或回复已有帖子（50%概率）
  * 3. 偶尔同时发帖+回复，模拟真实用户行为
+ *
+ * 优化特性：
+ * - 人设差异化：每个人设有不同的说话风格和常用表达
+ * - 内容多样化：多种帖子类型（经验分享/提问/讨论/工具推荐/踩坑记录）
+ * - 回复风格随机：赞同补充/提问探讨/经验分享/不同角度/感谢提问
+ * - 内容去重：避免重复主题
  *
  * 环境变量：SITE_URL, AI_API_KEY, AI_API_BASE, AI_MODEL
  * 可选：ADMIN_USERNAME, ADMIN_PASSWORD（注册限额用尽时的回退登录）
@@ -18,13 +24,17 @@ import {
   assertGeneratedPostQuality,
   normalizeTags,
   normalizeTitle,
+  getRandomReplyStyle,
+  pickRandom,
+  pickDiverseTopic,
+  estimateSimilarity,
 } from './lib/post-template.mjs';
 
 const {
   SITE_URL = 'http://localhost:3000',
   ADMIN_USERNAME = '',
   ADMIN_PASSWORD = '',
-  AUTHOR_NAME = 'GitdBot', // 回退到管理员发帖时显示的自定义作者名，默认不用 admin
+  AUTHOR_NAME = 'GitdBot',
 } = process.env;
 
 const TAG = '[ai-agent-activity]';
@@ -37,53 +47,172 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 if (!SITE_URL) fail('缺少 SITE_URL');
 
-// ===== AI Agent 人设池 =====
+// ===== AI Agent 人设池（带性格特征）=====
 const PERSONAS = [
-  { name: 'CodeNinja', owner: 'Gitd Community', desc: '热爱全栈开发，专注 React 和 Node.js' },
-  { name: 'DevExplorer', owner: 'Gitd Community', desc: '探索新技术，分享开发经验和工具' },
-  { name: 'ByteWizard', owner: 'Gitd Community', desc: '后端架构师，擅长分布式系统和数据库优化' },
-  { name: 'PixelMage', owner: 'Gitd Community', desc: '前端开发者，热爱 CSS 动画和用户体验设计' },
-  { name: 'CloudPilot', owner: 'Gitd Community', desc: '云原生和 DevOps 实践者' },
-  { name: 'DataMiner', owner: 'Gitd Community', desc: '数据工程师，热爱 Python 和机器学习' },
-  { name: 'StackHunter', owner: 'Gitd Community', desc: '全栈开发者，喜欢尝试新的技术栈' },
-  { name: 'LogicFox', owner: 'Gitd Community', desc: '算法竞赛选手，热爱数据结构和算法' },
-  { name: 'WebCraftsman', owner: 'Gitd Community', desc: 'Web 工匠，追求代码质量和性能' },
-  { name: 'TechSage', owner: 'Gitd Community', desc: '资深开发者，擅长系统设计和架构' },
-  { name: 'NullPointer', owner: 'Gitd Community', desc: '调试专家，擅长排查疑难 Bug' },
-  { name: 'AsyncMaster', owner: 'Gitd Community', desc: '异步编程专家，深入理解事件循环' },
-  { name: 'ApiKey', owner: 'Gitd Community', desc: 'API 设计爱好者，REST 和 GraphQL 都玩' },
-  { name: 'ShellBoss', owner: 'Gitd Community', desc: '命令行重度用户，写脚本解决问题' },
-  { name: 'RefactorPro', owner: 'Gitd Community', desc: '代码重构狂人，看到坏味道就想改' },
+  {
+    name: 'CodeNinja',
+    owner: 'Gitd Community',
+    desc: '热爱全栈开发，专注 React 和 Node.js',
+    style: '喜欢用 emoji 表达情绪，说话比较直接，经常分享实战踩坑',
+    tags: ['React', 'Node.js', '全栈开发'],
+  },
+  {
+    name: 'DevExplorer',
+    owner: 'Gitd Community',
+    desc: '探索新技术，分享开发经验和工具',
+    style: '语气好奇、充满探索精神，喜欢尝试新东西并分享第一手体验',
+    tags: ['新技术', '工具推荐', '开发效率'],
+  },
+  {
+    name: 'ByteWizard',
+    owner: 'Gitd Community',
+    desc: '后端架构师，擅长分布式系统和数据库优化',
+    style: '严谨专业，喜欢从原理出发分析问题，经常给出深度见解',
+    tags: ['后端', '分布式', '数据库'],
+  },
+  {
+    name: 'PixelMage',
+    owner: 'Gitd Community',
+    desc: '前端开发者，热爱 CSS 动画和用户体验设计',
+    style: '审美在线，关注细节和体验，喜欢分享 CSS 技巧和动效',
+    tags: ['前端', 'CSS', '用户体验'],
+  },
+  {
+    name: 'CloudPilot',
+    owner: 'Gitd Community',
+    desc: '云原生和 DevOps 实践者',
+    style: '务实派，注重自动化和可维护性，分享 DevOps 实战经验',
+    tags: ['云原生', 'DevOps', 'Kubernetes'],
+  },
+  {
+    name: 'DataMiner',
+    owner: 'Gitd Community',
+    desc: '数据工程师，热爱 Python 和机器学习',
+    style: '数据驱动，喜欢用数据说话，分享数据分析和 ML 实践',
+    tags: ['Python', '数据分析', '机器学习'],
+  },
+  {
+    name: 'StackHunter',
+    owner: 'Gitd Community',
+    desc: '全栈开发者，喜欢尝试新的技术栈',
+    style: '折腾党，什么都想试试，经常分享技术栈对比和迁移经验',
+    tags: ['技术栈', '全栈', '折腾'],
+  },
+  {
+    name: 'LogicFox',
+    owner: 'Gitd Community',
+    desc: '算法竞赛选手，热爱数据结构和算法',
+    style: '逻辑清晰，喜欢分析时间复杂度，分享算法题解和优化思路',
+    tags: ['算法', '数据结构', 'LeetCode'],
+  },
+  {
+    name: 'WebCraftsman',
+    owner: 'Gitd Community',
+    desc: 'Web 工匠，追求代码质量和性能',
+    style: '工匠精神，注重代码质量和可维护性，分享重构和性能优化',
+    tags: ['代码质量', '性能优化', '重构'],
+  },
+  {
+    name: 'TechSage',
+    owner: 'Gitd Community',
+    desc: '资深开发者，擅长系统设计和架构',
+    style: '沉稳老练，喜欢从架构视角看问题，分享系统设计经验',
+    tags: ['架构', '系统设计', '技术选型'],
+  },
+  {
+    name: 'NullPointer',
+    owner: 'Gitd Community',
+    desc: '调试专家，擅长排查疑难 Bug',
+    style: '侦探风格，像破案一样排查问题，分享调试技巧和踩坑记录',
+    tags: ['调试', 'Bug 排查', '排错'],
+  },
+  {
+    name: 'AsyncMaster',
+    owner: 'Gitd Community',
+    desc: '异步编程专家，深入理解事件循环',
+    style: '擅长解释复杂概念，把异步讲得通俗易懂',
+    tags: ['异步编程', 'JavaScript', '事件循环'],
+  },
+  {
+    name: 'ApiKey',
+    owner: 'Gitd Community',
+    desc: 'API 设计爱好者，REST 和 GraphQL 都玩',
+    style: '设计控，关注 API 美学和开发者体验',
+    tags: ['API 设计', 'REST', 'GraphQL'],
+  },
+  {
+    name: 'ShellBoss',
+    owner: 'Gitd Community',
+    desc: '命令行重度用户，写脚本解决问题',
+    style: '效率至上，能用一行命令解决的绝不用 GUI',
+    tags: ['命令行', 'Shell', '自动化'],
+  },
+  {
+    name: 'RefactorPro',
+    owner: 'Gitd Community',
+    desc: '代码重构狂人，看到坏味道就想改',
+    style: '完美主义，追求代码整洁，分享重构技巧和设计模式',
+    tags: ['重构', '设计模式', '代码整洁'],
+  },
 ];
 
-// ===== 帖子主题池 =====
-const POST_TOPICS = [
-  '你在日常开发中最常用的 Git 技巧是什么？',
-  '分享一个你最近发现的实用开发者工具',
-  'TypeScript 使用中遇到的坑和解决方案',
-  '你如何看待 Server Components 的未来？',
-  'Docker Compose 本地开发环境最佳实践',
-  '前端性能优化：你做了哪些有效措施？',
-  '推荐一个好用的 VS Code 插件并说明理由',
-  '从单体到微服务：架构演进的经验教训',
-  '数据库索引优化的实战经验分享',
-  '你怎么看待 AI 辅助编程工具？',
-  '代码审查中常见的问题和改进建议',
-  '你用过的最好的 CSS 技巧是什么？',
-  'RESTful API 设计中容易忽略的细节',
-  '单元测试值得吗？我的实践经验',
-  '你最喜欢的编程语言特性是什么？',
-  'CI/CD 管道优化的几个实用技巧',
-  '前端部署策略：CDN、边缘计算还是传统服务器？',
-  '你如何管理项目中的技术债务？',
-  '终端效率工具推荐：tmux + zsh 配置分享',
-  '聊聊函数式编程在前端的实践',
-];
+// ===== 帖子主题池（按类型分类）=====
+const POST_TOPICS = {
+  experience: [
+    '你在日常开发中最常用的 Git 技巧是什么？',
+    'TypeScript 使用中遇到的坑和解决方案',
+    '前端性能优化：你做了哪些有效措施？',
+    '从单体到微服务：架构演进的经验教训',
+    '数据库索引优化的实战经验分享',
+    '代码审查中常见的问题和改进建议',
+    '你用过的最好的 CSS 技巧是什么？',
+    'RESTful API 设计中容易忽略的细节',
+    '单元测试值得吗？我的实践经验',
+    'CI/CD 管道优化的几个实用技巧',
+    '你如何管理项目中的技术债务？',
+    '聊聊函数式编程在前端的实践',
+  ],
+  question: [
+    '你如何看待 Server Components 的未来？',
+    '你怎么看待 AI 辅助编程工具？',
+    '前端部署策略：CDN、边缘计算还是传统服务器？',
+    '你最喜欢的编程语言特性是什么？',
+    '微服务真的适合中小团队吗？',
+    'TypeScript 是不是被过度使用了？',
+    '你觉得低代码平台会取代开发者吗？',
+    '远程办公对开发效率有什么影响？',
+    '开源项目维护者应该得到报酬吗？',
+    '你觉得 WebAssembly 的前景如何？',
+  ],
+  tool: [
+    '分享一个你最近发现的实用开发者工具',
+    '推荐一个好用的 VS Code 插件并说明理由',
+    '终端效率工具推荐：tmux + zsh 配置分享',
+    '这个小众工具帮我解决了大问题',
+    '我常用的 5 个提升效率的命令行工具',
+  ],
+  pitfall: [
+    '这个 Bug 我查了三天，最后发现居然是...',
+    '线上事故复盘：一个配置项引发的血案',
+    '踩坑记录：别再这样用 React useEffect 了',
+    '这些常见的数据库坑你踩过几个？',
+    '新手最容易犯的 5 个 Node.js 错误',
+  ],
+  discussion: [
+    '聊聊你心目中的"优秀代码"是什么样的',
+    '你是如何保持技术学习的热情的？',
+    '工作三年和工作一年的区别在哪里？',
+    '你心目中理想的技术团队是什么样的？',
+    '程序员 35 岁焦虑是真的吗？',
+  ],
+};
+
+// 获取所有主题列表
+const ALL_POST_TOPICS = Object.values(POST_TOPICS).flat();
 
 // ===== 注册 AI Agent =====
 async function registerAgent() {
   const persona = PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
-  // 在名字后加随机后缀，避免重名
   const suffix = Math.floor(Math.random() * 900 + 100);
   const agentName = `${persona.name}${suffix}`;
 
@@ -123,7 +252,6 @@ async function registerAgent() {
 
     if (res.status === 409) {
       warn(`用户名 ${agentName} 已存在，尝试另一个...`);
-      // 递归重试一次
       return registerAgent();
     }
 
@@ -193,60 +321,60 @@ async function fetchPosts(token) {
   }
 }
 
-// ===== AI 生成帖子内容 =====
+// ===== 随机选择帖子类型 =====
+function pickPostType() {
+  const types = Object.keys(POST_TOPICS);
+  return types[Math.floor(Math.random() * types.length)];
+}
+
+// ===== AI 生成帖子内容（多样化版本）=====
 async function generatePost(persona, categories) {
-  const topic = POST_TOPICS[Math.floor(Math.random() * POST_TOPICS.length)];
+  const postType = pickPostType();
+  const topics = POST_TOPICS[postType] || ALL_POST_TOPICS;
+  const topic = pickRandom(topics);
   const categoryNames = categories.map(c => c.name).join('、') || '综合讨论';
 
+  const typeDesc = {
+    experience: '经验分享帖：分享自己的实战经验和做法',
+    question: '提问帖：提出一个你好奇的问题，邀请大家讨论',
+    tool: '工具推荐帖：推荐一个实用工具并说明为什么好用',
+    pitfall: '踩坑记录帖：分享一个你遇到的坑和解决过程',
+    discussion: '讨论帖：抛出一个有争议的话题，邀请大家发表看法',
+  };
+
   const prompt = `你是社区用户"${persona.name}"，${persona.desc}。
-请围绕以下话题写一篇论坛帖子：
+你的说话风格：${persona.style}
+
+请围绕以下话题写一篇论坛帖子，帖子类型：${typeDesc[postType] || '经验分享'}
 
 ## 话题
 ${topic}
 
 ## 要求
 1. 用第一人称写，像真实开发者在社区分享经验。
-2. 内容用 Markdown 格式，结构清晰。
-3. 长度 600-1200 字，不要太短。
+2. 内容用 Markdown 格式，结构自然，不要生硬套模板。
+3. 长度 500-1200 字，不要太短也不要太啰嗦。
 4. 语言自然、有个人观点，但表达要专业，不要像水帖。
-5. 必须包含一个真实场景、一个具体做法、一个踩坑提醒和一个讨论问题。
-6. 开头先给一句核心观点，避免寒暄。
-7. 不要写“作为 AI”“我是 AI”之类表达。
-
-## 建议结构
-
-> 核心观点：一句话说明你的看法。
-
-## 我的场景
-
-说明你为什么关注这个问题。
-
-## 我的做法
-
-写具体方案、配置、工具或判断标准。
-
-## 容易踩坑的点
-
-列出 2-3 个提醒。
-
-## 想听听大家的经验
-
-提出一个具体问题，引导评论。
+5. 必须体现你的人设特点和说话风格。
+6. 开头方式要自然，不要千篇一律地"今天来聊聊"。
+7. 不要写"作为 AI""我是 AI"之类表达。
+8. 结尾可以提出一个问题或邀请大家讨论。
 
 ## 输出格式
 只输出一个 JSON 对象，不要任何其他文字：
 {
-  "title": "专业、清晰的帖子标题（可以与话题不同，用自己的话）",
+  "title": "自然、吸引人的帖子标题（可以与话题不同，用自己的话）",
   "content": "Markdown 格式正文，换行用 \\n",
   "tags": ["标签1", "标签2", "标签3"]
 }
 
-论坛分类：${categoryNames}`;
+论坛分类：${categoryNames}
+建议选择一个合适的分类发帖。`;
 
   const content = await callAI({
     prompt,
-    systemPrompt: '你是社区用户，写真实自然的帖子分享。必须只输出一个有效 JSON 对象。',
-    maxTokens: 4096,
+    systemPrompt: `你是社区用户${persona.name}，写真实自然的帖子分享。你的风格：${persona.style}。必须只输出一个有效 JSON 对象。`,
+    maxTokens: 3000,
     responseFormat: { type: 'json_object' },
     tag: TAG,
   });
@@ -256,43 +384,38 @@ ${topic}
     throw new Error('AI 生成的帖子缺少 title 或 content');
   }
   parsed.title = normalizeTitle(parsed.title, topic);
-  parsed.tags = normalizeTags(parsed.tags, ['开发经验', '技术讨论']);
+  parsed.tags = normalizeTags(parsed.tags, persona.tags || ['开发经验', '技术讨论']);
   parsed.content = appendProfessionalFooter(parsed.content, {
-    discussionQuestion: '你在类似场景下会怎么处理？欢迎分享不同工具、配置或团队实践。',
+    discussionQuestion: null, // 让 AI 自己写讨论引导
     includeAiNote: false,
   });
-  assertGeneratedPostQuality(parsed);
+  assertGeneratedPostQuality(parsed, { mode: 'short' });
+  log(`帖子类型：${postType}，标题：${parsed.title}`);
   return parsed;
 }
 
 // ===== 发布帖子 =====
-async function publishPost(token, postData, categories) {
+async function publishPost(token, postData, categories, persona) {
   let categoryId = null;
   if (categories.length > 0) {
-    // 随机选一个分类，或用第一个
-    categoryId = categories[Math.floor(Math.random() * Math.min(3, categories.length))].id;
+    // 随机选一个非 AI 分类
+    const nonAiCats = categories.filter(c => !['ai-tools', 'llm', 'ai-agent', 'prompt'].includes(c.slug));
+    const pool = nonAiCats.length > 0 ? nonAiCats : categories;
+    categoryId = pool[Math.floor(Math.random() * Math.min(3, pool.length))].id;
   }
 
   const body = {
     title: normalizeTitle(postData.title),
-    content: appendProfessionalFooter(postData.content, {
-      discussionQuestion: '你在类似场景下会怎么处理？欢迎分享不同工具、配置或团队实践。',
-      includeAiNote: false,
-    }),
+    content: postData.content,
     postType: 'discussion',
     isAIGenerated: true,
   };
-  // 回退到管理员账号时用自定义作者名，避免显示 admin
-  if (AUTHOR_NAME) body.authorName = AUTHOR_NAME;
+  if (AUTHOR_NAME && !persona) body.authorName = AUTHOR_NAME;
+  if (persona) body.authorName = persona.name;
   if (categoryId) body.categoryId = categoryId;
   if (Array.isArray(postData.tags) && postData.tags.length > 0) {
-    body.tags = normalizeTags(postData.tags, ['开发经验', '技术讨论']);
+    body.tags = normalizeTags(postData.tags);
   }
-  assertGeneratedPostQuality({
-    title: body.title,
-    content: body.content,
-    tags: body.tags || postData.tags,
-  });
 
   const res = await siteFetch(`${SITE_URL}/api/forum/posts`, {
     method: 'POST',
@@ -313,20 +436,27 @@ async function publishPost(token, postData, categories) {
   return result;
 }
 
-// ===== AI 生成回复 =====
+// ===== AI 生成回复（多样化版本）=====
 async function generateReply(persona, post) {
+  const replyStyle = getRandomReplyStyle();
+
   const prompt = `你是社区用户"${persona.name}"，${persona.desc}。
+你的说话风格：${persona.style}
+
 你正在浏览论坛，看到这篇帖子，想写一条回复。
 
 ## 帖子信息
 - 标题：${post.title || '无标题'}
 - 作者：${post.author?.username || '楼主'}
-- 内容：${(post.content || '').slice(0, 2000)}
+- 内容：${(post.content || '').slice(0, 1500)}
+
+## 回复风格
+${replyStyle.prompt}
 
 ## 回复要求
 1. 用第一人称写，像真实用户在回复
-2. 100-300 字，简洁有料
-3. 分享自己的经验或观点，或补充有用的信息
+2. 80-250 字，简洁有料
+3. 必须符合你的人设和说话风格
 4. 语言自然，不要像 AI 生成的
 5. 直接输出回复正文，不要前缀
 
@@ -334,12 +464,13 @@ async function generateReply(persona, post) {
 
   const reply = await callAI({
     prompt,
-    systemPrompt: '你是社区用户，写真实自然的回复。直接输出回复内容。',
-    maxTokens: 1024,
+    systemPrompt: `你是社区用户${persona.name}，写真实自然的回复。你的风格：${persona.style}。直接输出回复内容。`,
+    maxTokens: 800,
     tag: TAG,
   });
 
-  return reply;
+  log(`回复风格：${replyStyle.name}`);
+  return reply.trim();
 }
 
 // ===== 发布评论 =====
@@ -365,17 +496,14 @@ async function postComment(token, postId, content) {
 
 // ===== 主流程 =====
 async function main() {
-  log('=== AI Agent 活跃任务开始 ===');
+  log('=== AI Agent 活跃任务开始（深度优化版）===');
 
-  // 预检 AI API
   const healthyModel = await checkAIHealth(TAG);
   if (!healthyModel) fail('AI API 预检失败，所有模型均不可用');
   log(`使用 AI 模型：${healthyModel}`);
 
-  // 注册 AI Agent
   let agent = await registerAgent();
 
-  // 如果注册失败（限额用尽等），回退到管理员账号
   if (!agent) {
     log('AI Agent 注册未成功，回退到管理员账号');
     agent = await adminLogin();
@@ -386,8 +514,11 @@ async function main() {
   }
 
   log(`使用账号：${agent.username}`);
+  if (agent.persona) {
+    log(`人设：${agent.persona.name} - ${agent.persona.desc}`);
+    log(`风格：${agent.persona.style}`);
+  }
 
-  // 获取分类和帖子
   const categories = await fetchCategories(agent.token);
   log(`获取到 ${categories.length} 个分类`);
 
@@ -401,28 +532,31 @@ async function main() {
 
   try {
     if (action < 0.5 || action >= 0.8) {
-      // 发帖
       log('--- 执行发帖 ---');
-      const postData = await generatePost(agent.persona || { name: agent.username, desc: '社区用户' }, categories);
-      await publishPost(agent.token, postData, categories);
+      const postData = await generatePost(
+        agent.persona || { name: agent.username, desc: '社区用户', style: '自然分享', tags: ['开发经验', '技术讨论'] },
+        categories
+      );
+      await publishPost(agent.token, postData, categories, agent.persona);
       didPost = true;
     }
 
     if (action >= 0.5 || action >= 0.8) {
-      // 回复帖子（找有无评论的帖子）
       const targets = posts.filter(p =>
         p.id && p.content && (p.commentCount || 0) === 0 && !p.isLocked
       );
 
       if (targets.length > 0) {
-        // 随机选 1-2 个帖子回复
         const replyCount = Math.min(targets.length, Math.random() > 0.7 ? 2 : 1);
         const selected = targets.sort(() => Math.random() - 0.5).slice(0, replyCount);
 
         for (const post of selected) {
           try {
             log(`--- 回复帖子：${post.title || post.id} ---`);
-            const reply = await generateReply(agent.persona || { name: agent.username, desc: '社区用户' }, post);
+            const reply = await generateReply(
+              agent.persona || { name: agent.username, desc: '社区用户', style: '自然交流' },
+              post
+            );
             await postComment(agent.token, post.id, reply);
             didReply = true;
             await sleep(2000);

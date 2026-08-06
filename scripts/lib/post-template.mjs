@@ -1,6 +1,12 @@
 /**
  * AI 发帖内容模板工具
  * 用于统一自动发帖的专业结构、互动引导和 AI 辅助说明。
+ *
+ * 优化点：
+ * - 多种文章结构模板，避免机械化重复
+ * - 多样化写作风格
+ * - 多样化开头/结尾方式
+ * - 内容去重与差异化机制
  */
 
 export function normalizeTags(tags, fallback = []) {
@@ -26,11 +32,11 @@ const HIGH_QUALITY_ACCURACY_RULES = `
 ## 准确性与反编造要求（必须遵守）
 
 1. 不得编造不存在的 API、命令、配置项、版本特性、发布日期、性能数字、Star 数、公司案例或项目数据。
-2. 不确定的信息必须明确写“以官方文档/官方仓库为准”，不要把推测写成事实。
+2. 不确定的信息必须明确写"以官方文档/官方仓库为准"，不要把推测写成事实。
 3. 不能虚构链接。只有在你确定链接真实且稳定时才写 URL；否则不要写链接。
-4. 不要使用“最新数据显示”“官方表示”“业内统计”等无法核验的表述，除非上下文提供了明确来源。
+4. 不要使用"最新数据显示""官方表示""业内统计"等无法核验的表述，除非上下文提供了明确来源。
 5. 代码示例必须使用稳定、常见、可解释的写法；不要编造库名、方法名或参数。
-6. 如果主题依赖特定版本，必须写清楚“请以当前版本文档为准”，不要强行给出未经确认的版本号。
+6. 如果主题依赖特定版本，必须写清楚"请以当前版本文档为准"，不要强行给出未经确认的版本号。
 7. 宁可少写，也不要为了显得丰富而补虚假细节。
 8. 输出前自检：是否有无法确认的事实、是否有占位符、是否有未解释的命令、是否有夸大结论。`;
 
@@ -84,104 +90,269 @@ export function assertGeneratedPostQuality(post, options = {}) {
   return post;
 }
 
+// ===== 多样化讨论问题 =====
+const DISCUSSION_QUESTIONS = [
+  '你在实际项目中遇到过类似问题吗？欢迎补充你的经验和方案。',
+  '大家对这个话题有什么不同的看法？欢迎在评论区聊聊。',
+  '你平时是怎么处理这类问题的？有没有更好的实践？',
+  '这篇文章里哪个点最让你有共鸣？或者你有不同意见？',
+  '有没有人用过类似的方案吗？来分享一下踩坑经验。',
+  '你觉得这个方向未来会怎么发展？欢迎大胆预测一下。',
+  '如果是你，你会怎么设计/选型？为什么？',
+  '有没有补充的工具或资源？欢迎在评论区安利一下。',
+  '看完这篇你最大的收获是什么？还有什么想了解的？',
+  '你们团队在这方面有什么实践？来交流一下。',
+];
+
+// ===== 多样化结尾引导语 =====
+const CLOSING_LINES = [
+  '以上就是我对这个话题的一些思考，抛砖引玉。',
+  '先分享到这里，希望对你有帮助的话点个赞支持一下。',
+  '个人经验难免有局限，欢迎大家补充指正。',
+  '实践出真知，建议动手试试才知道适不适合自己。',
+  '技术在变，思路是相通的。',
+  '写得比较长，能看到这里的都是真爱。',
+  '一点浅见，欢迎讨论。',
+  '持续学习，持续进步。',
+];
+
+// ===== 多样化开头方式 =====
+const OPENING_STYLES = [
+  {
+    name: '问题引入',
+    template: '最近在做项目的时候遇到一个问题：______。折腾了一番，总结一下经验。'
+  },
+  {
+    name: '场景描述',
+    template: '这段时间一直在研究______，踩了不少坑，今天来聊聊我的理解。'
+  },
+  {
+    name: '对比引入',
+    template: '之前一直用______，最近试了试______，差别还挺大的。'
+  },
+  {
+    name: '经验总结',
+    template: '做了快一年多的______，有些心得想记录下来。'
+  },
+  {
+    name: '趋势观察',
+    template: '最近______越来越火了，来聊聊它到底解决了什么问题。'
+  },
+  {
+    name: '踩坑复盘',
+    template: '昨天线上出了个问题，排查下来是______导致的，复盘一下。'
+  },
+  {
+    name: '工具推荐',
+    template: '发现了一个宝藏工具______，用了之后效率提升不少。'
+  },
+  {
+    name: '观点抛出',
+    template: '我一直觉得______这件事，很多人都理解错了。'
+  },
+];
+
+// ===== 文章结构模板 =====
+const POST_STRUCTURE_TEMPLATES = [
+  {
+    id: 'tutorial',
+    name: '入门教程型',
+    structure: `## 为什么需要它
+## 核心概念
+## 快速上手
+## 进阶用法
+## 注意事项`,
+    lengthRange: [1000, 1800],
+  },
+  {
+    id: 'comparison',
+    name: '对比评测型',
+    structure: `## 背景
+## 对比维度
+## 各方案详解
+## 选型建议
+## 总结`,
+    lengthRange: [1200, 2000],
+  },
+  {
+    id: 'pitfall',
+    name: '踩坑经验型',
+    structure: `## 问题现象
+## 排查过程
+## 根本原因
+## 解决方案
+## 预防措施`,
+    lengthRange: [800, 1500],
+  },
+  {
+    id: 'deepdive',
+    name: '深度解析型',
+    structure: `## 现象
+## 原理
+## 实现
+## 优化
+## 展望`,
+    lengthRange: [1500, 2500],
+  },
+  {
+    id: 'roundup',
+    name: '盘点汇总型',
+    structure: `## 写在前面
+## 方案一：____
+## 方案二：____
+## 方案三：____
+## 怎么选`,
+    lengthRange: [1200, 2000],
+  },
+  {
+    id: 'practice',
+    name: '实战案例型',
+    structure: `## 需求背景
+## 技术选型
+## 实现过程
+## 效果评估
+## 经验总结`,
+    lengthRange: [1000, 1800],
+  },
+  {
+    id: 'opinion',
+    name: '观点评论型',
+    structure: `## 我的看法
+## 为什么这么说
+## 反方观点
+## 折中方案
+## 结语`,
+    lengthRange: [800, 1400],
+  },
+  {
+    id: 'tool',
+    name: '工具推荐型',
+    structure: `## 这是什么
+## 能做什么
+## 怎么用
+## 同类对比
+## 适用场景`,
+    lengthRange: [900, 1600],
+  },
+];
+
+// ===== 写作风格 =====
+const WRITING_STYLES = [
+  {
+    id: 'professional',
+    name: '专业严谨',
+    prompt: '用词专业、逻辑清晰、结构严谨，像资深工程师写的技术博客。',
+  },
+  {
+    id: 'casual',
+    name: '轻松分享',
+    prompt: '语气轻松、像和朋友聊天一样分享经验，可以用一些口语化表达，但不要太随意。',
+  },
+  {
+    id: 'practical',
+    name: '干货实战',
+    prompt: '注重实操导向、少说理论、多给具体做法和代码示例。',
+  },
+  {
+    id: 'story',
+    name: '故事叙述',
+    prompt: '用讲故事的方式，从问题出发，一步步展开，有过程有细节。',
+  },
+];
+
+// ===== 随机选择工具 =====
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function pickNRandom(arr, n) {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, n);
+}
+
+// ===== 生成多样化 prompt 规则 =====
+export function buildDiversePromptRules({ mode = 'forum', botPersona = '', topic = '' } = {}) {
+  const structure = pickRandom(POST_STRUCTURE_TEMPLATES);
+  const style = pickRandom(WRITING_STYLES);
+  const opening = pickRandom(OPENING_STYLES);
+  const discussion = pickRandom(DISCUSSION_QUESTIONS);
+  const closing = pickRandom(CLOSING_LINES);
+
+  const commonRules = `
+## 专业度要求
+
+1. 标题要像技术社区优质帖：明确技术对象、问题或收益，不要标题党。
+2. 开头用「${opening.name}」式开头，不要千篇一律地"今天来聊聊"。可以参考这个感觉：${opening.template}
+3. 正文结构参考下面的推荐结构，但不要生硬套用，根据内容自然组织。
+4. 每个主要观点都要落到具体场景、代码、配置、实践步骤或判断标准。
+5. 不要写空泛套话，例如"非常重要""大大提升效率"，必须说明为什么。
+6. 结尾用「${closing}」然后引出讨论。
+7. 技术内容要谨慎，不能编造不存在的 API、命令、版本特性。
+8. 标签要短、准确，优先使用技术名词或场景词。
+9. 写作风格：${style.prompt}
+
+${HIGH_QUALITY_ACCURACY_RULES}
+`;
+
+  if (mode === 'deep') {
+    return {
+      rules: `${commonRules}
+## 推荐文章结构（参考即可，不要生硬套用）
+
+${structure.structure}
+
+## 讨论问题（放在最后引导评论）
+
+${discussion}`,
+      meta: { structure, style, opening, discussion, closing },
+    };
+  }
+
+  return {
+    rules: `${commonRules}
+## 推荐帖子结构（参考即可，根据内容灵活调整）
+
+${structure.structure}
+
+## 讨论引导
+
+${discussion}`,
+    meta: { structure, style, opening, discussion, closing },
+  };
+}
+
 export function appendProfessionalFooter(content, options = {}) {
   const {
-    discussionQuestion = '你在实际项目中遇到过类似问题吗？欢迎在评论区补充你的经验、方案或踩坑记录。',
+    discussionQuestion = null,
     includeAiNote = true,
+    style = 'default',
   } = options;
 
   let result = String(content || '').trim();
 
-  if (!/##\s*(讨论|延伸讨论|欢迎讨论|互动)/.test(result)) {
-    result += `\n\n## 讨论\n\n${discussionQuestion}`;
+  // 如果没有讨论区，加一个
+  if (!/##\s*(讨论|延伸讨论|欢迎讨论|互动|大家觉得呢|写在最后)/.test(result)) {
+    const question = discussionQuestion || pickRandom(DISCUSSION_QUESTIONS);
+    result += `\n\n## 讨论\n\n${question}`;
   }
 
-  if (includeAiNote && !/AI\s*辅助|AI 辅助|人工校对/.test(result)) {
-    result += '\n\n---\n\n> 本文由 Gitd 社区 AI 辅助整理，内容已按技术社区阅读场景优化。若有错误或更好的实践，欢迎评论区指出。';
+  if (includeAiNote && !/AI\s*辅助|AI 辅助|人工校对|Gitd 社区 AI/.test(result)) {
+    // 多样化的 AI 声明
+    const aiNotes = [
+      '> 本文由 Gitd 社区 AI 辅助整理，内容已按技术社区阅读场景优化。若有错误或更好的实践，欢迎评论区指出。',
+      '> 内容由 AI 辅助生成，仅供参考。实践中请以官方文档为准，欢迎补充指正。',
+      '> Gitd 社区 AI 整理，技术细节如有疏漏，欢迎在评论区补充。',
+    ];
+    result += `\n\n---\n\n${pickRandom(aiNotes)}`;
   }
 
   return result;
 }
 
 export function buildProfessionalPromptRules({ mode = 'forum' } = {}) {
-  const commonRules = `
-## 专业度要求
-
-1. 标题要像技术社区优质帖：明确技术对象、问题或收益，不要标题党。
-2. 开头必须先给「核心结论」或「本文要解决的问题」，避免铺垫太长。
-3. 正文必须有清晰层级，优先使用二级标题和短段落。
-4. 每个主要观点都要落到具体场景、代码、配置、实践步骤或判断标准。
-5. 不要写空泛套话，例如“非常重要”“大大提升效率”，必须说明为什么。
-6. 结尾必须有「总结」和「讨论」两个部分，引导用户评论补充。
-7. 技术内容要谨慎，不能编造不存在的 API、命令、版本特性。
-8. 标签要短、准确，优先使用技术名词或场景词。
-
-${HIGH_QUALITY_ACCURACY_RULES}
-`;
-
-  if (mode === 'deep') {
-    return `${commonRules}
-## 推荐文章结构
-
-> 核心结论：用 2-3 句话说明这篇文章的价值。
-
-## 适合读者
-
-列出 2-4 类适合阅读的人群。
-
-## 背景与问题
-
-说明真实业务或开发场景。
-
-## 方案拆解
-
-分步骤讲清楚原理、取舍和实现方式。
-
-## 代码示例
-
-给出可以复制的代码或配置，并解释关键点。
-
-## 常见坑点
-
-列出 3-5 个容易踩坑的地方和规避方式。
-
-## 总结
-
-沉淀可复用的方法论。
-
-## 讨论
-
-提出一个具体问题，邀请社区补充经验。`;
-  }
-
-  return `${commonRules}
-## 推荐帖子结构
-
-> 核心结论：用 1-2 句话先说明这篇帖子能解决什么问题。
-
-## 背景
-
-说明为什么这个主题值得关注。
-
-## 实践步骤 / 项目亮点
-
-教程类写步骤，开源推荐类写亮点和适用场景。
-
-## 示例
-
-给出代码、配置、命令或具体用法。
-
-## 避坑建议
-
-列出 2-4 个实际开发中容易忽略的问题。
-
-## 总结
-
-给出简短结论。
-
-## 讨论
-
-抛出一个具体问题，引导评论。`;
+  // 为了向后兼容，内部调用多样化版本
+  const { rules } = buildDiversePromptRules({ mode });
+  return rules;
 }
 
 /**
@@ -190,6 +361,7 @@ ${HIGH_QUALITY_ACCURACY_RULES}
  */
 export function buildWechatOpenSourcePromptRules({ topicKind = 'general' } = {}) {
   const isOpenSource = topicKind === 'open-source';
+  const discussion = pickRandom(DISCUSSION_QUESTIONS);
 
   return `
 ## 微信公众号开源风模板要求
@@ -234,31 +406,32 @@ ${HIGH_QUALITY_ACCURACY_RULES}
 
 ## 讨论
 
-提出一个具体问题，引导用户补充经验。
+${discussion}
 
 ### 内容规则
 
 1. 每个二级标题下优先使用短段落和短列表，避免大段文字。
-2. 不使用夸张宣传词，例如“神器”“颠覆”“必用”“完美解决”。
-3. 如果涉及开源项目，必须写清楚：项目定位、原作者/维护方、原仓库链接、开源协议；如果无法确定，明确写“以官方仓库信息为准”，不要编造。
+2. 不使用夸张宣传词，例如"神器""颠覆""必用""完美解决"。
+3. 如果涉及开源项目，必须写清楚：项目定位、原作者/维护方、原仓库链接、开源协议；如果无法确定，明确写"以官方仓库信息为准"，不要编造。
 4. 如果涉及技术教程，必须写清楚前提条件、适用版本、最小示例和风险点。
 5. 代码块语言要标注清楚，例如 \`\`\`bash、\`\`\`ts、\`\`\`sql。
 6. 正文长度控制在 1200-2200 字，移动端阅读优先。
 7. 标签要短且准确，优先使用 3-5 个。
-${isOpenSource ? '8. 本文必须更偏“开源项目精选/开源治理/协议合规”视角。' : '8. 本文虽然不是开源项目推荐，也要保持“开源社区文章”的清爽结构和实践导向。'}
+${isOpenSource ? '8. 本文必须更偏"开源项目精选/开源治理/协议合规"视角。' : '8. 本文虽然不是开源项目推荐，也要保持"开源社区文章"的清爽结构和实践导向。'}
 `;
 }
 
 export function appendWechatOpenSourceFooter(content, options = {}) {
   const {
-    discussionQuestion = '你用过类似项目或方案吗？欢迎补充真实体验、替代方案和适合/不适合的场景。',
+    discussionQuestion = null,
     includeAiNote = true,
   } = options;
 
   let result = String(content || '').trim();
 
   if (!/##\s*讨论/.test(result)) {
-    result += `\n\n## 讨论\n\n${discussionQuestion}`;
+    const question = discussionQuestion || pickRandom(DISCUSSION_QUESTIONS);
+    result += `\n\n## 讨论\n\n${question}`;
   }
 
   if (includeAiNote && !/Gitd 社区 AI|AI 辅助|人工校对/.test(result)) {
@@ -267,3 +440,101 @@ export function appendWechatOpenSourceFooter(content, options = {}) {
 
   return result;
 }
+
+// ===== 评论回复多样化 =====
+const REPLY_STYLES = [
+  { id: 'agree', name: '赞同补充', prompt: '先表示赞同，然后补充自己的经验或延伸话题。' },
+  { id: 'question', name: '提问探讨', prompt: '提出一个相关的问题，引导进一步讨论。' },
+  { id: 'experience', name: '经验分享', prompt: '分享自己类似的经历或做法。' },
+  { id: 'alternative', name: '不同角度', prompt: '从另一个角度看问题，给出不同的思路。' },
+  { id: 'thanks', name: '感谢提问', prompt: '感谢对方的提问/分享，然后给出详细解答。' },
+];
+
+export function getRandomReplyStyle() {
+  return pickRandom(REPLY_STYLES);
+}
+
+// ===== 动态主题生成提示 =====
+export function buildTopicGenerationPrompt({ bot, recentTopics = [] }) {
+  const recentList = recentTopics.length > 0
+    ? recentTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')
+    : '（无';
+
+  return `请为「${bot.authorName}」生成 5 个新的文章主题。
+
+## 人设
+${bot.tagline}
+
+## 最近已经写过的主题（不要再重复）
+${recentList}
+
+## 要求
+1. 主题要具体、有切入点，不要太宽泛
+2. 可以从不同角度切入：工具评测、教程、踩坑、对比、实战、趋势分析等
+3. 标题要吸引人，但不要标题党
+4. 优先选技术社区用户会感兴趣的话题
+5. 每个主题用一句话描述
+
+## 输出格式
+只输出 JSON 数组，不要其他文字：
+[
+  "主题1",
+  "主题2",
+  "主题3",
+  "主题4",
+  "主题5"
+]`;
+}
+
+// ===== 内容角度随机种子（用于增加同主题不同角度 =====
+const CONTENT_ANGLES = [
+  '从初学者视角',
+  '从进阶用户视角',
+  '从团队协作角度',
+  '从性能优化角度',
+  '从工程实践角度',
+  '从成本控制角度',
+  '从安全角度',
+  '从可维护性角度',
+  '从产品设计角度',
+  '从开发者体验角度',
+];
+
+export function getRandomContentAngle() {
+  return pickRandom(CONTENT_ANGLES);
+}
+
+// ===== 检测内容重复度简单检测 =====
+export function estimateSimilarity(title1, title2) {
+  // 简单的基于关键词的相似度估计
+  const words1 = new Set(title1.toLowerCase().split(/[\s，。、：；,.:;?!？！]/).filter(w => w.length > 1));
+  const words2 = new Set(title2.toLowerCase().split(/[\s，。、：；,.:;?!？！]/).filter(w => w.length > 1));
+  if (words1.size === 0 || words2.size === 0) return 0;
+  let common = 0;
+  for (const w of words1) {
+    if (words2.has(w)) common++;
+  }
+  return common / Math.min(words1.size, words2.size);
+}
+
+export function pickDiverseTopic(candidates, recentTopics = [], threshold = 0.5) {
+  // 从候选中选一个和最近主题相似度低于阈值的
+  const shuffled = [...candidates].sort(() => Math.random() - 0.5);
+  for (const topic of shuffled) {
+    const maxSim = Math.max(...recentTopics.map(rt => estimateSimilarity(topic, rt)), 0);
+    if (maxSim < threshold) return topic;
+  }
+  // 如果都比较相似，返回最不相似的那个
+  let bestTopic = shuffled[0];
+  let bestSim = 1;
+  for (const topic of shuffled) {
+    const maxSim = Math.max(...recentTopics.map(rt => estimateSimilarity(topic, rt)), 0);
+    if (maxSim < bestSim) {
+      bestSim = maxSim;
+      bestTopic = topic;
+    }
+  }
+  return bestTopic;
+}
+
+export { pickRandom, pickNRandom, POST_STRUCTURE_TEMPLATES, WRITING_STYLES, DISCUSSION_QUESTIONS, OPENING_STYLES, CONTENT_ANGLES };
