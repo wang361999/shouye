@@ -110,15 +110,19 @@ export default function ContentAdaptModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "生成失败");
+        const errMsg = data.error || data.detail || "生成失败";
+        toast.error(errMsg, { duration: 5000 });
+        console.error("[ContentAdapt] 生成失败:", data);
         return;
       }
       setResult(data);
       setPostTitle(data.originalTitle || postTitle);
       setActiveTab("content");
       toast.success("生成成功");
-    } catch {
-      toast.error("生成失败，请稍后重试");
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : "生成失败";
+      toast.error(errMsg + "，请稍后重试", { duration: 5000 });
+      console.error("[ContentAdapt] 调用失败:", err);
     } finally {
       setLoading(false);
     }
