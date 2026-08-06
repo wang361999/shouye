@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth';
-import { getFileTree, readFile, listDir, type FileChange } from '@/lib/github-file-api';
+import { getFileTree, readFile, listDir, type FileChange, type RepoContext } from '@/lib/github-file-api';
 
 /**
  * POST /api/coder/chat
@@ -109,15 +109,17 @@ function parseAIResponse(raw: string): AIResponse {
 /**
  * 构建系统提示词
  */
-async function buildSystemPrompt(): Promise<string> {
+async function buildSystemPrompt(ctx?: Partial<RepoContext>): Promise<string> {
   let fileTree = '';
   try {
-    fileTree = await getFileTree();
+    fileTree = await getFileTree(ctx);
   } catch {
     fileTree = '(无法获取文件树)';
   }
 
-  return `你是一个专业的 AI 编程助手，正在帮助用户修改他们的 Next.js 网站。
+  const repoName = ctx?.repo || '默认项目';
+
+  return `你是一个专业的 AI 编程助手，正在帮助用户修改他们的项目（仓库：${repoName}）。
 
 你的能力：
 1. 读取项目文件 — 使用 read 动作
@@ -169,14 +171,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { messages }: { messages: ChatMessage[] } = body;
+    const { messages, repo, branch }: { messages: ChatMessage[]; repo?: string; branch?: string } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ error: '缺少消息内容' }, { status: 400 });
     }
 
+    const ctx: Partial<RepoContext> = {};
+    if (repo) ctx.repo = repo;
+    if (branch) ctx.branch = branch;
+
     // 构建系统提示词
-    const systemPrompt = await buildSystemPrompt();
+    const systemPrompt = await buildSystemPrompt(ctx);
 
     // 初始化对话
     const conversation: ChatMessage[] = [
@@ -227,7 +233,7 @@ export async function POST(request: NextRequest) {
       for (const action of readActions) {
         try {
           if (action.type === 'read') {
-            const result = await readFile(action.path);
+            const result = await readFile(action.path, ctx);
             if (result.content.startsWith('__DIRECTORY__')) {
               readLogs.push(`📁 ${action.path} 是目录，不是文件`);
               readResults.push(`[读取目录 ${action.path}]\n这是一个目录，请用 list 动作来查看内容。`);
@@ -239,7 +245,7 @@ export async function POST(request: NextRequest) {
               readResults.push(`[文件内容 ${action.path}]\n\`\`\`\n${preview}\n\`\`\``);
             }
           } else if (action.type === 'list') {
-            const items = await listDir(action.path);
+            const items = await listDir(action.path, ctx);
             const listing = items
               .map((item) => `${item.type === 'dir' ? '📁' : '📄'} ${item.name}`)
               .join('\n');

@@ -4,14 +4,23 @@
  * 通过 GitHub REST API 直接读取/修改仓库文件，
  * 适用于 Vercel 等只读文件系统环境。
  *
- * 每次写入/删除自动创建一个 commit 并推送到远程。
+ * 支持多仓库：所有函数接受可选的 repo/branch 参数，
+ * 默认使用环境变量中的配置。
  */
 
 import { getGithubToken } from '@/lib/collab';
 
-const REPO = process.env.GITHUB_REPO || 'wang361999/shouye';
-const BRANCH = process.env.GITHUB_BRANCH || 'main';
+const DEFAULT_REPO = process.env.GITHUB_REPO || 'wang361999/shouye';
+const DEFAULT_BRANCH = process.env.GITHUB_BRANCH || 'main';
 const API_BASE = 'https://api.github.com';
+
+/** 仓库上下文（指定要操作的仓库和分支） */
+export interface RepoContext {
+  /** 仓库全名，如 owner/repo */
+  repo: string;
+  /** 分支名，默认 main */
+  branch: string;
+}
 
 /** 文件信息 */
 export interface FileInfo {
@@ -43,6 +52,19 @@ export interface ApplyResult {
   commitUrl?: string;
 }
 
+/** 仓库信息 */
+export interface RepoInfo {
+  full_name: string;
+  name: string;
+  owner: string;
+  default_branch: string;
+  description: string | null;
+  language: string | null;
+  stars: number;
+  html_url: string;
+  updated_at: string;
+}
+
 /**
  * 获取 GitHub API 请求头
  */
@@ -57,13 +79,87 @@ async function getHeaders(): Promise<Record<string, string>> {
 }
 
 /**
+ * 解析仓库上下文，填充默认值
+ */
+function resolveCtx(ctx?: Partial<RepoContext>): RepoContext {
+  return {
+    repo: ctx?.repo || DEFAULT_REPO,
+    branch: ctx?.branch || DEFAULT_BRANCH,
+  };
+}
+
+/**
+ * 获取当前用户的 GitHub 仓库列表
+ */
+export async function getUserReps(perPage = 100): Promise<RepoInfo[]> {
+  const headers = await getHeaders();
+  const res = await fetch(
+    `${API_BASE}/user/repos?per_page=${perPage}&sort=updated&type=owner`,
+    { headers },
+  );
+
+  if (!res.ok) {
+    throw new Error(`获取仓库列表失败: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.map((item: {
+    full_name: string;
+    name: string;
+    owner: { login: string };
+    default_branch: string;
+    description: string | null;
+    language: string | null;
+    stargazers_count: number;
+    html_url: string;
+    updated_at: string;
+  }) => ({
+    full_name: item.full_name,
+    name: item.name,
+    owner: item.owner.login,
+    default_branch: item.default_branch || 'main',
+    description: item.description,
+    language: item.language,
+    stars: item.stargazers_count || 0,
+    html_url: item.html_url,
+    updated_at: item.updated_at,
+  }));
+}
+
+/**
+ * 获取仓库信息（包括默认分支）
+ */
+export async function getRepoInfo(repo: string): Promise<RepoInfo> {
+  const headers = await getHeaders();
+  const res = await fetch(`${API_BASE}/repos/${repo}`, { headers });
+
+  if (!res.ok) {
+    throw new Error(`获取仓库信息失败: ${res.status}`);
+  }
+
+  const item = await res.json();
+  return {
+    full_name: item.full_name,
+    name: item.name,
+    owner: item.owner.login,
+    default_branch: item.default_branch || 'main',
+    description: item.description,
+    language: item.language,
+    stars: item.stargazers_count || 0,
+    html_url: item.html_url,
+    updated_at: item.updated_at,
+  };
+}
+
+/**
  * 获取项目文件树（递归）
  * 返回格式化的文件列表字符串
  */
-export async function getFileTree(): Promise<string> {
+export async function getFileTree(ctx?: Partial<RepoContext>): Promise<string> {
+  const { repo, branch } = resolveCtx(ctx);
   const headers = await getHeaders();
   const res = await fetch(
-    `${API_BASE}/repos/${REPO}/git/trees/${BRANCH}?recursive=1`,
+    `${API_BASE}/repos/${repo}/git/trees/${branch}?recursive=1`,
     { headers },
   );
 
@@ -109,7 +205,6 @@ export async function getFileTree(): Promise<string> {
     if (dir !== currentDir) {
       const parts = dir.split('/');
       for (let i = 0; i < parts.length; i++) {
-        const prefix = parts.slice(0, i + 1).join('/');
         if (!lines.find((l) => l === `${'  '.repeat(i)}📁 ${parts[i]}/`)) {
           lines.push(`${'  '.repeat(i)}📁 ${parts[i]}/`);
         }
@@ -127,11 +222,12 @@ export async function getFileTree(): Promise<string> {
 /**
  * 读取文件内容
  */
-export async function readFile(filePath: string): Promise<FileContentResult> {
+export async function readFile(filePath: string, ctx?: Partial<RepoContext>): Promise<FileContentResult> {
+  const { repo, branch } = resolveCtx(ctx);
   const headers = await getHeaders();
   const cleanPath = filePath.replace(/^\//, '');
   const res = await fetch(
-    `${API_BASE}/repos/${REPO}/contents/${cleanPath}?ref=${BRANCH}`,
+    `${API_BASE}/repos/${repo}/contents/${cleanPath}?ref=${branch}`,
     { headers },
   );
 
@@ -169,11 +265,12 @@ export async function readFile(filePath: string): Promise<FileContentResult> {
 /**
  * 列出目录内容
  */
-export async function listDir(dirPath: string): Promise<FileInfo[]> {
+export async function listDir(dirPath: string, ctx?: Partial<RepoContext>): Promise<FileInfo[]> {
+  const { repo, branch } = resolveCtx(ctx);
   const headers = await getHeaders();
   const cleanPath = dirPath.replace(/^\//, '');
   const res = await fetch(
-    `${API_BASE}/repos/${REPO}/contents/${cleanPath}?ref=${BRANCH}`,
+    `${API_BASE}/repos/${repo}/contents/${cleanPath}?ref=${branch}`,
     { headers },
   );
 
@@ -184,7 +281,6 @@ export async function listDir(dirPath: string): Promise<FileInfo[]> {
 
   const data = await res.json();
   if (!Array.isArray(data)) {
-    // 是文件不是目录
     return [];
   }
 
@@ -199,11 +295,11 @@ export async function listDir(dirPath: string): Promise<FileInfo[]> {
 /**
  * 获取文件的 SHA（用于更新/删除）
  */
-async function getFileSha(filePath: string): Promise<string | null> {
+async function getFileSha(filePath: string, ctx: RepoContext): Promise<string | null> {
   const headers = await getHeaders();
   const cleanPath = filePath.replace(/^\//, '');
   const res = await fetch(
-    `${API_BASE}/repos/${REPO}/contents/${cleanPath}?ref=${BRANCH}`,
+    `${API_BASE}/repos/${ctx.repo}/contents/${cleanPath}?ref=${ctx.branch}`,
     { headers },
   );
 
@@ -221,17 +317,18 @@ export async function writeFile(
   filePath: string,
   content: string,
   commitMessage: string,
+  ctx?: Partial<RepoContext>,
 ): Promise<{ commitUrl: string }> {
+  const resolved = resolveCtx(ctx);
   const headers = await getHeaders();
   const cleanPath = filePath.replace(/^\//, '');
 
-  // 获取现有文件的 SHA（如果存在）
-  const sha = await getFileSha(cleanPath);
+  const sha = await getFileSha(cleanPath, resolved);
 
   const body: Record<string, unknown> = {
     message: commitMessage,
     content: Buffer.from(content, 'utf-8').toString('base64'),
-    branch: BRANCH,
+    branch: resolved.branch,
   };
 
   if (sha) {
@@ -239,7 +336,7 @@ export async function writeFile(
   }
 
   const res = await fetch(
-    `${API_BASE}/repos/${REPO}/contents/${cleanPath}`,
+    `${API_BASE}/repos/${resolved.repo}/contents/${cleanPath}`,
     {
       method: 'PUT',
       headers: { ...headers, 'Content-Type': 'application/json' },
@@ -262,24 +359,26 @@ export async function writeFile(
 export async function deleteFile(
   filePath: string,
   commitMessage: string,
+  ctx?: Partial<RepoContext>,
 ): Promise<{ commitUrl: string }> {
+  const resolved = resolveCtx(ctx);
   const headers = await getHeaders();
   const cleanPath = filePath.replace(/^\//, '');
 
-  const sha = await getFileSha(cleanPath);
+  const sha = await getFileSha(cleanPath, resolved);
   if (!sha) {
     throw new Error(`文件不存在，无法删除: ${cleanPath}`);
   }
 
   const res = await fetch(
-    `${API_BASE}/repos/${REPO}/contents/${cleanPath}`,
+    `${API_BASE}/repos/${resolved.repo}/contents/${cleanPath}`,
     {
       method: 'DELETE',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: commitMessage,
         sha,
-        branch: BRANCH,
+        branch: resolved.branch,
       }),
     },
   );
@@ -299,20 +398,21 @@ export async function deleteFile(
 export async function applyChanges(
   changes: FileChange[],
   commitMessage: string,
+  ctx?: Partial<RepoContext>,
 ): Promise<ApplyResult[]> {
   const results: ApplyResult[] = [];
 
   for (const change of changes) {
     try {
       if (change.type === 'delete') {
-        const { commitUrl } = await deleteFile(change.path, `${commitMessage} (删除 ${change.path})`);
+        const { commitUrl } = await deleteFile(change.path, `${commitMessage} (删除 ${change.path})`, ctx);
         results.push({ path: change.path, success: true, commitUrl });
       } else {
-        // create 和 write 都用 writeFile
         const { commitUrl } = await writeFile(
           change.path,
           change.content || '',
           `${commitMessage} (${change.type === 'create' ? '新建' : '修改'} ${change.path})`,
+          ctx,
         );
         results.push({ path: change.path, success: true, commitUrl });
       }
@@ -331,12 +431,14 @@ export async function applyChanges(
 /**
  * 获取最近的提交记录
  */
-export async function getRecentCommits(count = 5): Promise<
-  Array<{ sha: string; message: string; author: string; date: string; url: string }>
-> {
+export async function getRecentCommits(
+  count = 5,
+  ctx?: Partial<RepoContext>,
+): Promise<Array<{ sha: string; message: string; author: string; date: string; url: string }>> {
+  const { repo, branch } = resolveCtx(ctx);
   const headers = await getHeaders();
   const res = await fetch(
-    `${API_BASE}/repos/${REPO}/commits?per_page=${count}&sha=${BRANCH}`,
+    `${API_BASE}/repos/${repo}/commits?per_page=${count}&sha=${branch}`,
     { headers },
   );
 

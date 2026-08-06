@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth';
-import { applyChanges, type FileChange } from '@/lib/github-file-api';
+import { applyChanges, type FileChange, type RepoContext } from '@/lib/github-file-api';
 
 /**
  * POST /api/coder/apply
@@ -9,7 +9,7 @@ import { applyChanges, type FileChange } from '@/lib/github-file-api';
  * 每个文件变更会创建一个 commit 并自动推送
  *
  * 请求体：
- *   { changes: FileChange[], commitMessage?: string }
+ *   { changes: FileChange[], commitMessage?: string, repo?: string, branch?: string }
  *
  * 返回：
  *   { success: boolean, results: ApplyResult[] }
@@ -22,16 +22,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { changes, commitMessage = 'AI 编程助手修改' }: {
+    const { changes, commitMessage = 'AI 编程助手修改', repo, branch }: {
       changes: FileChange[];
       commitMessage?: string;
+      repo?: string;
+      branch?: string;
     } = body;
 
     if (!changes || !Array.isArray(changes) || changes.length === 0) {
       return NextResponse.json({ error: '没有需要应用的变更' }, { status: 400 });
     }
 
-    const results = await applyChanges(changes, commitMessage);
+    const ctx: Partial<RepoContext> = {};
+    if (repo) ctx.repo = repo;
+    if (branch) ctx.branch = branch;
+
+    const results = await applyChanges(changes, commitMessage, ctx);
 
     const successCount = results.filter((r) => r.success).length;
     const failCount = results.filter((r) => !r.success).length;

@@ -186,6 +186,16 @@ function FileChangeCard({
   );
 }
 
+// ============ 仓库信息类型 ============
+interface RepoInfo {
+  full_name: string;
+  name: string;
+  owner: string;
+  default_branch: string;
+  description: string | null;
+  language: string | null;
+}
+
 // ============ 主页面组件 ============
 export default function CoderPage() {
   const router = useRouter();
@@ -195,16 +205,45 @@ export default function CoderPage() {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [showCommits, setShowCommits] = useState(false);
   const [error, setError] = useState('');
+  const [repos, setRepos] = useState<RepoInfo[]>([]);
+  const [selectedRepo, setSelectedRepo] = useState<string>('');
+  const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [showRepoSelector, setShowRepoSelector] = useState(false);
+  const [customRepo, setCustomRepo] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 获取仓库列表
+  const fetchRepos = useCallback(async () => {
+    try {
+      const token = getToken();
+      const res = await fetch('/api/coder/repos', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const repoList = data.repos || [];
+        setRepos(repoList);
+        // 默认选第一个仓库
+        if (repoList.length > 0 && !selectedRepo) {
+          setSelectedRepo(repoList[0].full_name);
+          setSelectedBranch(repoList[0].default_branch);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [selectedRepo]);
 
   // 检查登录状态
   useEffect(() => {
     const token = getToken();
     if (!token) {
       router.push('/login?redirect=/coder');
+    } else {
+      fetchRepos();
     }
-  }, [router]);
+  }, [router, fetchRepos]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -223,7 +262,10 @@ export default function CoderPage() {
   const fetchCommits = useCallback(async () => {
     try {
       const token = getToken();
-      const res = await fetch('/api/coder/commits?count=10', {
+      const params = new URLSearchParams({ count: '10' });
+      if (selectedRepo) params.set('repo', selectedRepo);
+      if (selectedBranch) params.set('branch', selectedBranch);
+      const res = await fetch(`/api/coder/commits?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -233,7 +275,7 @@ export default function CoderPage() {
     } catch {
       // ignore
     }
-  }, []);
+  }, [selectedRepo, selectedBranch]);
 
   useEffect(() => {
     fetchCommits();
@@ -260,6 +302,8 @@ export default function CoderPage() {
         },
         body: JSON.stringify({
           messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          repo: selectedRepo || undefined,
+          branch: selectedBranch || undefined,
         }),
       });
 
@@ -301,6 +345,8 @@ export default function CoderPage() {
         body: JSON.stringify({
           changes: [change],
           commitMessage: `AI 编程助手: ${change.type === 'create' ? '新建' : change.type === 'write' ? '修改' : '删除'} ${change.path}`,
+          repo: selectedRepo || undefined,
+          branch: selectedBranch || undefined,
         }),
       });
 
@@ -344,6 +390,8 @@ export default function CoderPage() {
         body: JSON.stringify({
           changes: msg.changes,
           commitMessage: `AI 编程助手批量修改 (${msg.changes.length} 个文件)`,
+          repo: selectedRepo || undefined,
+          branch: selectedBranch || undefined,
         }),
       });
 
@@ -369,6 +417,30 @@ export default function CoderPage() {
     setError('');
   };
 
+  // 切换仓库
+  const handleSelectRepo = (repoFullName: string) => {
+    const repo = repos.find((r) => r.full_name === repoFullName);
+    setSelectedRepo(repoFullName);
+    setSelectedBranch(repo?.default_branch || 'main');
+    setShowRepoSelector(false);
+    setMessages([]); // 切换仓库时清空对话
+    setError('');
+  };
+
+  // 使用自定义仓库名
+  const handleCustomRepo = () => {
+    if (!customRepo.trim()) return;
+    const parts = customRepo.trim().replace(/^https?:\/\/github\.com\//, '').split('/');
+    if (parts.length >= 2) {
+      const fullName = `${parts[0]}/${parts[1].replace(/\.git$/, '')}`;
+      setSelectedRepo(fullName);
+      setSelectedBranch('main');
+      setShowRepoSelector(false);
+      setMessages([]);
+      setError('');
+    }
+  };
+
   // 键盘快捷键
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -388,6 +460,68 @@ export default function CoderPage() {
           <div>
             <h1 className="text-base font-bold">AI 编程助手</h1>
             <p className="text-xs text-gray-500">GLM-5.2 · 通过聊天修改代码并部署</p>
+          </div>
+          {/* 仓库选择器 */}
+          <div className="relative ml-4">
+            <button
+              onClick={() => setShowRepoSelector(!showRepoSelector)}
+              className="flex items-center gap-2 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 px-3 py-1.5 rounded-lg transition-colors max-w-[200px] sm:max-w-xs"
+            >
+              <span className="truncate">{selectedRepo || '选择仓库'}</span>
+              {selectedBranch && (
+                <span className="text-gray-500 shrink-0">:{selectedBranch}</span>
+              )}
+              <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showRepoSelector && (
+              <div className="absolute top-full left-0 mt-1 w-80 max-w-[90vw] bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                <div className="p-2 border-b border-gray-800">
+                  <input
+                    type="text"
+                    value={customRepo}
+                    onChange={(e) => setCustomRepo(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCustomRepo()}
+                    placeholder="输入 owner/repo 或 GitHub URL"
+                    className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-xs rounded px-3 py-1.5 focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleCustomRepo}
+                    className="w-full mt-1 text-xs bg-blue-600 hover:bg-blue-500 text-white py-1.5 rounded transition-colors"
+                  >
+                    使用该仓库
+                  </button>
+                </div>
+                <div className="p-1">
+                  {repos.length === 0 ? (
+                    <p className="text-xs text-gray-500 text-center py-4">加载中...</p>
+                  ) : (
+                    repos.map((repo) => (
+                      <button
+                        key={repo.full_name}
+                        onClick={() => handleSelectRepo(repo.full_name)}
+                        className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                          selectedRepo === repo.full_name
+                            ? 'bg-blue-600/20 text-blue-400'
+                            : 'hover:bg-gray-800 text-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-mono truncate">{repo.full_name}</span>
+                          {repo.language && (
+                            <span className="text-xs text-gray-500 shrink-0 ml-2">{repo.language}</span>
+                          )}
+                        </div>
+                        {repo.description && (
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{repo.description}</p>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
