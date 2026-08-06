@@ -73,6 +73,8 @@ export default function ContentAdaptModal({
   const [postTitle, setPostTitle] = useState(defaultPostTitle);
   const [platform, setPlatform] = useState<Platform>(defaultPlatform);
   const [loading, setLoading] = useState(false);
+  const [formatting, setFormatting] = useState(false);
+  const [wechatTemplate, setWechatTemplate] = useState<"technical" | "open-source">("technical");
   const [result, setResult] = useState<{
     wechat?: WechatVersion;
     toutiao?: ToutiaoVersion;
@@ -131,6 +133,68 @@ export default function ContentAdaptModal({
   function copyText(text: string, label = "内容") {
     navigator.clipboard.writeText(text);
     toast.success(`${label}已复制`);
+  }
+
+  // 将 AI 生成的公众号内容套用模板，以富文本格式复制到剪贴板
+  async function copyWechatFormatted() {
+    const wechatData = result?.wechat;
+    if (!wechatData?.content) {
+      toast.error("没有可格式化的内容");
+      return;
+    }
+    try {
+      setFormatting(true);
+      const res = await adminFetch("/api/admin/wechat-format", {
+        method: "POST",
+        body: JSON.stringify({
+          content: wechatData.content,
+          title: wechatData.titleCandidates?.[0] || postTitle || "公众号文章",
+          digest: wechatData.summary,
+          template: wechatTemplate,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "格式化失败");
+      }
+
+      const fullHtml = data.fullContent;
+      const plainText = `${data.title}\n\n${data.digest || ""}`;
+
+      // 优先使用 ClipboardItem API 写入 text/html
+      try {
+        const htmlBlob = new Blob([fullHtml], { type: "text/html" });
+        const textBlob = new Blob([plainText], { type: "text/plain" });
+        const clipboardItem = new ClipboardItem({
+          "text/html": htmlBlob,
+          "text/plain": textBlob,
+        });
+        await navigator.clipboard.write([clipboardItem]);
+        toast.success("公众号格式已复制，粘贴到公众号编辑器即可保留样式");
+      } catch {
+        // 降级：用 execCommand 复制 HTML
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = fullHtml;
+        tempDiv.style.position = "fixed";
+        tempDiv.style.left = "-9999px";
+        tempDiv.style.top = "0";
+        document.body.appendChild(tempDiv);
+        const range = document.createRange();
+        range.selectNodeContents(tempDiv);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        document.execCommand("copy");
+        selection?.removeAllRanges();
+        document.body.removeChild(tempDiv);
+        toast.success("公众号格式已复制，粘贴到公众号编辑器即可");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "格式化失败");
+      console.error("[WechatFormat] 失败:", err);
+    } finally {
+      setFormatting(false);
+    }
   }
 
   const currentData =
@@ -483,15 +547,53 @@ export default function ContentAdaptModal({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-gray-700">
-                    {platform === "wechat" ? "公众号版正文" : "头条版正文"}
+                    {platform === "wechat" ? "公众号版正文" : platform === "toutiao" ? "头条版正文" : platform === "zhihu" ? "知乎版正文" : "掘金版正文"}
                   </h3>
-                  <button
-                    onClick={() => copyText(currentData.content, "正文")}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    复制全文
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => copyText(currentData.content, "正文")}
+                      className="text-xs text-blue-600 hover:text-blue-700"
+                    >
+                      复制全文
+                    </button>
+                    {platform === "wechat" && (
+                      <button
+                        onClick={copyWechatFormatted}
+                        disabled={formatting}
+                        className="text-xs text-green-600 hover:text-green-700 font-medium"
+                      >
+                        {formatting ? "格式化中..." : "📋 复制公众号格式"}
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* 公众号模板选择 */}
+                {platform === "wechat" && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-xs text-gray-500">排版模板：</span>
+                    {[
+                      { value: "technical", label: "技术风格", desc: "蓝灰配色" },
+                      { value: "open-source", label: "开源风格", desc: "绿色社区感" },
+                    ].map((t) => (
+                      <button
+                        key={t.value}
+                        onClick={() => setWechatTemplate(t.value as "technical" | "open-source")}
+                        className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                          wechatTemplate === t.value
+                            ? "border-green-400 bg-green-50 text-green-700"
+                            : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                    <span className="text-xs text-gray-400">
+                      复制后粘贴到公众号编辑器自动套用样式
+                    </span>
+                  </div>
+                )}
+
                 <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-800 max-h-96 overflow-y-auto whitespace-pre-wrap font-mono text-xs leading-relaxed">
                   {currentData.content}
                 </div>
