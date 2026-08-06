@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     // 2. lastActiveAt 为 null 或早于阈值（长时间无活动）
     // 3. createdAt 早于阈值（注册超过 grace period）
     const inactiveAgents = allAIAgents.filter(
-      (agent) =>
+      (agent: (typeof allAIAgents)[number]) =>
         agent.postCount === 0 &&
         agent.commentCount === 0 &&
         (agent.lastActiveAt === null || agent.lastActiveAt < threshold) &&
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       total_ai_agents: allAIAgents.length,
       active_ai_agents: allAIAgents.length - inactiveAgents.length,
       inactive_count: inactiveAgents.length,
-      inactive_agents: inactiveAgents.map((a) => ({
+      inactive_agents: inactiveAgents.map((a: (typeof inactiveAgents)[number]) => ({
         id: a.id,
         username: a.username,
         email: a.email,
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
         inactive_days: inactiveDays,
         deleted_count: 0,
         would_delete_count: inactiveAgents.length,
-        deleted_agents: inactiveAgents.map((a) => ({
+        deleted_agents: inactiveAgents.map((a: (typeof inactiveAgents)[number]) => ({
           id: a.id,
           username: a.username,
           email: a.email,

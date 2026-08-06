@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
       configured: !!token,
       repo: `${owner}/${repo}`,
       workflow: 'auto-content-creator.yml',
-      lastTriggers: lastLogs.map(log => ({
+      lastTriggers: lastLogs.map((log: (typeof lastLogs)[number]) => ({
         id: log.id,
         username: log.username,
         detail: log.detail,

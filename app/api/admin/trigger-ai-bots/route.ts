@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { callAICompletion } from '@/lib/ai';
 
 /**
  * POST /api/admin/trigger-ai-bots
@@ -12,10 +13,6 @@ import prisma from '@/lib/prisma';
  *   - bots: 可选，指定要运行的机器人 key 数组，如 ["ai-tools", "llm"]
  *   - dryRun: 可选，是否只预览不发布
  */
-
-const AI_API_KEY = process.env.AI_API_KEY || '';
-const AI_API_BASE = process.env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const AI_MODEL = process.env.AI_MODEL || 'gemini-3.6-flash';
 
 // ===== 四个 AI 分类机器人配置 =====
 const BOTS = [
@@ -127,38 +124,13 @@ const BOTS = [
 
 // 调用 AI API
 async function callAI(prompt: string, systemPrompt?: string, maxTokens = 4000): Promise<string | null> {
-  if (!AI_API_KEY) return null;
-
-  const messages = [];
-  if (systemPrompt) {
-    messages.push({ role: 'system', content: systemPrompt });
-  }
-  messages.push({ role: 'user', content: prompt });
-
   try {
-    const res = await fetch(AI_API_BASE, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${AI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages,
-        max_tokens: maxTokens,
-        temperature: 0.8,
-      }),
-      signal: AbortSignal.timeout(120_000),
+    const { content } = await callAICompletion(prompt, {
+      systemPrompt,
+      maxTokens,
+      temperature: 0.8,
     });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error('[AI API ERROR]', res.status, text);
-      return null;
-    }
-
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || null;
+    return content;
   } catch (err) {
     console.error('[AI API ERROR]', err);
     return null;
@@ -264,10 +236,6 @@ export async function POST(request: NextRequest) {
   const authResult = adminAuth(request);
   if ('error' in authResult) {
     return NextResponse.json({ error: (authResult as { error: string }).error }, { status: 401 });
-  }
-
-  if (!AI_API_KEY) {
-    return NextResponse.json({ error: 'AI_API_KEY 未配置，请先在环境变量中设置 AI API 密钥' }, { status: 400 });
   }
 
   try {

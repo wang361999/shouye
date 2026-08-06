@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimitAsync, getClientIP, rateLimitHeaders } from '@/lib/rate-limit';
+import { callAI as callAIService } from '@/lib/ai';
 
 /**
  * POST /api/ai/rewrite
@@ -17,10 +18,6 @@ import { rateLimitAsync, getClientIP, rateLimitHeaders } from '@/lib/rate-limit'
  * 返回：
  *   { type: string, result: { title?: string, content?: string, tags?: string[] }, remaining: number }
  */
-
-const AI_API_KEY = process.env.AI_API_KEY || '';
-const AI_API_BASE = process.env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-const AI_MODEL = process.env.AI_MODEL || 'gemini-3.6-flash';
 
 // 每 IP 每小时最多 20 次 AI 润色调用
 const RATE_LIMIT = 20;
@@ -119,41 +116,11 @@ ${content}
 }
 
 async function callAI(prompt: string): Promise<string> {
-  if (!AI_API_KEY) {
-    throw new Error('AI 功能暂未配置，请联系管理员');
-  }
-
-  const res = await fetch(AI_API_BASE, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${AI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: '你是一个专业的技术社区编辑助手，擅长优化技术文章。你的输出精准、专业、不废话。',
-        },
-        { role: 'user', content: prompt },
-      ],
-      max_tokens: 3000,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`AI 服务异常: ${res.status} ${text.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error('AI 返回内容为空');
-  }
-  return content.trim();
+  return callAIService(
+    prompt,
+    '你是一个专业的技术社区编辑助手，擅长优化技术文章。你的输出精准、专业、不废话。',
+    3000,
+  );
 }
 
 function parseTags(text: string): string[] {

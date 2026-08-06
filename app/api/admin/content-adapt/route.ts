@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { adminAuth } from '@/lib/auth';
+import { callAICompletion } from '@/lib/ai';
 
 // ============ 多平台内容适配 API ============
 // 根据文章 ID 生成不同平台的适配版本
@@ -439,59 +440,14 @@ ${contentPreview}
 
 // ============ 通用 AI 调用 ============
 async function callAIAndParse(prompt: string, maxTokens: number) {
-  const apiKey = process.env.AI_API_KEY;
-  const apiBase = process.env.AI_API_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-  const model = process.env.AI_MODEL || 'gemini-3.6-flash';
   const supportJsonMode = process.env.AI_JSON_MODE !== 'false';
 
-  if (!apiKey) {
-    throw new Error('缺少 AI_API_KEY 配置');
-  }
-
-  async function tryRequest(useJsonMode: boolean): Promise<string> {
-    const body: Record<string, unknown> = {
-      model,
-      messages: [
-        { role: 'system', content: '你是资深内容运营专家，擅长多平台内容适配。只输出严格 JSON 格式，不要任何其他文字。' },
-        { role: 'user', content: prompt },
-      ],
-      max_tokens: maxTokens,
-      temperature: 0.75,
-    };
-    if (useJsonMode) {
-      body.response_format = { type: 'json_object' };
-    }
-
-    const response = await fetch(apiBase, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(120000),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      throw new Error(`AI API 调用失败：${response.status} ${text.slice(0, 200)}`);
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || '';
-  }
-
-  let content = '';
-  try {
-    content = await tryRequest(supportJsonMode);
-  } catch (err) {
-    // 如果 json_mode 失败，降级为普通模式重试
-    if (supportJsonMode && err instanceof Error && err.message.includes('response_format')) {
-      content = await tryRequest(false);
-    } else {
-      throw err;
-    }
-  }
+  const { content } = await callAICompletion(prompt, {
+    systemPrompt: '你是资深内容运营专家，擅长多平台内容适配。只输出严格 JSON 格式，不要任何其他文字。',
+    maxTokens,
+    temperature: 0.75,
+    jsonMode: supportJsonMode,
+  });
 
   // 解析 JSON（多重 fallback）
   let result;
