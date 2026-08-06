@@ -184,6 +184,7 @@ export default function WeChatSyncPage() {
 
   // 帖子选择弹窗
   const [postPickerOpen, setPostPickerOpen] = useState(false);
+  const [postPickerMode, setPostPickerMode] = useState<"sync" | "adapt">("sync");
   const [postList, setPostList] = useState<ForumPostItem[]>([]);
   const [postLoading, setPostLoading] = useState(false);
   const [postSearch, setPostSearch] = useState("");
@@ -304,11 +305,25 @@ export default function WeChatSyncPage() {
   }
 
   // 打开帖子选择器
-  function openPostPicker() {
+  function openPostPicker(mode: "sync" | "adapt" = "sync") {
+    setPostPickerMode(mode);
     setPostPickerOpen(true);
     setPostSearch("");
     setPostPage(1);
     fetchPosts(1, "");
+  }
+
+  // 选择帖子（根据模式执行不同操作）
+  function handleSelectPost(post: ForumPostItem) {
+    if (postPickerMode === "sync") {
+      syncPost(post.id);
+    } else {
+      // 适配模式：关闭选择器，打开适配弹窗
+      setPostPickerOpen(false);
+      setAdaptPostId(post.id);
+      setAdaptPostTitle(post.title);
+      setAdaptOpen(true);
+    }
   }
 
   // 搜索帖子（防抖）
@@ -648,18 +663,27 @@ export default function WeChatSyncPage() {
         <Card>
           <CardHeader
             title="多平台内容适配"
-            subtitle="AI 一键生成公众号版/头条版内容，标题、正文、封面图全套搞定"
+            subtitle="AI 一键生成公众号/头条/知乎/掘金/SEO 版本，标题、正文、封面图全套搞定"
             action={
-              <Button
-                onClick={() => {
-                  setAdaptPostId("");
-                  setAdaptPostTitle("");
-                  setAdaptOpen(true);
-                }}
-              >
-                <span className="mr-1.5">✨</span>
-                开始适配
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => openPostPicker("adapt")}
+                >
+                  <Icons.Chat className="w-4 h-4" />
+                  选择帖子
+                </Button>
+                <Button
+                  onClick={() => {
+                    setAdaptPostId("");
+                    setAdaptPostTitle("");
+                    setAdaptOpen(true);
+                  }}
+                >
+                  <span className="mr-1.5">✨</span>
+                  手动输入
+                </Button>
+              </div>
             }
           />
           <CardBody>
@@ -1065,13 +1089,20 @@ export default function WeChatSyncPage() {
             {/* 弹窗头部 */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">选择帖子</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {postPickerMode === "sync" ? "选择帖子" : "选择要适配的帖子"}
+                </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  搜索并选择要同步到微信公众号的帖子
+                  {postPickerMode === "sync"
+                    ? "搜索并选择要同步到微信公众号的帖子"
+                    : "搜索并选择要进行多平台内容适配的帖子"}
                 </p>
               </div>
               <button
-                onClick={() => !syncing && setPostPickerOpen(false)}
+                onClick={() => {
+                  if (postPickerMode === "sync" && syncing) return;
+                  setPostPickerOpen(false);
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1116,8 +1147,11 @@ export default function WeChatSyncPage() {
                     return (
                       <button
                         key={post.id}
-                        onClick={() => !syncing && syncPost(post.id)}
-                        disabled={syncing}
+                        onClick={() => {
+                          if (syncing && postPickerMode === "sync") return;
+                          handleSelectPost(post);
+                        }}
+                        disabled={syncing && postPickerMode === "sync"}
                         className={`w-full text-left px-6 py-3 hover:bg-brand-50 transition-colors flex items-start gap-3 group disabled:opacity-60 disabled:cursor-not-allowed ${
                           isSelected ? "bg-brand-50" : ""
                         }`}
@@ -1163,7 +1197,11 @@ export default function WeChatSyncPage() {
                             <Spinner className="w-5 h-5 text-brand-500" />
                           ) : (
                             <div className="flex items-center gap-1 text-xs text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                              {isPersonal ? "生成" : "同步"}
+                              {postPickerMode === "sync"
+                                ? isPersonal
+                                  ? "生成"
+                                  : "同步"
+                                : "适配"}
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
