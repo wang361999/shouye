@@ -255,6 +255,33 @@ export default function ToolsPage() {
                 </div>
               </div>
             </Link>
+
+            <Link
+              href="/tools/pdf"
+              className="bg-white rounded-2xl p-5 border border-gray-100 hover:border-orange-200 hover:shadow-lg transition-all group"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-xl flex-shrink-0">
+                  📄
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                    PDF 格式转换工具箱
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                    17 款 PDF 工具，格式转换、合并拆分、压缩加密、OCR 识别一站式搞定
+                  </p>
+                  <div className="mt-2 flex items-center gap-1">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded">
+                      推荐
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-600 rounded">
+                      免费
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
 
