@@ -1262,6 +1262,10 @@ export default function WeChatSyncPage() {
         defaultPostTitle={adaptPostTitle}
         open={adaptOpen}
         onClose={() => setAdaptOpen(false)}
+        onOpenPicker={() => {
+          setAdaptOpen(false);
+          openPostPicker("adapt");
+        }}
       />
     </AdminLayout>
   );

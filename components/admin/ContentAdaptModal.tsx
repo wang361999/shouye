@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { adminFetch } from "@/lib/admin-fetch";
 import { Spinner } from "@/components/admin/ui";
@@ -58,6 +58,7 @@ interface Props {
   defaultPlatform?: Platform;
   open: boolean;
   onClose: () => void;
+  onOpenPicker?: () => void;
 }
 
 export default function ContentAdaptModal({
@@ -66,6 +67,7 @@ export default function ContentAdaptModal({
   defaultPlatform = "wechat",
   open,
   onClose,
+  onOpenPicker,
 }: Props) {
   const [postId, setPostId] = useState(defaultPostId);
   const [postTitle, setPostTitle] = useState(defaultPostTitle);
@@ -79,6 +81,17 @@ export default function ContentAdaptModal({
     seo?: SEOVersion;
   } | null>(null);
   const [activeTab, setActiveTab] = useState<"content" | "titles" | "cover" | "keywords">("content");
+
+  // 打开弹窗时同步默认值（支持从帖子选择器传入）
+  useEffect(() => {
+    if (open) {
+      setPostId(defaultPostId);
+      setPostTitle(defaultPostTitle);
+      setPlatform(defaultPlatform);
+      setResult(null);
+      setActiveTab("content");
+    }
+  }, [open, defaultPostId, defaultPostTitle, defaultPlatform]);
 
   if (!open) return null;
 
@@ -177,44 +190,73 @@ export default function ContentAdaptModal({
           </div>
 
           {/* 帖子输入 */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={postId}
-              onChange={(e) => setPostId(e.target.value)}
-              placeholder="输入帖子 ID 或链接，如 /forum/post/123"
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !loading) handleGenerate();
-              }}
-            />
-            <button
-              onClick={handleGenerate}
-              disabled={loading || !postId.trim()}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5"
-            >
-              {loading ? (
-                <>
-                  <Spinner className="w-4 h-4" />
-                  生成中...
-                </>
-              ) : (
-                <>
-                  <span className="text-base">✨</span>
-                  生成
-                  {platform === "wechat"
-                    ? "公众号"
-                    : platform === "toutiao"
-                    ? "头条"
-                    : platform === "zhihu"
-                    ? "知乎"
-                    : platform === "juejin"
-                    ? "掘金"
-                    : "SEO"}
-                  版
-                </>
+          <div className="space-y-2">
+            {postTitle && (
+              <div className="flex items-center justify-between px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-blue-500 text-base">📄</span>
+                  <span className="text-sm font-medium text-blue-900 truncate">
+                    {postTitle}
+                  </span>
+                </div>
+                {onOpenPicker && (
+                  <button
+                    onClick={onOpenPicker}
+                    className="flex-shrink-0 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    重新选择
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={postId}
+                onChange={(e) => setPostId(e.target.value)}
+                placeholder="输入帖子 ID 或链接，如 /forum/post/123"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) handleGenerate();
+                }}
+              />
+              {onOpenPicker && (
+                <button
+                  onClick={onOpenPicker}
+                  className="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                >
+                  <span>📋</span>
+                  选帖子
+                </button>
               )}
-            </button>
+              <button
+                onClick={handleGenerate}
+                disabled={loading || !postId.trim()}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5"
+              >
+                {loading ? (
+                  <>
+                    <Spinner className="w-4 h-4" />
+                    生成中...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-base">✨</span>
+                    生成
+                    {platform === "wechat"
+                      ? "公众号"
+                      : platform === "toutiao"
+                      ? "头条"
+                      : platform === "zhihu"
+                      ? "知乎"
+                      : platform === "juejin"
+                      ? "掘金"
+                      : "SEO"}
+                    版
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
