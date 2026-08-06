@@ -210,6 +210,8 @@ export default function CoderPage() {
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [showRepoSelector, setShowRepoSelector] = useState(false);
   const [customRepo, setCustomRepo] = useState('');
+  const [streamingText, setStreamingText] = useState('');
+  const [streamingReads, setStreamingReads] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -248,7 +250,7 @@ export default function CoderPage() {
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+  }, [messages, loading, streamingText, streamingReads]);
 
   // 自动调整输入框高度
   useEffect(() => {
@@ -281,7 +283,7 @@ export default function CoderPage() {
     fetchCommits();
   }, [fetchCommits]);
 
-  // 发送消息
+  // 发送消息（流式）
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
@@ -291,6 +293,8 @@ export default function CoderPage() {
     setInput('');
     setLoading(true);
     setError('');
+    setStreamingText('');
+    setStreamingReads([]);
 
     try {
       const token = getToken();
@@ -301,23 +305,85 @@ export default function CoderPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: newMessages.map((m) => {
+            // 将之前的文件变更信息也带入上下文，让 AI 记住之前的操作
+            let content = m.content;
+            if (m.role === 'assistant' && m.changes && m.changes.length > 0) {
+              const changeSummary = m.changes
+                .map((c) => `${c.type} ${c.path}`)
+                .join('; ');
+              content += `\n\n[提议的变更: ${changeSummary}]${m.changesApplied ? ' (已应用)' : ''}`;
+            }
+            return { role: m.role, content };
+          }),
           repo: selectedRepo || undefined,
           branch: selectedBranch || undefined,
         }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || data.detail || '请求失败');
+      }
+
+      // 读取 SSE 流
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('无法读取响应流');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let replyText = '';
+      let changes: FileChange[] = [];
+      let readLogs: string[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        for (const event of events) {
+          const line = event.trim();
+          if (!line.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(line.slice(6));
+
+            switch (data.type) {
+              case 'token':
+                replyText += data.content;
+                setStreamingText(replyText);
+                break;
+              case 'read':
+                setStreamingReads((prev) => [...prev, data.message]);
+                break;
+              case 'changes':
+                changes = data.changes || [];
+                break;
+              case 'readLogs':
+                readLogs = data.readLogs || [];
+                break;
+              case 'done':
+                break;
+              case 'error':
+                throw new Error(data.content || 'AI 出错');
+            }
+          } catch (e) {
+            // 如果是抛出的错误，继续传播
+            if (e instanceof Error && e.message !== 'Unexpected token') {
+              throw e;
+            }
+          }
+        }
       }
 
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        content: data.reply || '(无回复)',
-        changes: data.changes || [],
-        readLogs: data.readLogs || [],
+        content: replyText || '(无回复)',
+        changes,
+        readLogs,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -325,6 +391,8 @@ export default function CoderPage() {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
+      setStreamingText('');
+      setStreamingReads([]);
     }
   };
 
@@ -415,6 +483,8 @@ export default function CoderPage() {
   const handleClear = () => {
     setMessages([]);
     setError('');
+    setStreamingText('');
+    setStreamingReads([]);
   };
 
   // 切换仓库
@@ -698,16 +768,34 @@ export default function CoderPage() {
             </div>
           ))}
 
-          {/* 加载中 */}
+          {/* 流式回复 / 加载中 */}
           {loading && (
             <div className="flex justify-start mb-4 sm:mb-6">
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="max-w-[85%] sm:max-w-3xl flex flex-col gap-2 w-full">
+                {/* 文件读取活动 */}
+                {streamingReads.length > 0 && (
+                  <div className="text-xs text-gray-500 bg-gray-900/50 rounded-lg px-3 py-2 border border-gray-800/50">
+                    {streamingReads.map((log, i) => (
+                      <div key={i} className="ml-2">{log}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 流式文本或加载指示器 */}
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3">
+                  {streamingText ? (
+                    <MarkdownContent content={streamingText} />
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-sm text-gray-400">AI 正在分析代码...</span>
+                    </div>
+                  )}
                 </div>
-                <span className="text-sm text-gray-400">AI 正在分析代码...</span>
               </div>
             </div>
           )}

@@ -5,21 +5,23 @@ import { getFileTree, readFile, listDir, type FileChange, type RepoContext } fro
 /**
  * POST /api/coder/chat
  *
- * AI 编程助手聊天接口
+ * AI 编程助手聊天接口（流式版本）
  * 使用 GLM-5.2 模型，通过 agentic loop 自动读取文件、分析代码、提出修改方案
+ * 使用 SSE (Server-Sent Events) 流式返回，用户可实时看到 AI 的回复
  *
- * 请求体：
- *   { messages: [{role: 'user'|'assistant', content: string}] }
- *
- * 返回：
- *   { reply: string, changes: FileChange[] }
+ * 事件类型：
+ *   token   — AI 回复的文本片段（实时）
+ *   read    — AI 正在读取文件
+ *   changes — 文件变更列表
+ *   done    — 完成
+ *   error   — 出错
  */
 
 const GLM_API_KEY = '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';
 const GLM_API_BASE = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const GLM_MODEL = 'z-ai/glm-5.2';
 
-const MAX_ITERATIONS = 8;
+const MAX_ITERATIONS = 5;
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -34,13 +36,35 @@ interface AIAction {
 
 interface AIResponse {
   message: string;
-  actions?: AIAction[];
+  actions: AIAction[];
 }
 
+// ============ 文件树缓存（5分钟TTL） ============
+let fileTreeCache: { tree: string; repo: string; expiry: number } | null = null;
+const FILE_TREE_CACHE_TTL = 5 * 60 * 1000;
+
+async function getCachedFileTree(ctx?: Partial<RepoContext>): Promise<string> {
+  const repo = ctx?.repo || 'default';
+  const now = Date.now();
+  if (fileTreeCache && fileTreeCache.repo === repo && now < fileTreeCache.expiry) {
+    return fileTreeCache.tree;
+  }
+  const tree = await getFileTree(ctx);
+  // 限制文件树长度，避免占用过多 token
+  const lines = tree.split('\n');
+  const trimmed =
+    lines.length > 150
+      ? lines.slice(0, 150).join('\n') + `\n... (还有 ${lines.length - 150} 个文件未显示)`
+      : tree;
+  fileTreeCache = { tree: trimmed, repo, expiry: now + FILE_TREE_CACHE_TTL };
+  return trimmed;
+}
+
+// ============ GLM 流式调用 ============
 /**
- * 调用 GLM-5.2
+ * 调用 GLM-5.2 并以 async generator 形式逐 token 返回
  */
-async function callGLM(messages: ChatMessage[], maxTokens = 16384): Promise<string> {
+async function* callGLMStream(messages: ChatMessage[]): AsyncGenerator<string> {
   const response = await fetch(GLM_API_BASE, {
     method: 'POST',
     headers: {
@@ -50,10 +74,11 @@ async function callGLM(messages: ChatMessage[], maxTokens = 16384): Promise<stri
     body: JSON.stringify({
       model: GLM_MODEL,
       messages,
-      max_tokens: maxTokens,
-      temperature: 0.7,
+      max_tokens: 8192,
+      temperature: 0.3,
+      stream: true,
     }),
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(90_000),
   });
 
   if (!response.ok) {
@@ -61,19 +86,63 @@ async function callGLM(messages: ChatMessage[], maxTokens = 16384): Promise<stri
     throw new Error(`GLM API ${response.status}: ${text.slice(0, 300)}`);
   }
 
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error('GLM 返回内容为空');
+  if (!response.body) throw new Error('GLM 返回空响应体');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+      const data = trimmed.slice(6);
+      if (data === '[DONE]') return;
+
+      try {
+        const parsed = JSON.parse(data);
+        const content = parsed?.choices?.[0]?.delta?.content;
+        if (content) yield content;
+      } catch {
+        // 忽略解析错误
+      }
+    }
   }
-  return content;
 }
 
+// ============ AI 响应解析 ============
 /**
- * 解析 AI 响应（支持 JSON 和非 JSON 格式）
+ * 解析 AI 响应：支持 Markdown + JSON 代码块格式，也兼容纯 JSON
  */
 function parseAIResponse(raw: string): AIResponse {
-  // 尝试直接解析 JSON
+  // 方式1：提取 ```json 代码块
+  const jsonBlockMatch = raw.match(/```json\s*\n([\s\S]*?)\n```/);
+  if (jsonBlockMatch) {
+    try {
+      const parsed = JSON.parse(jsonBlockMatch[1]);
+      const message = raw.slice(0, jsonBlockMatch.index).trim();
+      return {
+        message: message || '好的，我来帮你处理。',
+        actions: Array.isArray(parsed.actions)
+          ? parsed.actions
+          : Array.isArray(parsed)
+            ? parsed
+            : [],
+      };
+    } catch {
+      // JSON 解析失败，继续尝试
+    }
+  }
+
+  // 方式2：兼容旧格式 — 纯 JSON
   try {
     const parsed = JSON.parse(raw);
     if (parsed.message) {
@@ -83,10 +152,10 @@ function parseAIResponse(raw: string): AIResponse {
       };
     }
   } catch {
-    // 不是纯 JSON，继续尝试
+    // 不是纯 JSON
   }
 
-  // 尝试提取 JSON 块
+  // 方式3：提取任意 JSON 块
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
@@ -102,68 +171,54 @@ function parseAIResponse(raw: string): AIResponse {
     }
   }
 
-  // 非 JSON 格式，直接作为消息返回
+  // 方式4：纯文本消息
   return { message: raw.trim(), actions: [] };
 }
 
-/**
- * 构建系统提示词
- */
+// ============ 系统提示词 ============
 async function buildSystemPrompt(ctx?: Partial<RepoContext>): Promise<string> {
   let fileTree = '';
   try {
-    fileTree = await getFileTree(ctx);
+    fileTree = await getCachedFileTree(ctx);
   } catch {
     fileTree = '(无法获取文件树)';
   }
 
   const repoName = ctx?.repo || '默认项目';
 
-  return `你是一个专业的 AI 编程助手，正在帮助用户修改他们的项目（仓库：${repoName}）。
+  return `你是一个专业的 AI 编程助手，正在帮助用户修改项目（仓库：${repoName}）。
 
-你的能力：
-1. 读取项目文件 — 使用 read 动作
-2. 浏览目录 — 使用 list 动作
-3. 创建新文件 — 使用 create 动作
-4. 修改文件 — 使用 write 动作
-5. 删除文件 — 使用 delete 动作
+能力：
+- read: 读取文件内容
+- list: 浏览目录
+- write: 修改文件（需包含完整文件内容）
+- create: 新建文件
+- delete: 删除文件
 
-工作流程：
-1. 先理解用户的需求
-2. 如果需要，用 read/list 动作读取相关文件，了解现有代码结构
-3. 分析代码后，提出修改方案
-4. 用 write/create/delete 动作返回具体的文件修改
-5. write 动作必须包含完整的文件内容（不是 diff）
+响应格式：
+1. 先用 Markdown 写你的分析和说明
+2. 需要文件操作时，在末尾加一个 JSON 代码块：
 
-响应格式 — 必须返回严格 JSON：
 \`\`\`json
-{
-  "message": "你的回复（支持 Markdown 格式，可以包含代码说明）",
-  "actions": [
-    { "type": "read", "path": "app/page.tsx" },
-    { "type": "list", "path": "app/components" },
-    { "type": "write", "path": "app/page.tsx", "content": "完整文件内容" },
-    { "type": "create", "path": "app/new-file.tsx", "content": "文件内容" },
-    { "type": "delete", "path": "app/old-file.tsx" }
-  ]
+{ "actions": [{ "type": "read", "path": "app/page.tsx" }] }
 \`\`\`
 
 规则：
-- 一次可以返回多个动作
-- 如果需要先看文件内容，返回 read/list 动作，系统会执行后把结果反馈给你
-- 当你准备好修改代码时，返回 write/create/delete 动作
-- write 动作的 content 必须是完整的文件内容，不是 patch 或 diff
-- 路径使用相对路径，相对于项目根目录（如 app/page.tsx）
-- 不要读取不必要的大文件（如 package-lock.json）
-- 修改文件前一定要先读取确认现有内容
+- 需要先看文件内容时返回 read/list 动作，系统会执行并反馈结果
+- 准备好修改时返回 write/create/delete 动作
+- write/create 的 content 必须是完整文件内容，不是 diff
+- 路径使用相对路径（如 app/page.tsx）
+- 不要读取 package-lock.json 等大文件
+- 修改前先读取确认现有内容
 - 代码注释用中文
+- 回复要简洁，不要啰嗦
 
 项目文件结构：
 ${fileTree}`;
 }
 
+// ============ 主处理函数 ============
 export async function POST(request: NextRequest) {
-  // 管理员鉴权
   const authResult = adminAuth(request);
   if (authResult instanceof Response) {
     return authResult;
@@ -181,10 +236,8 @@ export async function POST(request: NextRequest) {
     if (repo) ctx.repo = repo;
     if (branch) ctx.branch = branch;
 
-    // 构建系统提示词
     const systemPrompt = await buildSystemPrompt(ctx);
 
-    // 初始化对话
     const conversation: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
       ...messages.map((m) => ({
@@ -195,84 +248,145 @@ export async function POST(request: NextRequest) {
 
     const proposedChanges: FileChange[] = [];
     const readLogs: string[] = [];
+    const encoder = new TextEncoder();
 
-    // Agentic loop
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
-      console.log(`[CODER] Agentic loop iteration ${i + 1}/${MAX_ITERATIONS}`);
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (data: Record<string, unknown>) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        };
 
-      const rawResponse = await callGLM(conversation);
-      const parsed = parseAIResponse(rawResponse);
-
-      // 将 AI 响应加入对话
-      conversation.push({ role: 'assistant', content: rawResponse });
-
-      const actions = parsed.actions || [];
-      const readActions = actions.filter((a) => a.type === 'read' || a.type === 'list');
-      const writeActions = actions.filter((a) => a.type === 'write' || a.type === 'create' || a.type === 'delete');
-
-      // 收集文件变更
-      for (const action of writeActions) {
-        proposedChanges.push({
-          type: action.type as 'create' | 'write' | 'delete',
-          path: action.path,
-          content: action.content,
-        });
-      }
-
-      // 如果没有读取动作，说明 AI 已完成分析，返回结果
-      if (readActions.length === 0) {
-        return NextResponse.json({
-          reply: parsed.message,
-          changes: proposedChanges,
-          readLogs,
-        });
-      }
-
-      // 执行读取动作，将结果反馈给 AI
-      const readResults: string[] = [];
-      for (const action of readActions) {
         try {
-          if (action.type === 'read') {
-            const result = await readFile(action.path, ctx);
-            if (result.content.startsWith('__DIRECTORY__')) {
-              readLogs.push(`📁 ${action.path} 是目录，不是文件`);
-              readResults.push(`[读取目录 ${action.path}]\n这是一个目录，请用 list 动作来查看内容。`);
-            } else {
-              const preview = result.content.length > 8000
-                ? result.content.slice(0, 8000) + '\n... (内容过长，已截断)'
-                : result.content;
-              readLogs.push(`📄 读取 ${action.path} (${result.content.length} 字符)`);
-              readResults.push(`[文件内容 ${action.path}]\n\`\`\`\n${preview}\n\`\`\``);
+          for (let i = 0; i < MAX_ITERATIONS; i++) {
+            console.log(`[CODER] 流式 agentic loop 第 ${i + 1}/${MAX_ITERATIONS} 轮`);
+
+            let rawResponse = '';
+            let sentLength = 0;
+            const JSON_MARKER = '```json';
+
+            for await (const token of callGLMStream(conversation)) {
+              rawResponse += token;
+
+              // 检测 JSON 代码块，只发送 JSON 之前的可读文本
+              const jsonIdx = rawResponse.indexOf(JSON_MARKER);
+              if (jsonIdx !== -1) {
+                // JSON 块开始，只发送 JSON 标记之前的内容
+                if (jsonIdx > sentLength) {
+                  send({ type: 'token', content: rawResponse.slice(sentLength, jsonIdx) });
+                  sentLength = jsonIdx;
+                }
+              } else {
+                // 还没有 JSON 标记，保留缓冲区防止标记被截断
+                const safeLen = Math.max(sentLength, rawResponse.length - JSON_MARKER.length);
+                if (safeLen > sentLength) {
+                  send({ type: 'token', content: rawResponse.slice(sentLength, safeLen) });
+                  sentLength = safeLen;
+                }
+              }
             }
-          } else if (action.type === 'list') {
-            const items = await listDir(action.path, ctx);
-            const listing = items
-              .map((item) => `${item.type === 'dir' ? '📁' : '📄'} ${item.name}`)
-              .join('\n');
-            readLogs.push(`📁 列出目录 ${action.path} (${items.length} 项)`);
-            readResults.push(`[目录列表 ${action.path}]\n${listing}`);
+
+            // 发送 JSON 标记之前的剩余文本
+            const finalJsonIdx = rawResponse.indexOf(JSON_MARKER);
+            const finalSafeLen = finalJsonIdx !== -1 ? finalJsonIdx : rawResponse.length;
+            if (finalSafeLen > sentLength) {
+              send({ type: 'token', content: rawResponse.slice(sentLength, finalSafeLen) });
+            }
+
+            conversation.push({ role: 'assistant', content: rawResponse });
+
+            const parsed = parseAIResponse(rawResponse);
+            const actions = parsed.actions || [];
+            const readActions = actions.filter((a) => a.type === 'read' || a.type === 'list');
+            const writeActions = actions.filter(
+              (a) => a.type === 'write' || a.type === 'create' || a.type === 'delete',
+            );
+
+            // 收集文件变更
+            for (const action of writeActions) {
+              proposedChanges.push({
+                type: action.type as 'create' | 'write' | 'delete',
+                path: action.path,
+                content: action.content,
+              });
+            }
+
+            // 没有读取动作 = 分析完成
+            if (readActions.length === 0) {
+              send({ type: 'changes', changes: proposedChanges });
+              send({ type: 'readLogs', readLogs });
+              send({ type: 'done' });
+              controller.close();
+              return;
+            }
+
+            // 执行文件读取
+            const readResults: string[] = [];
+            for (const action of readActions) {
+              try {
+                if (action.type === 'read') {
+                  send({ type: 'read', message: `📄 读取 ${action.path}` });
+                  const result = await readFile(action.path, ctx);
+                  if (result.content.startsWith('__DIRECTORY__')) {
+                    readLogs.push(`📁 ${action.path} 是目录`);
+                    readResults.push(`[目录 ${action.path}]\n这是目录，请用 list 动作。`);
+                  } else {
+                    const preview =
+                      result.content.length > 6000
+                        ? result.content.slice(0, 6000) + '\n...(截断)'
+                        : result.content;
+                    readLogs.push(`📄 读取 ${action.path} (${result.content.length} 字符)`);
+                    readResults.push(`[文件 ${action.path}]\n\`\`\`\n${preview}\n\`\`\``);
+                  }
+                } else if (action.type === 'list') {
+                  send({ type: 'read', message: `📁 列出目录 ${action.path}` });
+                  const items = await listDir(action.path, ctx);
+                  const listing = items
+                    .map((item) => `${item.type === 'dir' ? '📁' : '📄'} ${item.name}`)
+                    .join('\n');
+                  readLogs.push(`📁 列出目录 ${action.path} (${items.length} 项)`);
+                  readResults.push(`[目录列表 ${action.path}]\n${listing}`);
+                }
+              } catch (err) {
+                const errMsg = err instanceof Error ? err.message : String(err);
+                readLogs.push(`❌ 读取 ${action.path} 失败: ${errMsg}`);
+                readResults.push(`[错误] 读取 ${action.path} 失败: ${errMsg}`);
+              }
+            }
+
+            send({ type: 'readLogs', readLogs: [...readLogs] });
+
+            conversation.push({
+              role: 'user',
+              content: `文件读取结果：\n\n${readResults.join('\n\n')}\n\n请继续分析。如需读取更多文件返回 read/list，如已准备好修改请返回 write/create/delete。`,
+            });
           }
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          readLogs.push(`❌ 读取 ${action.path} 失败: ${errMsg}`);
-          readResults.push(`[错误] 读取 ${action.path} 失败: ${errMsg}`);
+
+          // 达到最大迭代次数
+          send({ type: 'changes', changes: proposedChanges });
+          send({ type: 'readLogs', readLogs });
+          send({
+            type: 'token',
+            content: `\n\n(已达到最大分析轮次，共提出 ${proposedChanges.length} 个文件变更)`,
+          });
+          send({ type: 'done' });
+          controller.close();
+        } catch (error) {
+          console.error('[CODER STREAM ERROR]', error);
+          send({
+            type: 'error',
+            content: error instanceof Error ? error.message : String(error),
+          });
+          controller.close();
         }
-      }
+      },
+    });
 
-      // 将读取结果作为用户消息反馈给 AI
-      conversation.push({
-        role: 'user',
-        content: `以下是文件读取结果：\n\n${readResults.join('\n\n')}\n\n请基于以上信息继续分析，如果需要读取更多文件请继续返回 read/list 动作，如果已经准备好修改代码请返回 write/create/delete 动作。`,
-      });
-    }
-
-    // 达到最大迭代次数
-    return NextResponse.json({
-      reply: proposedChanges.length > 0
-        ? `${parsed_Message(conversation)}\n\n(已达到最大分析次数，共提出 ${proposedChanges.length} 个文件变更)`
-        : '分析超时，请尝试缩小问题范围或提供更具体的需求。',
-      changes: proposedChanges,
-      readLogs,
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
     });
   } catch (error) {
     console.error('[CODER CHAT ERROR]', error);
@@ -284,15 +398,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
-
-// 辅助函数：从对话中提取最后的 AI 消息
-function parsed_Message(conversation: ChatMessage[]): string {
-  for (let i = conversation.length - 1; i >= 0; i--) {
-    if (conversation[i].role === 'assistant') {
-      const parsed = parseAIResponse(conversation[i].content);
-      return parsed.message;
-    }
-  }
-  return '分析完成';
 }
