@@ -18,7 +18,8 @@ type ToolKey =
   | "pdf-to-txt"
   | "txt-to-pdf"
   | "rotate"
-  | "pdf-to-excel";
+  | "pdf-to-excel"
+  | "excel-to-pdf";
 
 interface PdfFile {
   id: string;
@@ -47,6 +48,7 @@ const TOOLS: { key: ToolKey; name: string; icon: string; desc: string }[] = [
   { key: "pdf-to-txt", name: "PDF 转文本", icon: "📝", desc: "提取 PDF 文字内容" },
   { key: "txt-to-pdf", name: "文本转 PDF", icon: "📄", desc: "文字/Markdown 转 PDF" },
   { key: "pdf-to-excel", name: "PDF 转 Excel", icon: "📊", desc: "提取表格导出 Excel" },
+  { key: "excel-to-pdf", name: "Excel 转 PDF", icon: "📈", desc: "Excel 表格转 PDF" },
 ];
 
 function formatSize(bytes: number): string {
@@ -120,6 +122,7 @@ export default function PdfToolsPage() {
           {activeTool === "pdf-to-txt" && <PdfToTextTool />}
           {activeTool === "txt-to-pdf" && <TextToPdfTool />}
           {activeTool === "pdf-to-excel" && <PdfToExcelTool />}
+          {activeTool === "excel-to-pdf" && <ExcelToPdfTool />}
         </div>
 
         {/* 特点 */}
@@ -3301,6 +3304,425 @@ function PdfToImageTool() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============ Excel 转 PDF 工具 ============
+function ExcelToPdfTool() {
+  const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [fileSize, setFileSize] = useState("");
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [preview, setPreview] = useState<{ name: string; rows: string[][] }[]>([]);
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<{ url: string; name: string; size: string } | null>(null);
+  const [orientation, setOrientation] = useState<"portrait" | "landscape">("landscape");
+  const [fontSize, setFontSize] = useState(10);
+  const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    const lowerName = f.name.toLowerCase();
+    if (
+      !lowerName.endsWith(".xlsx") &&
+      !lowerName.endsWith(".xls") &&
+      !lowerName.endsWith(".csv")
+    ) {
+      toast.error("请选择 Excel 文件（.xlsx / .xls / .csv）");
+      return;
+    }
+
+    setFile(f);
+    setFileName(f.name);
+    setFileSize(formatSize(f.size));
+    setResult(null);
+    setPreview([]);
+
+    try {
+      const XLSX = await import("xlsx");
+      const buf = await f.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+
+      setSheetNames(wb.SheetNames);
+      setSelectedSheets(wb.SheetNames);
+
+      // 预览前 3 个 sheet 的前 8 行
+      const previews: { name: string; rows: string[][] }[] = [];
+      for (let i = 0; i < Math.min(3, wb.SheetNames.length); i++) {
+        const ws = wb.Sheets[wb.SheetNames[i]];
+        const data = XLSX.utils.sheet_to_json<string[]>(ws, {
+          header: 1,
+          blankrows: false,
+          defval: "",
+        });
+        previews.push({
+          name: wb.SheetNames[i],
+          rows: (data as string[][]).slice(0, 8),
+        });
+      }
+      setPreview(previews);
+      toast.success(`已读取 ${wb.SheetNames.length} 个工作表`);
+    } catch (err) {
+      console.error(err);
+      toast.error("文件读取失败：" + (err instanceof Error ? err.message : "未知错误"));
+    }
+  };
+
+  const toggleSheet = (name: string) => {
+    setSelectedSheets((prev) =>
+      prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]
+    );
+  };
+
+  const handleConvert = async () => {
+    if (!file) {
+      toast.error("请先选择 Excel 文件");
+      return;
+    }
+    if (selectedSheets.length === 0) {
+      toast.error("请至少选择一个工作表");
+      return;
+    }
+    try {
+      setProcessing(true);
+      setResult(null);
+
+      const XLSX = await import("xlsx");
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+
+      // 创建 PDF
+      const pdf = new jsPDF({
+        orientation,
+        unit: "pt",
+        format: "a4",
+      });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 28; // 页边距
+      const maxWidth = pageWidth - margin * 2;
+      const lineHeight = fontSize * 1.35;
+
+      for (let sIdx = 0; sIdx < selectedSheets.length; sIdx++) {
+        const sheetName = selectedSheets[sIdx];
+        const ws = wb.Sheets[sheetName];
+        const rawData = XLSX.utils.sheet_to_json<string[]>(ws, {
+          header: 1,
+          blankrows: false,
+          defval: "",
+        }) as string[][];
+
+        if (rawData.length === 0) continue;
+
+        // 新工作表另起一页
+        if (sIdx > 0) pdf.addPage();
+
+        // 工作表标题
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(sheetName, margin, margin + 4);
+        pdf.setFontSize(fontSize);
+        pdf.setFont("helvetica", "normal");
+
+        let cursorY = margin + 24;
+
+        // 计算每列最大宽度（基于内容）
+        const colCount = Math.max(...rawData.map((r) => r.length));
+        const colWidths: number[] = new Array(colCount).fill(0);
+
+        for (const row of rawData) {
+          for (let c = 0; c < colCount; c++) {
+            const cellText = String(row[c] ?? "");
+            const textWidth = pdf.getTextWidth(cellText) + 8;
+            if (textWidth > colWidths[c]) colWidths[c] = textWidth;
+          }
+        }
+
+        // 等比缩放使总宽度适配页面
+        const totalWidth = colWidths.reduce((a, b) => a + b, 0);
+        const scale = totalWidth > maxWidth ? maxWidth / totalWidth : 1;
+        const scaledWidths = colWidths.map((w) => w * scale);
+
+        for (let r = 0; r < rawData.length; r++) {
+          const row = rawData[r];
+
+          // 超出页面高度则换页
+          if (cursorY + lineHeight > pageHeight - margin) {
+            pdf.addPage();
+            cursorY = margin;
+          }
+
+          // 绘制单元格
+          let cursorX = margin;
+          for (let c = 0; c < colCount; c++) {
+            const cellText = String(row[c] ?? "");
+            const cellW = scaledWidths[c];
+
+            // 表头行加粗 + 背景色
+            if (r === 0) {
+              pdf.setFillColor(245, 158, 11); // orange-500
+              pdf.rect(cursorX, cursorY - fontSize, cellW, lineHeight, "F");
+              pdf.setFont("helvetica", "bold");
+            } else {
+              pdf.setFont("helvetica", "normal");
+            }
+
+            // 隔行背景
+            if (r > 0 && r % 2 === 0) {
+              pdf.setFillColor(249, 250, 251); // gray-50
+              pdf.rect(cursorX, cursorY - fontSize, cellW, lineHeight, "F");
+            }
+
+            // 截断过长文本
+            let displayText = cellText;
+            const maxTextWidth = cellW - 6;
+            while (pdf.getTextWidth(displayText) > maxTextWidth && displayText.length > 1) {
+              displayText = displayText.slice(0, -1);
+            }
+            if (displayText !== cellText && cellText.length > 1) {
+              displayText = displayText.slice(0, -1) + "…";
+            }
+
+            pdf.setTextColor(31, 41, 55); // gray-800
+            pdf.text(displayText, cursorX + 4, cursorY);
+            cursorX += cellW;
+          }
+
+          // 行边框
+          pdf.setDrawColor(229, 231, 235); // gray-200
+          cursorX = margin;
+          for (let c = 0; c < colCount; c++) {
+            pdf.rect(cursorX, cursorY - fontSize, scaledWidths[c], lineHeight);
+            cursorX += scaledWidths[c];
+          }
+
+          cursorY += lineHeight;
+        }
+      }
+
+      // 生成文件
+      const pdfBlob = pdf.output("blob");
+      const url = URL.createObjectURL(pdfBlob);
+      const outputName = fileName.replace(/\.(xlsx|xls|csv)$/i, "") + ".pdf";
+
+      setResult({
+        url,
+        name: outputName,
+        size: formatSize(pdfBlob.size),
+      });
+      toast.success("转换成功！");
+    } catch (err) {
+      console.error(err);
+      toast.error("转换失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const downloadResult = () => {
+    if (!result) return;
+    const a = document.createElement("a");
+    a.href = result.url;
+    a.download = result.name;
+    a.click();
+  };
+
+  return (
+    <div>
+      <h2 className="text-base md:text-lg font-bold text-gray-900 mb-2">Excel 转 PDF</h2>
+      <p className="text-xs md:text-sm text-gray-500 mb-4 md:mb-6">
+        将 Excel / CSV 文件转换为 PDF，保留表格样式，支持多工作表
+      </p>
+
+      {/* 上传区域 */}
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-5 md:p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-3xl md:text-4xl mb-2 md:mb-3">📈</div>
+          <p className="text-gray-700 text-sm md:text-base font-medium">点击选择 Excel 文件</p>
+          <p className="text-xs text-gray-400 mt-1">支持 .xlsx / .xls / .csv 格式</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 md:gap-3 p-3 md:p-4 bg-gray-50 rounded-xl border border-gray-100 mb-4 md:mb-6">
+          <div className="text-xl md:text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 text-sm truncate">{fileName}</div>
+            <div className="text-xs text-gray-500">
+              {fileSize}
+              {sheetNames.length > 0 ? ` · ${sheetNames.length} 个工作表` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setFileName("");
+              setSheetNames([]);
+              setPreview([]);
+              setResult(null);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {/* 设置 */}
+      {file && (
+        <div className="mb-4 md:mb-6 space-y-4">
+          {/* 方向 + 字号 */}
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
+            <div>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">页面方向</label>
+              <select
+                value={orientation}
+                onChange={(e) => {
+                  setOrientation(e.target.value as "portrait" | "landscape");
+                  setResult(null);
+                }}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+              >
+                <option value="landscape">横向（适合宽表格）</option>
+                <option value="portrait">纵向</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
+                字号：{fontSize}pt
+              </label>
+              <input
+                type="range"
+                min={7}
+                max={14}
+                step={1}
+                value={fontSize}
+                onChange={(e) => {
+                  setFontSize(parseInt(e.target.value));
+                  setResult(null);
+                }}
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {/* 工作表选择 */}
+          {sheetNames.length > 0 && (
+            <div>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">
+                选择工作表（共 {sheetNames.length} 个）
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {sheetNames.map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => {
+                      toggleSheet(name);
+                      setResult(null);
+                    }}
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
+                      selectedSheets.includes(name)
+                        ? "border-orange-400 bg-orange-50 text-orange-700"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 预览 */}
+      {preview.length > 0 && !result && (
+        <div className="mb-4 md:mb-6 border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-3 md:px-4 py-2 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-600">
+            数据预览（前 {preview.length} 个工作表，每表前 8 行）
+          </div>
+          <div className="max-h-64 md:max-h-80 overflow-auto scrollbar-hide">
+            {preview.map((sheet, sIdx) => (
+              <div key={sIdx}>
+                <div className="px-3 md:px-4 py-1.5 bg-orange-50/50 text-xs font-medium text-orange-700 border-b border-gray-100">
+                  {sheet.name}
+                </div>
+                <table className="w-full text-xs border-collapse">
+                  <tbody>
+                    {sheet.rows.map((row, rIdx) => (
+                      <tr key={rIdx} className={rIdx === 0 ? "bg-gray-50 font-medium" : ""}>
+                        {row.map((cell, cIdx) => (
+                          <td
+                            key={cIdx}
+                            className="px-2 md:px-3 py-1.5 border border-gray-100 text-gray-700 whitespace-nowrap"
+                          >
+                            {cell || ""}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 结果 */}
+      {result && (
+        <div className="mb-4 md:mb-6 p-3 md:p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-xl md:text-2xl">✅</div>
+            <div className="flex-1">
+              <div className="font-medium text-green-900 text-sm">转换完成</div>
+              <div className="text-xs text-green-700">{result.name} · {result.size}</div>
+            </div>
+            <button
+              onClick={downloadResult}
+              className="px-3 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex-shrink-0"
+            >
+              下载 PDF
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 操作按钮 */}
+      {file && (
+        <div className="flex sm:justify-end gap-3">
+          <button
+            onClick={handleConvert}
+            disabled={processing || selectedSheets.length === 0}
+            className="px-4 sm:px-6 py-2.5 w-full sm:w-auto bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "转换中..." : "开始转换"}
+          </button>
+        </div>
+      )}
+
+      {/* 说明 */}
+      <div className="mt-4 md:mt-6 p-3 md:p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+        <div className="text-xs text-blue-700 space-y-1">
+          <p className="font-medium">使用提示：</p>
+          <p>1. 支持 .xlsx / .xls / .csv 格式的表格文件</p>
+          <p>2. 每个工作表会生成独立的 PDF 页面，可选择性导出</p>
+          <p>3. 横向模式适合列数较多的宽表格</p>
+          <p>4. 表头行会自动高亮，隔行添加背景色便于阅读</p>
+          <p>5. 过长的单元格内容会自动截断并显示省略号</p>
+        </div>
+      </div>
     </div>
   );
 }
