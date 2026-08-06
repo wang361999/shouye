@@ -371,6 +371,66 @@ function findCategoryIdBySlug(categories, slug) {
   return null;
 }
 
+// ===== 自动修复内容问题 =====
+// 修复 AI 生成内容常见的截断问题：代码块不闭合、句子截断等
+function autoFixContent(content) {
+  if (!content || typeof content !== 'string') return content;
+
+  let fixed = content;
+
+  // 1. 修复未闭合的代码块（奇数个 ``` 说明最后一个没闭合）
+  const codeFenceCount = (fixed.match(/```/g) || []).length;
+  if (codeFenceCount % 2 !== 0) {
+    // 找到最后一个代码块的位置
+    const lastFenceIndex = fixed.lastIndexOf('```');
+    const afterFence = fixed.slice(lastFenceIndex + 3);
+    // 如果最后一个代码块后面内容很少，说明被截断了，直接闭合
+    if (afterFence.trim().length < 200) {
+      // 去掉不完整的尾部，闭合代码块
+      fixed = fixed.slice(0, lastFenceIndex + 3) + '\n';
+    } else {
+      // 后面内容较多，可能是新的代码块没写完，补一个闭合
+      fixed = fixed + '\n```\n';
+    }
+  }
+
+  // 2. 去掉末尾明显不完整的句子（以逗号、顿号、"和"、"与"、"例如"等结尾）
+  const incompleteEndings = [
+    /[,，、]$/, /和$/, /与$/, /例如$/, /比如$/, /以及$/,
+    /包括$/, /：$/, /:$/, /—$/, /- \d+.$/, /\d+\.$/,
+    /- \w+$/, /\($/, /（$/, /\[.*$/, /【.*$/
+  ];
+
+  let lines = fixed.trim().split('\n');
+  // 只处理最后一行普通文本（非代码块内的）
+  let inCodeBlock = false;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (line.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (!inCodeBlock && line.length > 0) {
+      // 检查最后一行是否不完整
+      let isIncomplete = false;
+      for (const pattern of incompleteEndings) {
+        if (pattern.test(line)) {
+          isIncomplete = true;
+          break;
+        }
+      }
+      if (isIncomplete) {
+        // 去掉最后一行不完整的
+        lines = lines.slice(0, i);
+      }
+      break;
+    }
+  }
+  fixed = lines.join('\n');
+
+  return fixed.trim();
+}
+
 // ===== 调用 AI 生成帖子（多样化版本）=====
 async function generatePostContent(bot, title, categories, angle) {
   const categoryNames = categories.map((c) => c.name).join('、') || '综合讨论';
@@ -432,7 +492,10 @@ ${rules}
     const content = await callAI({
       prompt,
       systemPrompt: `你是技术社区内容创作者「${bot.authorName}」，擅长${bot.tagline}。必须只输出一个有效的 JSON 对象，不要包含任何 markdown 代码块标记或其他文字。`,
-      maxTokens: Math.floor(meta.structure.lengthRange[1] * 2.5),
+      // 增大 maxTokens 避免内容被截断
+      // 中文 1 字 ≈ 1.5-2 token，加上 Markdown 格式、代码块、JSON 包装
+      // 系数从 2.5 提升到 4.5，确保完整输出
+      maxTokens: Math.floor(meta.structure.lengthRange[1] * 4.5),
       responseFormat: { type: 'json_object' },
       tag: TAG,
     });
@@ -442,6 +505,8 @@ ${rules}
       if (parsed.title && parsed.content) {
         parsed.title = normalizeTitle(parsed.title, title);
         parsed.tags = normalizeTags(parsed.tags, bot.defaultTags);
+        // 自动修复常见的内容问题（代码块不闭合、截断的句子等）
+        parsed.content = autoFixContent(parsed.content);
         parsed.content = appendProfessionalFooter(parsed.content, {
           discussionQuestion: meta.discussion,
         });
@@ -463,6 +528,7 @@ ${rules}
       if (fallback.title && fallback.content && fallback.content.length > 50) {
         fallback.title = normalizeTitle(fallback.title, title);
         fallback.tags = normalizeTags(fallback.tags, bot.defaultTags);
+        fallback.content = autoFixContent(fallback.content);
         fallback.content = appendProfessionalFooter(fallback.content, {
           discussionQuestion: meta.discussion,
         });
