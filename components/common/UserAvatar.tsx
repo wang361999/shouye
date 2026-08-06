@@ -1,9 +1,15 @@
 "use client";
+import Image from 'next/image';
 import { cn } from "@/lib/utils";
 
 // 判断头像是否为图片 URL
 function isImageAvatar(avatar: string): boolean {
-  return /^(https?:|data:|\/|blob:)/.test(avatar);
+  return /^(https?:|\/|blob:)/.test(avatar);
+}
+
+// 判断是否为 data URI（next/image 不优化 data URI，用原生 img）
+function isDataUri(avatar: string): boolean {
+  return /^data:/.test(avatar);
 }
 
 interface UserAvatarProps {
@@ -12,6 +18,14 @@ interface UserAvatarProps {
   size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }
+
+// size 映射到像素尺寸（用于 next/image 的 width/height）
+const SIZE_PIXELS: Record<string, number> = {
+  xs: 24,
+  sm: 32,
+  md: 36,
+  lg: 48,
+};
 
 export default function UserAvatar({ username, avatar, size = "sm", className }: UserAvatarProps) {
   const sizeMap = {
@@ -25,13 +39,40 @@ export default function UserAvatar({ username, avatar, size = "sm", className }:
   const colors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-orange-500", "bg-pink-500", "bg-indigo-500", "bg-teal-500", "bg-red-500"];
   const colorIndex = username.charCodeAt(0) % colors.length;
   const initial = username.charAt(0).toUpperCase();
+  const pixelSize = SIZE_PIXELS[size] || 32;
 
   if (avatar) {
     if (isImageAvatar(avatar)) {
-      // 图片 URL 头像
+      // data URI 用原生 img（next/image 不优化 data URI）
+      if (isDataUri(avatar)) {
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatar}
+            alt={username}
+            loading="lazy"
+            className={cn("rounded-full object-cover flex-shrink-0", sizeMap[size], className)}
+          />
+        );
+      }
+
+      // 外部 URL 图片用 next/image 优化（自动 WebP/AVIF、尺寸适配）
       return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatar} alt={username} loading="lazy" className={cn("rounded-full object-cover flex-shrink-0", sizeMap[size], className)} />
+        <Image
+          src={avatar}
+          alt={username}
+          width={pixelSize}
+          height={pixelSize}
+          className={cn("rounded-full object-cover flex-shrink-0", sizeMap[size], className)}
+          loading="lazy"
+          // 头像尺寸小，用较低质量即可（减少体积）
+          quality={75}
+          // 加载失败时降级显示首字母
+          onError={(e) => {
+            const target = e.currentTarget;
+            target.style.display = 'none';
+          }}
+        />
       );
     }
     // Emoji 头像

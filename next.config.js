@@ -69,6 +69,11 @@ const nextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 86400, // 24小时
+    // 允许外部头像域名（支持常见头像服务和任意 https 图片）
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+      { protocol: 'http', hostname: '**' },
+    ],
   },
 
   // ============ ESLint ============

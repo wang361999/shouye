@@ -3,31 +3,45 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 
-// ============ Prism 动态导入 ============
+// ============ Prism 动态导入（按需加载语言）============
 // 只在客户端加载，避免 SSR 问题
-let prismLoaded = false;
+// 优化：只加载当前代码块实际用到的语言，而非全量 24 种
+let prismCoreLoaded = false;
+const loadedLanguages = new Set<string>();
+
+// 常用语言（优先加载，覆盖 90% 以上场景）
+const COMMON_LANGS = ["javascript", "typescript", "jsx", "tsx", "python", "bash", "json", "css", "html", "markdown", "yaml"];
+
 async function loadPrism(language: string) {
   if (typeof window === "undefined") return null;
 
+  // 1. 加载 Prism 核心
   const Prism = (await import("prismjs")).default;
 
-  // 按需加载语言组件
-  if (!prismLoaded) {
-    // 加载常用语言
-    const languages = [
-      "javascript", "typescript", "jsx", "tsx", "python", "ruby",
-      "go", "rust", "java", "c", "cpp", "csharp", "php", "swift",
-      "kotlin", "bash", "yaml", "json", "xml", "html", "css",
-      "scss", "sql", "markdown",
-    ];
-    for (const lang of languages) {
-      try {
-        await import(`prismjs/components/prism-${lang}`);
-      } catch {
-        // 某些语言可能不存在，忽略
-      }
+  if (!prismCoreLoaded) {
+    // 首次加载：批量加载常用语言（一次性网络开销，覆盖大多数场景）
+    await Promise.all(
+      COMMON_LANGS.map(async (lang) => {
+        try {
+          await import(`prismjs/components/prism-${lang}`);
+          loadedLanguages.add(lang);
+        } catch {
+          // 忽略加载失败的语言
+        }
+      })
+    );
+    prismCoreLoaded = true;
+  }
+
+  // 2. 如果目标语言不在常用列表中，按需单独加载
+  const targetLang = language.toLowerCase();
+  if (targetLang && !loadedLanguages.has(targetLang)) {
+    try {
+      await import(`prismjs/components/prism-${targetLang}`);
+      loadedLanguages.add(targetLang);
+    } catch {
+      // 语言不存在，降级使用纯文本
     }
-    prismLoaded = true;
   }
 
   return Prism;
@@ -320,8 +334,7 @@ export default function GithubCodeBlock({
         )}
       </div>
 
-      {/* Prism 主题样式 */
-      }
+      {/* Prism 主题样式 */}
       <style dangerouslySetInnerHTML={{ __html: prismTheme }} />
     </div>
   );

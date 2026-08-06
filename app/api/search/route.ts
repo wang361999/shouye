@@ -1,6 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// ============ 搜索结果缓存 ============
+// 相同关键词 + 页码 + 类型的搜索结果缓存 5 分钟
+// 减少重复搜索的数据库压力，提升响应速度
+const searchCache = new Map<string, { data: unknown; expiry: number }>();
+const CACHE_TTL = 300_000; // 5 分钟
+const MAX_CACHE_ENTRIES = 200; // 最多缓存 200 个不同搜索词
+
+function getCacheKey(q: string, page: number, limit: number, type: string): string {
+  return `${q.toLowerCase()}:${page}:${limit}:${type}`;
+}
+
+function getCachedResult(key: string): unknown | null {
+  const cached = searchCache.get(key);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.data;
+  }
+  // 过期了就删除
+  if (cached) {
+    searchCache.delete(key);
+  }
+  return null;
+}
+
+function setCachedResult(key: string, data: unknown): void {
+  // 缓存过多时，清理最旧的一批（简单策略：删一半）
+  if (searchCache.size >= MAX_CACHE_ENTRIES) {
+    const keys = Array.from(searchCache.keys());
+    const half = Math.floor(keys.length / 2);
+    for (let i = 0; i < half; i++) {
+      searchCache.delete(keys[i]);
+    }
+  }
+  searchCache.set(key, { data, expiry: Date.now() + CACHE_TTL });
+}
+
 // ============ GET /api/search - 全站搜索 ============
 // 参数: ?q=关键词&page=1&limit=10&type=all|posts|tools
 // 返回: { posts: [...], tools: [...], total }
@@ -23,6 +58,18 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         q: '',
+      });
+    }
+
+    // ---- 检查缓存 ----
+    const cacheKey = getCacheKey(q, page, limit, type);
+    const cached = getCachedResult(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached as Record<string, unknown>, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'X-Cache': 'HIT',
+        },
       });
     }
 
@@ -130,7 +177,7 @@ export async function GET(request: NextRequest) {
       }));
     }
 
-    return NextResponse.json({
+    const result = {
       posts,
       tools,
       total: postsTotal + toolsTotal,
@@ -139,6 +186,16 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       q,
+    };
+
+    // ---- 写入缓存 ----
+    setCachedResult(cacheKey, result);
+
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        'X-Cache': 'MISS',
+      },
     });
   } catch (error) {
     console.error('[SEARCH ERROR]', error);
