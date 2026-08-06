@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { adminFetch } from "@/lib/admin-fetch";
 import { Spinner } from "@/components/admin/ui";
+import MarkdownRenderer from "@/components/forum/MarkdownRenderer";
 
 type Platform = "wechat" | "toutiao" | "zhihu" | "juejin" | "seo";
 
@@ -594,8 +595,8 @@ export default function ContentAdaptModal({
                   </div>
                 )}
 
-                <div className="p-4 bg-gray-50 rounded-lg text-sm text-gray-800 max-h-96 overflow-y-auto whitespace-pre-wrap font-mono text-xs leading-relaxed">
-                  {currentData.content}
+                <div className="p-4 bg-gray-50 rounded-lg max-h-96 overflow-y-auto">
+                  <MarkdownRenderer content={currentData.content} className="prose-sm" />
                 </div>
               </div>
             </div>
