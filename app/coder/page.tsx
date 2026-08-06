@@ -450,22 +450,50 @@ export default function CoderPage() {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-950 text-gray-100 flex flex-col h-screen overflow-hidden">
-      {/* 顶部栏 */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-            AI
+    <div className="fixed inset-x-0 top-12 md:top-16 bottom-14 md:bottom-0 bg-gray-950 text-gray-100 flex flex-col overflow-hidden">
+      {/* 顶部栏 — 移动端两行布局，桌面端单行 */}
+      <header className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm shrink-0">
+        {/* 第一行：Logo + 标题 + 移动端操作按钮 */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm shrink-0">
+              AI
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-base font-bold truncate">AI 编程助手</h1>
+              <p className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">GLM-5.2 · 通过聊天修改代码并部署</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-base font-bold">AI 编程助手</h1>
-            <p className="text-xs text-gray-500">GLM-5.2 · 通过聊天修改代码并部署</p>
+          {/* 移动端操作按钮 */}
+          <div className="flex items-center gap-1 sm:hidden shrink-0">
+            <button
+              onClick={() => { fetchCommits(); setShowCommits(!showCommits); }}
+              className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              记录
+            </button>
+            <button
+              onClick={handleClear}
+              className="text-xs text-gray-400 hover:text-red-400 px-2 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              清空
+            </button>
+            <a
+              href="/"
+              className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              返回
+            </a>
           </div>
+        </div>
+
+        {/* 第二行（移动端）/ 右侧（桌面端）：仓库选择器 + 桌面端操作按钮 */}
+        <div className="flex items-center gap-2">
           {/* 仓库选择器 */}
-          <div className="relative ml-4">
+          <div className="relative flex-1 sm:flex-none">
             <button
               onClick={() => setShowRepoSelector(!showRepoSelector)}
-              className="flex items-center gap-2 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 px-3 py-1.5 rounded-lg transition-colors max-w-[200px] sm:max-w-xs"
+              className="flex items-center gap-2 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 px-3 py-1.5 rounded-lg transition-colors w-full sm:w-auto sm:max-w-xs"
             >
               <span className="truncate">{selectedRepo || '选择仓库'}</span>
               {selectedBranch && (
@@ -476,7 +504,7 @@ export default function CoderPage() {
               </svg>
             </button>
             {showRepoSelector && (
-              <div className="absolute top-full left-0 mt-1 w-80 max-w-[90vw] bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 sm:right-auto mt-1 w-full sm:w-80 max-w-[calc(100vw-1.5rem)] bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-64 sm:max-h-96 overflow-y-auto">
                 <div className="p-2 border-b border-gray-800">
                   <input
                     type="text"
@@ -523,33 +551,35 @@ export default function CoderPage() {
               </div>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { fetchCommits(); setShowCommits(!showCommits); }}
-            className="text-xs text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            {showCommits ? '隐藏记录' : '提交记录'}
-          </button>
-          <button
-            onClick={handleClear}
-            className="text-xs text-gray-400 hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            清空
-          </button>
-          <a
-            href="/"
-            className="text-xs text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            返回首页
-          </a>
+
+          {/* 桌面端操作按钮 */}
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => { fetchCommits(); setShowCommits(!showCommits); }}
+              className="text-xs text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              {showCommits ? '隐藏记录' : '提交记录'}
+            </button>
+            <button
+              onClick={handleClear}
+              className="text-xs text-gray-400 hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              清空
+            </button>
+            <a
+              href="/"
+              className="text-xs text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              返回首页
+            </a>
+          </div>
         </div>
       </header>
 
       {/* 提交记录面板 */}
       {showCommits && (
-        <div className="border-b border-gray-800 bg-gray-900/50 max-h-64 overflow-y-auto shrink-0">
-          <div className="p-3 space-y-2">
+        <div className="border-b border-gray-800 bg-gray-900/50 max-h-48 sm:max-h-64 overflow-y-auto shrink-0">
+          <div className="p-2 sm:p-3 space-y-2">
             {commits.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-4">暂无提交记录</p>
             ) : (
@@ -580,16 +610,16 @@ export default function CoderPage() {
       )}
 
       {/* 消息列表 */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         <div className="max-w-4xl mx-auto">
           {messages.length === 0 && (
-            <div className="text-center py-20">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4">
+            <div className="text-center py-12 sm:py-20">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl sm:text-2xl mx-auto mb-4">
                 AI
               </div>
-              <h2 className="text-xl font-bold mb-2">AI 编程助手</h2>
-              <p className="text-gray-500 mb-6">告诉我你想修改什么，我来帮你写代码并推送到仓库</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
+              <h2 className="text-lg sm:text-xl font-bold mb-2">AI 编程助手</h2>
+              <p className="text-gray-500 mb-6 text-sm sm:text-base px-4">告诉我你想修改什么，我来帮你写代码并推送到仓库</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 max-w-2xl mx-auto px-2">
                 {[
                   '帮我在首页添加一个搜索框',
                   '给论坛帖子加一个点赞功能',
@@ -609,11 +639,11 @@ export default function CoderPage() {
           )}
 
           {messages.map((msg, msgIndex) => (
-            <div key={msgIndex} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-6`}>
-              <div className={`max-w-3xl ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-2`}>
+            <div key={msgIndex} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4 sm:mb-6`}>
+              <div className={`max-w-[85%] sm:max-w-3xl ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-2`}>
                 {/* 消息内容 */}
                 <div
-                  className={`rounded-2xl px-4 py-3 ${
+                  className={`rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 ${
                     msg.role === 'user'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-900 border border-gray-800 text-gray-100'
@@ -670,8 +700,8 @@ export default function CoderPage() {
 
           {/* 加载中 */}
           {loading && (
-            <div className="flex justify-start mb-6">
-              <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 flex items-center gap-3">
+            <div className="flex justify-start mb-4 sm:mb-6">
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3">
                 <div className="flex gap-1">
                   <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -695,8 +725,8 @@ export default function CoderPage() {
 
       {/* 输入区域 */}
       <div className="border-t border-gray-800 bg-gray-900/80 backdrop-blur-sm shrink-0">
-        <div className="max-w-4xl mx-auto px-4 py-3">
-          <div className="flex items-end gap-3">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-end gap-2 sm:gap-3">
             <div className="flex-1 relative">
               <textarea
                 ref={textareaRef}
@@ -705,7 +735,7 @@ export default function CoderPage() {
                 onKeyDown={handleKeyDown}
                 placeholder="描述你想修改的功能... (Enter 发送, Shift+Enter 换行)"
                 rows={1}
-                className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-xl px-4 py-3 resize-none focus:outline-none focus:border-blue-500 placeholder-gray-500"
+                className="w-full bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 resize-none focus:outline-none focus:border-blue-500 placeholder-gray-500"
                 style={{ maxHeight: '200px' }}
                 disabled={loading}
               />
@@ -713,12 +743,12 @@ export default function CoderPage() {
             <button
               onClick={handleSend}
               disabled={!input.trim() || loading}
-              className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-xl px-5 py-3 text-sm font-medium transition-colors shrink-0"
+              className="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-xl px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-medium transition-colors shrink-0"
             >
               发送
             </button>
           </div>
-          <p className="text-xs text-gray-600 mt-2 text-center">
+          <p className="text-[10px] sm:text-xs text-gray-600 mt-1.5 sm:mt-2 text-center">
             AI 会自动读取项目文件、分析代码并提出修改方案，确认后一键推送到 GitHub
           </p>
         </div>
