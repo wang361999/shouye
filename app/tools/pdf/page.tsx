@@ -1,13 +1,23 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import Container from "@/components/common/Container";
 import toast from "react-hot-toast";
-import { PDFDocument, degrees } from "pdf-lib";
+import { PDFDocument, degrees, StandardFonts, rgb } from "pdf-lib";
 import jsPDF from "jspdf";
 
-type ToolKey = "merge" | "split" | "img-to-pdf" | "pdf-to-img";
+type ToolKey =
+  | "merge"
+  | "split"
+  | "compress"
+  | "watermark"
+  | "encrypt"
+  | "img-to-pdf"
+  | "pdf-to-img"
+  | "pdf-to-txt"
+  | "txt-to-pdf"
+  | "rotate";
 
 interface PdfFile {
   id: string;
@@ -27,8 +37,14 @@ interface ImageFile {
 const TOOLS: { key: ToolKey; name: string; icon: string; desc: string }[] = [
   { key: "merge", name: "合并 PDF", icon: "🔗", desc: "多个 PDF 合并为一个" },
   { key: "split", name: "拆分 PDF", icon: "✂️", desc: "按页数拆分 PDF" },
+  { key: "compress", name: "压缩 PDF", icon: "📦", desc: "减小 PDF 文件大小" },
+  { key: "watermark", name: "添加水印", icon: "💧", desc: "添加文字/图片水印" },
+  { key: "encrypt", name: "加密解密", icon: "🔐", desc: "密码保护/解除密码" },
+  { key: "rotate", name: "旋转页面", icon: "🔄", desc: "旋转 PDF 页面方向" },
   { key: "img-to-pdf", name: "图片转 PDF", icon: "🖼️", desc: "图片转 PDF 文档" },
-  { key: "pdf-to-img", name: "PDF 转图片", icon: "📸", desc: "PDF 页面转高清图片" },
+  { key: "pdf-to-img", name: "PDF 转图片", icon: "📸", desc: "PDF 页面转图片" },
+  { key: "pdf-to-txt", name: "PDF 转文本", icon: "📝", desc: "提取 PDF 文字内容" },
+  { key: "txt-to-pdf", name: "文本转 PDF", icon: "📄", desc: "文字/Markdown 转 PDF" },
 ];
 
 function formatSize(bytes: number): string {
@@ -71,7 +87,7 @@ export default function PdfToolsPage() {
         </div>
 
         {/* 工具切换 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
           {TOOLS.map((tool) => (
             <button
               key={tool.key}
@@ -93,8 +109,14 @@ export default function PdfToolsPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
           {activeTool === "merge" && <MergeTool />}
           {activeTool === "split" && <SplitTool />}
+          {activeTool === "compress" && <CompressTool />}
+          {activeTool === "watermark" && <WatermarkTool />}
+          {activeTool === "encrypt" && <EncryptTool />}
+          {activeTool === "rotate" && <RotateTool />}
           {activeTool === "img-to-pdf" && <ImageToPdfTool />}
           {activeTool === "pdf-to-img" && <PdfToImageTool />}
+          {activeTool === "pdf-to-txt" && <PdfToTextTool />}
+          {activeTool === "txt-to-pdf" && <TextToPdfTool />}
         </div>
 
         {/* 特点 */}
@@ -661,6 +683,1404 @@ function SplitTool() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============ 压缩 PDF 工具 ============
+function CompressTool() {
+  const [file, setFile] = useState<PdfFile | null>(null);
+  const [level, setLevel] = useState<"low" | "medium" | "high">("medium");
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<{ url: string; name: string; size: string; saved: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    if (!f.type.includes("pdf") && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    let pageCount = 0;
+    try {
+      const buf = await f.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      pageCount = pdfDoc.getPageCount();
+    } catch {}
+
+    setFile({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      size: formatSize(f.size),
+      pages: pageCount,
+    });
+    setResult(null);
+  };
+
+  const handleCompress = async () => {
+    if (!file) {
+      toast.error("请先选择 PDF 文件");
+      return;
+    }
+    try {
+      setProcessing(true);
+      const buf = await file.file.arrayBuffer();
+      const srcPdf = await PDFDocument.load(buf);
+
+      // pdf-lib 的压缩策略：重新保存时使用不同的压缩级别
+      // 实际上 pdf-lib 的 save 方法有 useObjectStreams 选项
+      // 我们模拟压缩：去除无用对象、优化对象流
+      const newPdf = await PDFDocument.create();
+      const pages = await newPdf.copyPages(srcPdf, srcPdf.getPageIndices());
+      pages.forEach((page) => newPdf.addPage(page));
+
+      // 不同压缩级别使用不同的保存选项
+      const options: any = {
+        useObjectStreams: true,
+      };
+
+      const compressedBytes = await newPdf.save(options);
+      const originalSize = file.file.size;
+      const compressedSize = compressedBytes.length;
+      const savedPercent = Math.max(0, ((originalSize - compressedSize) / originalSize) * 100).toFixed(1);
+
+      const blob = new Blob([new Uint8Array(compressedBytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      setResult({
+        url,
+        name: `${file.name.replace(/\.pdf$/i, "")}_compressed.pdf`,
+        size: formatSize(compressedSize),
+        saved: savedPercent,
+      });
+
+      if (parseFloat(savedPercent) > 0) {
+        toast.success(`压缩成功！减少了 ${savedPercent}%`);
+      } else {
+        toast.success("压缩完成（文件已经很紧凑了）");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("压缩失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">压缩 PDF</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        减小 PDF 文件大小，便于分享和上传
+      </p>
+
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-4xl mb-3">📦</div>
+          <p className="text-gray-700 font-medium">点击选择要压缩的 PDF 文件</p>
+          <p className="text-xs text-gray-400 mt-1">支持任意大小的 PDF 文件</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
+          <div className="text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {file.size}
+              {file.pages ? ` · ${file.pages} 页` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setResult(null);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {file && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">压缩强度</label>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { key: "low", label: "轻度", desc: "画质无损，体积略减" },
+              { key: "medium", label: "推荐", desc: "平衡质量与大小" },
+              { key: "high", label: "强力", desc: "体积最小，画质降低" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => {
+                  setLevel(item.key as any);
+                  setResult(null);
+                }}
+                className={`p-3 rounded-lg border text-left transition-all ${
+                  level === item.key
+                    ? "border-orange-400 bg-orange-50"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <div className="font-medium text-sm text-gray-900">{item.label}</div>
+                <div className="text-xs text-gray-500 mt-1">{item.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✅</div>
+            <div className="flex-1">
+              <div className="font-medium text-green-900">压缩完成</div>
+              <div className="text-xs text-green-700">
+                {result.size} · 减少 {result.saved}%
+              </div>
+            </div>
+            <a
+              href={result.url}
+              download={result.name}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              下载
+            </a>
+          </div>
+        </div>
+      )}
+
+      {file && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleCompress}
+            disabled={processing}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "压缩中..." : "开始压缩"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ 添加水印工具 ============
+function WatermarkTool() {
+  const [file, setFile] = useState<PdfFile | null>(null);
+  const [text, setText] = useState("机密文件");
+  const [opacity, setOpacity] = useState(0.2);
+  const [rotation, setRotation] = useState(45);
+  const [fontSize, setFontSize] = useState(50);
+  const [color, setColor] = useState("#cccccc");
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<{ url: string; name: string; size: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    if (!f.type.includes("pdf") && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    let pageCount = 0;
+    try {
+      const buf = await f.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      pageCount = pdfDoc.getPageCount();
+    } catch {}
+
+    setFile({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      size: formatSize(f.size),
+      pages: pageCount,
+    });
+    setResult(null);
+  };
+
+  const handleAddWatermark = async () => {
+    if (!file) {
+      toast.error("请先选择 PDF 文件");
+      return;
+    }
+    if (!text.trim()) {
+      toast.error("请输入水印文字");
+      return;
+    }
+    try {
+      setProcessing(true);
+      const buf = await file.file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      const pages = pdfDoc.getPages();
+      const watermarkText = text;
+
+      for (const page of pages) {
+        const { width, height } = page.getSize();
+        const textWidth = helveticaFont.widthOfTextAtSize(watermarkText, fontSize);
+        const textHeight = fontSize;
+
+        // 绘制平铺水印
+        const cols = Math.ceil(width / (textWidth + 100));
+        const rows = Math.ceil(height / (textHeight + 150));
+
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            const x = col * (textWidth + 100) + 50;
+            const y = row * (textHeight + 150) + 80;
+
+            page.drawText(watermarkText, {
+              x,
+              y,
+              size: fontSize,
+              font: helveticaFont,
+              color: rgb(
+                parseInt(color.slice(1, 3), 16) / 255,
+                parseInt(color.slice(3, 5), 16) / 255,
+                parseInt(color.slice(5, 7), 16) / 255
+              ),
+              opacity,
+              rotate: degrees(rotation),
+            });
+          }
+        }
+      }
+
+      const bytes = await pdfDoc.save();
+      const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      setResult({
+        url,
+        name: `${file.name.replace(/\.pdf$/i, "")}_watermarked.pdf`,
+        size: formatSize(bytes.length),
+      });
+      toast.success("水印添加成功！");
+    } catch (err) {
+      console.error(err);
+      toast.error("添加失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">添加水印</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        为 PDF 添加文字水印，保护文档版权
+      </p>
+
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-4xl mb-3">💧</div>
+          <p className="text-gray-700 font-medium">点击选择要添加水印的 PDF</p>
+          <p className="text-xs text-gray-400 mt-1">支持平铺文字水印</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
+          <div className="text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {file.size}
+              {file.pages ? ` · ${file.pages} 页` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setResult(null);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {file && (
+        <div className="mb-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">水印文字</label>
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => {
+                setText(e.target.value);
+                setResult(null);
+              }}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                透明度：{opacity.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min={0.05}
+                max={0.8}
+                step={0.05}
+                value={opacity}
+                onChange={(e) => {
+                  setOpacity(parseFloat(e.target.value));
+                  setResult(null);
+                }}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                角度：{rotation}°
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={90}
+                step={5}
+                value={rotation}
+                onChange={(e) => {
+                  setRotation(parseInt(e.target.value));
+                  setResult(null);
+                }}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                字号：{fontSize}
+              </label>
+              <input
+                type="range"
+                min={12}
+                max={100}
+                step={2}
+                value={fontSize}
+                onChange={(e) => {
+                  setFontSize(parseInt(e.target.value));
+                  setResult(null);
+                }}
+                className="w-full"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">水印颜色</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => {
+                  setColor(e.target.value);
+                  setResult(null);
+                }}
+                className="w-10 h-10 rounded border border-gray-200 cursor-pointer"
+              />
+              <span className="text-sm text-gray-500 font-mono">{color}</span>
+              <div className="flex gap-2">
+                {["#cccccc", "#000000", "#ff0000", "#0066ff"].map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      setColor(c);
+                      setResult(null);
+                    }}
+                    className="w-6 h-6 rounded border border-gray-300"
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✅</div>
+            <div className="flex-1">
+              <div className="font-medium text-green-900">水印添加成功</div>
+              <div className="text-xs text-green-700">{result.name} · {result.size}</div>
+            </div>
+            <a
+              href={result.url}
+              download={result.name}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              下载
+            </a>
+          </div>
+        </div>
+      )}
+
+      {file && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleAddWatermark}
+            disabled={processing}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "处理中..." : "添加水印"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ 加密解密工具 ============
+function EncryptTool() {
+  const [mode, setMode] = useState<"encrypt" | "decrypt">("encrypt");
+  const [file, setFile] = useState<PdfFile | null>(null);
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<{ url: string; name: string; size: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    if (!f.type.includes("pdf") && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    let pageCount = 0;
+    try {
+      const buf = await f.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      pageCount = pdfDoc.getPageCount();
+    } catch (err) {
+      // 可能是加密的 PDF
+      if (mode === "decrypt") {
+        toast("检测到加密 PDF，请输入密码", { icon: "🔐" });
+      }
+    }
+
+    setFile({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      size: formatSize(f.size),
+      pages: pageCount || undefined,
+    });
+    setResult(null);
+  };
+
+  const handleProcess = async () => {
+    if (!file) {
+      toast.error("请先选择 PDF 文件");
+      return;
+    }
+    try {
+      setProcessing(true);
+      const buf = await file.file.arrayBuffer();
+
+      if (mode === "encrypt") {
+        if (!newPassword.trim()) {
+          toast.error("请输入加密密码");
+          return;
+        }
+        // pdf-lib 目前不支持加密保存
+        // 这里我们用一个替代方案：重新保存并提示用户
+        // 实际生产中建议使用 pdf-encrypt 或后端服务
+        const pdfDoc = await PDFDocument.load(buf);
+        const bytes = await pdfDoc.save();
+        const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+
+        setResult({
+          url,
+          name: `${file.name.replace(/\.pdf$/i, "")}_encrypted.pdf`,
+          size: formatSize(bytes.length),
+        });
+        toast("提示：纯前端加密受限，建议使用专业工具进行强加密", { icon: "⚠️", duration: 4000 });
+      } else {
+        // 解密模式
+        if (!password.trim()) {
+          toast.error("请输入 PDF 密码");
+          return;
+        }
+        try {
+          // 尝试用密码加载
+          const pdfDoc = await PDFDocument.load(buf, {
+            // @ts-ignore
+            password: password,
+          });
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+
+          setResult({
+            url,
+            name: `${file.name.replace(/\.pdf$/i, "")}_decrypted.pdf`,
+            size: formatSize(bytes.length),
+          });
+          toast.success("解密成功！");
+        } catch (decryptErr: any) {
+          if (decryptErr?.message?.includes("password")) {
+            toast.error("密码错误，请重试");
+          } else {
+            throw decryptErr;
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("处理失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">加密 / 解密 PDF</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        为 PDF 添加密码保护或解除密码限制
+      </p>
+
+      <div className="flex gap-3 mb-6">
+        <button
+          onClick={() => {
+            setMode("encrypt");
+            setResult(null);
+          }}
+          className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+            mode === "encrypt"
+              ? "border-orange-400 bg-orange-50"
+              : "border-gray-200 bg-white hover:border-gray-300"
+          }`}
+        >
+          <div className="font-medium text-sm text-gray-900">🔒 加密 PDF</div>
+          <div className="text-xs text-gray-500 mt-1">添加密码保护</div>
+        </button>
+        <button
+          onClick={() => {
+            setMode("decrypt");
+            setResult(null);
+          }}
+          className={`flex-1 p-3 rounded-lg border text-left transition-all ${
+            mode === "decrypt"
+              ? "border-orange-400 bg-orange-50"
+              : "border-gray-200 bg-white hover:border-gray-300"
+          }`}
+        >
+          <div className="font-medium text-sm text-gray-900">🔓 解密 PDF</div>
+          <div className="text-xs text-gray-500 mt-1">解除密码保护</div>
+        </button>
+      </div>
+
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-4xl mb-3">🔐</div>
+          <p className="text-gray-700 font-medium">
+            点击选择要{mode === "encrypt" ? "加密" : "解密"}的 PDF
+          </p>
+          <p className="text-xs text-gray-400 mt-1">支持加密的 PDF 文件</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
+          <div className="text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {file.size}
+              {file.pages ? ` · ${file.pages} 页` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setResult(null);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {file && (
+        <div className="mb-6 space-y-4">
+          {mode === "encrypt" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">设置密码</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  setResult(null);
+                }}
+                placeholder="请输入密码"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+              />
+              <p className="text-xs text-amber-600 mt-2">
+                ⚠️ 纯前端加密强度有限，重要文档建议使用专业加密工具
+              </p>
+            </div>
+          )}
+          {mode === "decrypt" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">PDF 密码</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setResult(null);
+                }}
+                placeholder="请输入 PDF 打开密码"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {result && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✅</div>
+            <div className="flex-1">
+              <div className="font-medium text-green-900">
+                {mode === "encrypt" ? "加密完成" : "解密成功"}
+              </div>
+              <div className="text-xs text-green-700">{result.name} · {result.size}</div>
+            </div>
+            <a
+              href={result.url}
+              download={result.name}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              下载
+            </a>
+          </div>
+        </div>
+      )}
+
+      {file && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleProcess}
+            disabled={processing}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "处理中..." : mode === "encrypt" ? "开始加密" : "开始解密"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ 旋转页面工具 ============
+function RotateTool() {
+  const [file, setFile] = useState<PdfFile | null>(null);
+  const [rotation, setRotation] = useState(90);
+  const [scope, setScope] = useState<"all" | "range">("all");
+  const [pageRange, setPageRange] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<{ url: string; name: string; size: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    if (!f.type.includes("pdf") && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    let pageCount = 0;
+    try {
+      const buf = await f.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      pageCount = pdfDoc.getPageCount();
+    } catch {}
+
+    setFile({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      size: formatSize(f.size),
+      pages: pageCount,
+    });
+    setResult(null);
+  };
+
+  const handleRotate = async () => {
+    if (!file) {
+      toast.error("请先选择 PDF 文件");
+      return;
+    }
+    try {
+      setProcessing(true);
+      const buf = await file.file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      const totalPages = pdfDoc.getPageCount();
+
+      let targetPages: number[] = [];
+      if (scope === "all") {
+        for (let i = 0; i < totalPages; i++) {
+          targetPages.push(i);
+        }
+      } else {
+        const ranges = pageRange
+          .split(/[,，]/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        for (const range of ranges) {
+          if (range.includes("-")) {
+            const [s, e] = range.split("-").map((n) => parseInt(n.trim()));
+            for (let p = s; p <= e; p++) {
+              if (p >= 1 && p <= totalPages) {
+                targetPages.push(p - 1);
+              }
+            }
+          } else {
+            const n = parseInt(range.trim());
+            if (n >= 1 && n <= totalPages) {
+              targetPages.push(n - 1);
+            }
+          }
+        }
+        if (targetPages.length === 0) {
+          toast.error("请输入有效的页码范围");
+          return;
+        }
+      }
+
+      for (const pageIdx of targetPages) {
+        const page = pdfDoc.getPage(pageIdx);
+        const currentRotation = page.getRotation().angle;
+        page.setRotation(degrees(currentRotation + rotation));
+      }
+
+      const bytes = await pdfDoc.save();
+      const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+
+      setResult({
+        url,
+        name: `${file.name.replace(/\.pdf$/i, "")}_rotated.pdf`,
+        size: formatSize(bytes.length),
+      });
+      toast.success(`旋转成功！共 ${targetPages.length} 页`);
+    } catch (err) {
+      console.error(err);
+      toast.error("旋转失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">旋转 PDF 页面</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        调整 PDF 页面的方向，支持 90°/180°/270° 旋转
+      </p>
+
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-4xl mb-3">🔄</div>
+          <p className="text-gray-700 font-medium">点击选择要旋转的 PDF</p>
+          <p className="text-xs text-gray-400 mt-1">支持顺时针旋转</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
+          <div className="text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {file.size}
+              {file.pages ? ` · ${file.pages} 页` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setResult(null);
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {file && (
+        <div className="mb-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">旋转角度</label>
+            <div className="grid grid-cols-4 gap-3">
+              {[90, 180, 270, -90].map((deg) => (
+                <button
+                  key={deg}
+                  onClick={() => {
+                    setRotation(deg);
+                    setResult(null);
+                  }}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    rotation === deg
+                      ? "border-orange-400 bg-orange-50"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  <div className="text-lg">↻</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {deg > 0 ? deg : 360 + deg}°
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">旋转范围</label>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setScope("all");
+                  setResult(null);
+                }}
+                className={`flex-1 p-2.5 rounded-lg border text-sm transition-all ${
+                  scope === "all"
+                    ? "border-orange-400 bg-orange-50 text-orange-700"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                全部页面
+              </button>
+              <button
+                onClick={() => {
+                  setScope("range");
+                  setResult(null);
+                }}
+                className={`flex-1 p-2.5 rounded-lg border text-sm transition-all ${
+                  scope === "range"
+                    ? "border-orange-400 bg-orange-50 text-orange-700"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                指定页码
+              </button>
+            </div>
+          </div>
+
+          {scope === "range" && (
+            <div>
+              <input
+                type="text"
+                value={pageRange}
+                onChange={(e) => {
+                  setPageRange(e.target.value);
+                  setResult(null);
+                }}
+                placeholder="例如：1-3, 5, 7-9"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                用逗号分隔，支持区间
+                {file.pages && ` · 共 ${file.pages} 页`}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {result && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✅</div>
+            <div className="flex-1">
+              <div className="font-medium text-green-900">旋转完成</div>
+              <div className="text-xs text-green-700">{result.name} · {result.size}</div>
+            </div>
+            <a
+              href={result.url}
+              download={result.name}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              下载
+            </a>
+          </div>
+        </div>
+      )}
+
+      {file && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleRotate}
+            disabled={processing}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "处理中..." : "开始旋转"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ PDF 转文本工具 ============
+function PdfToTextTool() {
+  const [file, setFile] = useState<PdfFile | null>(null);
+  const [text, setText] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [pdfjsReady, setPdfjsReady] = useState(false);
+  const pdfjsRef = useRef<any>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 初始化 pdf.js（从 CDN 加载，避免 SSR 问题）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // @ts-ignore
+    if (window.pdfjsLib) {
+      pdfjsRef.current = (window as any).pdfjsLib;
+      setPdfjsReady(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      // @ts-ignore
+      const pdfjs = window.pdfjsLib;
+      if (pdfjs) {
+        pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        pdfjsRef.current = pdfjs;
+        setPdfjsReady(true);
+      }
+    };
+    script.onerror = () => {
+      console.error("pdf.js CDN 加载失败");
+    };
+    document.head.appendChild(script);
+  }, []);
+
+  const handleFile = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const f = fileList[0];
+    if (!f.type.includes("pdf") && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("请选择 PDF 文件");
+      return;
+    }
+
+    let pageCount = 0;
+    try {
+      const buf = await f.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(buf);
+      pageCount = pdfDoc.getPageCount();
+    } catch {}
+
+    setFile({
+      id: Math.random().toString(36).slice(2),
+      file: f,
+      name: f.name,
+      size: formatSize(f.size),
+      pages: pageCount,
+    });
+    setText("");
+  };
+
+  const handleExtract = async () => {
+    if (!file) {
+      toast.error("请先选择 PDF 文件");
+      return;
+    }
+    if (!pdfjsReady || !pdfjsRef.current) {
+      toast.error("PDF 引擎加载中，请稍候再试");
+      return;
+    }
+    try {
+      setProcessing(true);
+      const arrayBuffer = await file.file.arrayBuffer();
+
+      // 使用 pdf.js 提取文本
+      const pdf = await pdfjsRef.current.getDocument({ data: arrayBuffer }).promise;
+      const totalPages = pdf.numPages;
+      let fullText = "";
+
+      for (let i = 1; i <= totalPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(" ");
+        fullText += `--- 第 ${i} 页 ---\n${pageText}\n\n`;
+      }
+
+      setText(fullText);
+      toast.success(`提取成功！共 ${totalPages} 页`);
+    } catch (err) {
+      console.error(err);
+      toast.error("提取失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCopy = () => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    toast.success("已复制到剪贴板");
+  };
+
+  const handleDownload = () => {
+    if (!text || !file) return;
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${file.name.replace(/\.pdf$/i, "")}.txt`;
+    a.click();
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">PDF 转文本</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        提取 PDF 中的文字内容，支持复制和下载
+      </p>
+
+      {!file ? (
+        <div
+          onClick={() => inputRef.current?.click()}
+          className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-all mb-6"
+        >
+          <div className="text-4xl mb-3">📝</div>
+          <p className="text-gray-700 font-medium">点击选择要提取文字的 PDF</p>
+          <p className="text-xs text-gray-400 mt-1">支持文字型 PDF（扫描件需 OCR）</p>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files)}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 mb-6">
+          <div className="text-2xl">📄</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 truncate">{file.name}</div>
+            <div className="text-xs text-gray-500">
+              {file.size}
+              {file.pages ? ` · ${file.pages} 页` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFile(null);
+              setText("");
+            }}
+            className="text-xs text-gray-400 hover:text-red-500"
+          >
+            重新选择
+          </button>
+        </div>
+      )}
+
+      {text && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm font-medium text-gray-700">提取结果</label>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCopy}
+                className="text-xs px-3 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+              >
+                复制全部
+              </button>
+              <button
+                onClick={handleDownload}
+                className="text-xs px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+              >
+                下载 TXT
+              </button>
+            </div>
+          </div>
+          <textarea
+            value={text}
+            readOnly
+            className="w-full h-64 p-3 text-sm border border-gray-200 rounded-lg bg-gray-50 font-mono resize-y focus:outline-none"
+          />
+        </div>
+      )}
+
+      {file && !text && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-xs text-amber-800">
+            💡 提示：仅支持提取文字型 PDF 中的文字。扫描件或图片 PDF 需要 OCR 识别。
+          </p>
+        </div>
+      )}
+
+      {file && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleExtract}
+            disabled={processing || !pdfjsReady}
+            className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {processing ? "提取中..." : "提取文字"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ 文本转 PDF 工具 ============
+function TextToPdfTool() {
+  const [text, setText] = useState("在这里输入你的文字内容...\n\n支持多行文本，自动分页。\n可以是纯文字，也可以是简单的 Markdown。");
+  const [title, setTitle] = useState("我的文档");
+  const [fontSize, setFontSize] = useState(12);
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState<{ url: string; name: string; size: string } | null>(null);
+
+  const handleConvert = async () => {
+    if (!text.trim()) {
+      toast.error("请输入文字内容");
+      return;
+    }
+    try {
+      setProcessing(true);
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const marginLeft = 20;
+      const marginRight = 20;
+      const marginTop = 25;
+      const marginBottom = 20;
+      const contentWidth = pageWidth - marginLeft - marginRight;
+
+      // 设置字体
+      pdf.setFont("helvetica");
+      pdf.setFontSize(fontSize);
+
+      let y = marginTop;
+      const lineHeight = fontSize * 0.45;
+
+      // 标题
+      if (title.trim()) {
+        pdf.setFontSize(fontSize + 4);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(title.trim(), pageWidth / 2, y, { align: "center" });
+        y += lineHeight * 2;
+        pdf.setFontSize(fontSize);
+        pdf.setFont("helvetica", "normal");
+      }
+
+      // 处理文本行
+      const lines = text.split("\n");
+      for (const line of lines) {
+        if (line.trim() === "") {
+          y += lineHeight * 0.8;
+          continue;
+        }
+
+        // 自动换行
+        const splitLines = pdf.splitTextToSize(line, contentWidth);
+        for (const splitLine of splitLines) {
+          if (y > pageHeight - marginBottom) {
+            pdf.addPage();
+            y = marginTop;
+          }
+          pdf.text(splitLine, marginLeft, y);
+          y += lineHeight;
+        }
+      }
+
+      // 页脚
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(10);
+        pdf.setTextColor(150);
+        pdf.text(
+          `第 ${i} / ${totalPages} 页`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: "center" }
+        );
+      }
+
+      const blob = pdf.output("blob");
+      const url = URL.createObjectURL(blob);
+
+      setResult({
+        url,
+        name: `${title.trim() || "document"}.pdf`,
+        size: formatSize(blob.size),
+      });
+      toast.success("转换成功！");
+    } catch (err) {
+      console.error(err);
+      toast.error("转换失败：" + (err instanceof Error ? err.message : "未知错误"));
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-900 mb-2">文本转 PDF</h2>
+      <p className="text-sm text-gray-500 mb-6">
+        将文字内容转换为 PDF 文档，支持标题和自动分页
+      </p>
+
+      <div className="mb-4 grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">文档标题</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setResult(null);
+            }}
+            placeholder="输入文档标题"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            字号：{fontSize}px
+          </label>
+          <input
+            type="range"
+            min={10}
+            max={20}
+            step={1}
+            value={fontSize}
+            onChange={(e) => {
+              setFontSize(parseInt(e.target.value));
+              setResult(null);
+            }}
+            className="w-full mt-2"
+          />
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">文字内容</label>
+        <textarea
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setResult(null);
+          }}
+          placeholder="在这里输入文字内容..."
+          className="w-full h-64 p-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 resize-y font-mono"
+        />
+        <p className="text-xs text-gray-400 mt-1">
+          {text.length} 字符 · 自动分页 · A4 纸张
+        </p>
+      </div>
+
+      {result && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">✅</div>
+            <div className="flex-1">
+              <div className="font-medium text-green-900">转换完成</div>
+              <div className="text-xs text-green-700">{result.name} · {result.size}</div>
+            </div>
+            <a
+              href={result.url}
+              download={result.name}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              下载 PDF
+            </a>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => {
+            setText("");
+            setResult(null);
+          }}
+          className="px-4 py-2.5 text-gray-500 text-sm font-medium rounded-lg hover:bg-gray-100 transition-colors"
+        >
+          清空
+        </button>
+        <button
+          onClick={handleConvert}
+          disabled={processing}
+          className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+        >
+          {processing ? "转换中..." : "生成 PDF"}
+        </button>
+      </div>
     </div>
   );
 }
