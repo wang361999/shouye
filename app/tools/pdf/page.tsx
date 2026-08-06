@@ -693,7 +693,36 @@ function CompressTool() {
   const [level, setLevel] = useState<"low" | "medium" | "high">("medium");
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<{ url: string; name: string; size: string; saved: string } | null>(null);
+  const [pdfjsReady, setPdfjsReady] = useState(false);
+  const pdfjsRef = useRef<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 初始化 pdf.js（用于高级压缩的光栅化）
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // @ts-ignore
+    if (window.pdfjsLib) {
+      pdfjsRef.current = (window as any).pdfjsLib;
+      setPdfjsReady(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      // @ts-ignore
+      const pdfjs = window.pdfjsLib;
+      if (pdfjs) {
+        pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        pdfjsRef.current = pdfjs;
+        setPdfjsReady(true);
+      }
+    };
+    script.onerror = () => {
+      console.error("pdf.js CDN 加载失败");
+    };
+    document.head.appendChild(script);
+  }, []);
 
   const handleFile = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -728,22 +757,30 @@ function CompressTool() {
     try {
       setProcessing(true);
       const buf = await file.file.arrayBuffer();
-      const srcPdf = await PDFDocument.load(buf);
-
-      // pdf-lib 的压缩策略：重新保存时使用不同的压缩级别
-      // 实际上 pdf-lib 的 save 方法有 useObjectStreams 选项
-      // 我们模拟压缩：去除无用对象、优化对象流
-      const newPdf = await PDFDocument.create();
-      const pages = await newPdf.copyPages(srcPdf, srcPdf.getPageIndices());
-      pages.forEach((page) => newPdf.addPage(page));
-
-      // 不同压缩级别使用不同的保存选项
-      const options: any = {
-        useObjectStreams: true,
-      };
-
-      const compressedBytes = await newPdf.save(options);
       const originalSize = file.file.size;
+      let compressedBytes: Uint8Array;
+
+      if (level === "low") {
+        // 轻度：结构优化（useObjectStreams + 去除元数据）
+        const srcPdf = await PDFDocument.load(buf);
+        srcPdf.setTitle("");
+        srcPdf.setAuthor("");
+        srcPdf.setSubject("");
+        srcPdf.setKeywords([]);
+        srcPdf.setProducer("");
+        srcPdf.setCreator("");
+        const newPdf = await PDFDocument.create();
+        const pages = await newPdf.copyPages(srcPdf, srcPdf.getPageIndices());
+        pages.forEach((page) => newPdf.addPage(page));
+        compressedBytes = await newPdf.save({ useObjectStreams: true });
+      } else if (level === "medium") {
+        // 中度：结构优化 + 光栅化（中等质量 JPEG）
+        compressedBytes = await rasterizeCompress(buf, 1.5, 0.8);
+      } else {
+        // 高强度：光栅化（低 DPI + 高压缩 JPEG）
+        compressedBytes = await rasterizeCompress(buf, 1.0, 0.6);
+      }
+
       const compressedSize = compressedBytes.length;
       const savedPercent = Math.max(0, ((originalSize - compressedSize) / originalSize) * 100).toFixed(1);
 
@@ -770,11 +807,57 @@ function CompressTool() {
     }
   };
 
+  // 光栅化压缩：将每页渲染为 JPEG 图片，重新构建 PDF
+  const rasterizeCompress = async (buf: ArrayBuffer, scale: number, quality: number): Promise<Uint8Array> => {
+    if (!pdfjsReady || !pdfjsRef.current) {
+      throw new Error("PDF 引擎未加载完成，请稍候再试");
+    }
+
+    const pdf = await pdfjsRef.current.getDocument({ data: new Uint8Array(buf) }).promise;
+    const totalPages = pdf.numPages;
+    const newPdf = await PDFDocument.create();
+
+    for (let i = 1; i <= totalPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+
+      // 白色背景
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 渲染页面
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      // 转 JPEG
+      const jpegDataUrl = canvas.toDataURL("image/jpeg", quality);
+      const jpegBase64 = jpegDataUrl.split(",")[1];
+      const jpegBytes = Uint8Array.from(atob(jpegBase64), (c) => c.charCodeAt(0));
+
+      // 嵌入到新 PDF
+      const img = await newPdf.embedJpg(jpegBytes);
+      const pdfPage = newPdf.addPage([viewport.width, viewport.height]);
+      pdfPage.drawImage(img, {
+        x: 0,
+        y: 0,
+        width: viewport.width,
+        height: viewport.height,
+      });
+    }
+
+    return newPdf.save({ useObjectStreams: true });
+  };
+
   return (
     <div>
       <h2 className="text-lg font-bold text-gray-900 mb-2">压缩 PDF</h2>
       <p className="text-sm text-gray-500 mb-6">
-        减小 PDF 文件大小，便于分享和上传
+        减小 PDF 文件大小，支持结构优化和光栅化压缩
       </p>
 
       {!file ? (
@@ -820,9 +903,9 @@ function CompressTool() {
           <label className="block text-sm font-medium text-gray-700 mb-3">压缩强度</label>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { key: "low", label: "轻度", desc: "画质无损，体积略减" },
-              { key: "medium", label: "推荐", desc: "平衡质量与大小" },
-              { key: "high", label: "强力", desc: "体积最小，画质降低" },
+              { key: "low", label: "轻度", desc: "结构优化，画质无损" },
+              { key: "medium", label: "推荐", desc: "光栅化压缩，平衡质量" },
+              { key: "high", label: "强力", desc: "低清光栅化，体积最小" },
             ].map((item) => (
               <button
                 key={item.key}
@@ -841,6 +924,11 @@ function CompressTool() {
               </button>
             ))}
           </div>
+          {level !== "low" && (
+            <p className="text-xs text-amber-600 mt-3">
+              💡 光栅化压缩会将页面转为图片，文字将不可选。适合以图片为主的 PDF。
+            </p>
+          )}
         </div>
       )}
 
@@ -869,7 +957,7 @@ function CompressTool() {
         <div className="flex justify-end gap-3">
           <button
             onClick={handleCompress}
-            disabled={processing}
+            disabled={processing || (level !== "low" && !pdfjsReady)}
             className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
           >
             {processing ? "压缩中..." : "开始压缩"}
@@ -1167,6 +1255,11 @@ function EncryptTool() {
   const [file, setFile] = useState<PdfFile | null>(null);
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [ownerPassword, setOwnerPassword] = useState("");
+  const [algorithm, setAlgorithm] = useState<"AES-256" | "RC4">("AES-256");
+  const [allowPrinting, setAllowPrinting] = useState(true);
+  const [allowCopying, setAllowCopying] = useState(true);
+  const [allowModifying, setAllowModifying] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<{ url: string; name: string; size: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1184,10 +1277,10 @@ function EncryptTool() {
       const buf = await f.arrayBuffer();
       const pdfDoc = await PDFDocument.load(buf);
       pageCount = pdfDoc.getPageCount();
-    } catch (err) {
+    } catch {
       // 可能是加密的 PDF
       if (mode === "decrypt") {
-        toast("检测到加密 PDF，请输入密码", { icon: "🔐" });
+        toast("检测到可能加密的 PDF，请输入密码", { icon: "🔐" });
       }
     }
 
@@ -1209,51 +1302,65 @@ function EncryptTool() {
     try {
       setProcessing(true);
       const buf = await file.file.arrayBuffer();
+      const pdfBytes = new Uint8Array(buf);
 
       if (mode === "encrypt") {
         if (!newPassword.trim()) {
           toast.error("请输入加密密码");
           return;
         }
-        // pdf-lib 目前不支持加密保存
-        // 这里我们用一个替代方案：重新保存并提示用户
-        // 实际生产中建议使用 pdf-encrypt 或后端服务
-        const pdfDoc = await PDFDocument.load(buf);
-        const bytes = await pdfDoc.save();
-        const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+        // 动态导入加密库（避免 SSR 问题）
+        const { encryptPDF } = await import("@pdfsmaller/pdf-encrypt");
+
+        const encrypted = await encryptPDF(pdfBytes, newPassword, {
+          ownerPassword: ownerPassword || newPassword,
+          algorithm,
+          allowPrinting,
+          allowCopying,
+          allowModifying,
+          allowAnnotating: allowModifying,
+          allowFillingForms: true,
+          allowExtraction: allowCopying,
+          allowAssembly: allowModifying,
+          allowHighQualityPrint: allowPrinting,
+        });
+
+        const encryptedBytes = new Uint8Array(encrypted);
+        const blob = new Blob([encryptedBytes], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
 
         setResult({
           url,
           name: `${file.name.replace(/\.pdf$/i, "")}_encrypted.pdf`,
-          size: formatSize(bytes.length),
+          size: formatSize(encryptedBytes.length),
         });
-        toast("提示：纯前端加密受限，建议使用专业工具进行强加密", { icon: "⚠️", duration: 4000 });
+        toast.success(`加密成功！算法：${algorithm}`);
       } else {
         // 解密模式
         if (!password.trim()) {
           toast.error("请输入 PDF 密码");
           return;
         }
+        const { decryptPDF } = await import("@pdfsmaller/pdf-decrypt");
+
         try {
-          // 尝试用密码加载
-          const pdfDoc = await PDFDocument.load(buf, {
-            // @ts-ignore
-            password: password,
-          });
-          const bytes = await pdfDoc.save();
-          const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
+          const decrypted = await decryptPDF(pdfBytes, password);
+          const decryptedBytes = new Uint8Array(decrypted);
+          const blob = new Blob([decryptedBytes], { type: "application/pdf" });
           const url = URL.createObjectURL(blob);
 
           setResult({
             url,
             name: `${file.name.replace(/\.pdf$/i, "")}_decrypted.pdf`,
-            size: formatSize(bytes.length),
+            size: formatSize(decryptedBytes.length),
           });
           toast.success("解密成功！");
         } catch (decryptErr: any) {
-          if (decryptErr?.message?.includes("password")) {
+          const msg = decryptErr?.message || String(decryptErr);
+          if (msg.includes("password") || msg.includes("Incorrect")) {
             toast.error("密码错误，请重试");
+          } else if (msg.includes("not encrypted")) {
+            toast.error("该 PDF 没有加密，无需解密");
           } else {
             throw decryptErr;
           }
@@ -1271,7 +1378,7 @@ function EncryptTool() {
     <div>
       <h2 className="text-lg font-bold text-gray-900 mb-2">加密 / 解密 PDF</h2>
       <p className="text-sm text-gray-500 mb-6">
-        为 PDF 添加密码保护或解除密码限制
+        AES-256 真加密，支持权限控制，所有操作本地完成
       </p>
 
       <div className="flex gap-3 mb-6">
@@ -1287,7 +1394,7 @@ function EncryptTool() {
           }`}
         >
           <div className="font-medium text-sm text-gray-900">🔒 加密 PDF</div>
-          <div className="text-xs text-gray-500 mt-1">添加密码保护</div>
+          <div className="text-xs text-gray-500 mt-1">AES-256 密码保护</div>
         </button>
         <button
           onClick={() => {
@@ -1348,22 +1455,108 @@ function EncryptTool() {
       {file && (
         <div className="mb-6 space-y-4">
           {mode === "encrypt" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">设置密码</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => {
-                  setNewPassword(e.target.value);
-                  setResult(null);
-                }}
-                placeholder="请输入密码"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
-              />
-              <p className="text-xs text-amber-600 mt-2">
-                ⚠️ 纯前端加密强度有限，重要文档建议使用专业加密工具
-              </p>
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">用户密码（打开 PDF 需要）</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    setResult(null);
+                  }}
+                  placeholder="请输入打开密码"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  所有者密码（管理权限需要，可选）
+                </label>
+                <input
+                  type="password"
+                  value={ownerPassword}
+                  onChange={(e) => {
+                    setOwnerPassword(e.target.value);
+                    setResult(null);
+                  }}
+                  placeholder="留空则与用户密码相同"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">加密算法</label>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setAlgorithm("AES-256");
+                      setResult(null);
+                    }}
+                    className={`flex-1 p-2.5 rounded-lg border text-sm transition-all ${
+                      algorithm === "AES-256"
+                        ? "border-orange-400 bg-orange-50 text-orange-700"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    AES-256（推荐）
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAlgorithm("RC4");
+                      setResult(null);
+                    }}
+                    className={`flex-1 p-2.5 rounded-lg border text-sm transition-all ${
+                      algorithm === "RC4"
+                        ? "border-orange-400 bg-orange-50 text-orange-700"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
+                  >
+                    RC4 128-bit（兼容旧设备）
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">权限控制</label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allowPrinting}
+                      onChange={(e) => {
+                        setAllowPrinting(e.target.checked);
+                        setResult(null);
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                    />
+                    <span className="text-sm text-gray-700">允许打印</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allowCopying}
+                      onChange={(e) => {
+                        setAllowCopying(e.target.checked);
+                        setResult(null);
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                    />
+                    <span className="text-sm text-gray-700">允许复制文字和图片</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allowModifying}
+                      onChange={(e) => {
+                        setAllowModifying(e.target.checked);
+                        setResult(null);
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                    />
+                    <span className="text-sm text-gray-700">允许修改文档内容</span>
+                  </label>
+                </div>
+              </div>
+            </>
           )}
           {mode === "decrypt" && (
             <div>
@@ -1378,6 +1571,9 @@ function EncryptTool() {
                 placeholder="请输入 PDF 打开密码"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
               />
+              <p className="text-xs text-gray-400 mt-2">
+                支持 AES-256 和 RC4 加密的 PDF，自动检测加密类型
+              </p>
             </div>
           )}
         </div>
