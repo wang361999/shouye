@@ -222,6 +222,42 @@ export default function ToolsPage() {
           <div className="absolute right-20 top-0 w-48 h-48 bg-purple-500/20 rounded-full blur-xl pointer-events-none" />
         </div>
 
+        {/* 精选内置工具 */}
+        <div className="mb-8">
+          <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <span>✨</span>
+            <span>精选内置工具</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Link
+              href="/tools/prompt-generator"
+              className="bg-white rounded-2xl p-5 border border-gray-100 hover:border-blue-200 hover:shadow-lg transition-all group"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-xl flex-shrink-0">
+                  ✨
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    AI Prompt 生成器
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                    10+ 高质量 Prompt 模板，写代码、写文章、做方案一键生成专业 Prompt
+                  </p>
+                  <div className="mt-2 flex items-center gap-1">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">
+                      热门
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">
+                      免费
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+
         {/* 分类过滤器 */}
         {categories.length > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6 scrollbar-none">

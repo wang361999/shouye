@@ -5,33 +5,51 @@ import toast from "react-hot-toast";
 import { adminFetch } from "@/lib/admin-fetch";
 import { Spinner } from "@/components/admin/ui";
 
-type Platform = "wechat" | "toutiao";
+type Platform = "wechat" | "toutiao" | "zhihu" | "juejin" | "seo";
 
-interface WechatVersion {
+interface BaseVersion {
   titleCandidates: string[];
   content: string;
   summary: string;
-  coverMainTitle: string;
-  coverSubTitle: string;
-  keyPoints: string[];
-  coverPrompt: {
+  coverMainTitle?: string;
+  coverSubTitle?: string;
+  coverPrompt?: {
     style: string;
     fullPrompt: string;
   };
 }
 
-interface ToutiaoVersion {
-  titleCandidates: string[];
-  content: string;
-  summary: string;
+interface WechatVersion extends BaseVersion {
+  keyPoints: string[];
+}
+
+interface ToutiaoVersion extends BaseVersion {
   topics: string[];
-  coverMainTitle: string;
-  coverSubTitle: string;
   goldenSentences: string[];
-  coverPrompt: {
-    style: string;
-    fullPrompt: string;
+}
+
+interface ZhihuVersion extends BaseVersion {
+  topics: string[];
+  keyPoints: string[];
+}
+
+interface JuejinVersion extends BaseVersion {
+  category: string;
+  tags: string[];
+}
+
+interface SEOVersion {
+  seoTitles: string[];
+  metaDescriptions: string[];
+  mainKeyword: string;
+  longTailKeywords: string[];
+  relatedKeywords: string[];
+  keywordLayout: {
+    positions: string[];
+    headings: string[];
+    internalLinks: string[];
   };
+  schemaSuggestions: string[];
 }
 
 interface Props {
@@ -56,8 +74,11 @@ export default function ContentAdaptModal({
   const [result, setResult] = useState<{
     wechat?: WechatVersion;
     toutiao?: ToutiaoVersion;
+    zhihu?: ZhihuVersion;
+    juejin?: JuejinVersion;
+    seo?: SEOVersion;
   } | null>(null);
-  const [activeTab, setActiveTab] = useState<"content" | "titles" | "cover">("content");
+  const [activeTab, setActiveTab] = useState<"content" | "titles" | "cover" | "keywords">("content");
 
   if (!open) return null;
 
@@ -95,7 +116,18 @@ export default function ContentAdaptModal({
     toast.success(`${label}已复制`);
   }
 
-  const currentData = platform === "wechat" ? result?.wechat : result?.toutiao;
+  const currentData =
+    platform === "wechat"
+      ? result?.wechat
+      : platform === "toutiao"
+      ? result?.toutiao
+      : platform === "zhihu"
+      ? result?.zhihu
+      : platform === "juejin"
+      ? result?.juejin
+      : null;
+
+  const seoData = result?.seo;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -119,10 +151,13 @@ export default function ContentAdaptModal({
         {/* 平台选择 + 输入 */}
         <div className="px-6 py-3 border-b border-gray-100 bg-gray-50 space-y-3">
           {/* 平台切换 */}
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
             {[
-              { key: "wechat", label: "📱 公众号", desc: "3个标题+正文+封面" },
-              { key: "toutiao", label: "📰 头条号", desc: "5个标题+原创优化+话题" },
+              { key: "wechat", label: "📱 公众号" },
+              { key: "toutiao", label: "📰 头条" },
+              { key: "zhihu", label: "💡 知乎" },
+              { key: "juejin", label: "⛏️ 掘金" },
+              { key: "seo", label: "🔍 SEO" },
             ].map((p) => (
               <button
                 key={p.key}
@@ -130,14 +165,13 @@ export default function ContentAdaptModal({
                   setPlatform(p.key as Platform);
                   setResult(null);
                 }}
-                className={`flex-1 text-left rounded-lg border px-4 py-2.5 transition-colors ${
+                className={`text-center rounded-lg border px-2 py-2 transition-colors ${
                   platform === p.key
                     ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200"
                     : "border-gray-200 bg-white hover:border-blue-200 hover:bg-gray-50"
                 }`}
               >
                 <div className="text-sm font-semibold text-gray-900">{p.label}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{p.desc}</div>
               </button>
             ))}
           </div>
@@ -167,7 +201,17 @@ export default function ContentAdaptModal({
               ) : (
                 <>
                   <span className="text-base">✨</span>
-                  生成{platform === "wechat" ? "公众号" : "头条"}版
+                  生成
+                  {platform === "wechat"
+                    ? "公众号"
+                    : platform === "toutiao"
+                    ? "头条"
+                    : platform === "zhihu"
+                    ? "知乎"
+                    : platform === "juejin"
+                    ? "掘金"
+                    : "SEO"}
+                  版
                 </>
               )}
             </button>
@@ -175,13 +219,20 @@ export default function ContentAdaptModal({
         </div>
 
         {/* Tab 切换 */}
-        {currentData && (
+        {(currentData || seoData) && (
           <div className="flex gap-1 px-6 pt-3 border-b border-gray-100">
-            {[
-              { key: "content", label: "正文内容" },
-              { key: "titles", label: "标题候选" },
-              { key: "cover", label: "封面图" },
-            ].map((tab) => (
+            {(platform === "seo"
+              ? [
+                  { key: "titles", label: "SEO 标题" },
+                  { key: "keywords", label: "关键词" },
+                  { key: "content", label: "优化建议" },
+                ]
+              : [
+                  { key: "content", label: "正文内容" },
+                  { key: "titles", label: "标题候选" },
+                  { key: "cover", label: "封面图" },
+                ]
+            ).map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as typeof activeTab)}
@@ -203,12 +254,22 @@ export default function ContentAdaptModal({
             <div className="flex flex-col items-center justify-center py-16">
               <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
               <p className="text-sm text-gray-500">
-                AI 正在生成{platform === "wechat" ? "公众号" : "头条"}版本，约 10-20 秒...
+                AI 正在生成
+                {platform === "wechat"
+                  ? "公众号"
+                  : platform === "toutiao"
+                  ? "头条"
+                  : platform === "zhihu"
+                  ? "知乎"
+                  : platform === "juejin"
+                  ? "掘金"
+                  : "SEO"}
+                版本，约 10-20 秒...
               </p>
             </div>
           )}
 
-          {!loading && !currentData && (
+          {!loading && !currentData && platform !== "seo" && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-5xl mb-4">✨</div>
               <p className="text-gray-600 font-medium">
@@ -217,7 +278,24 @@ export default function ContentAdaptModal({
               <p className="text-xs text-gray-400 mt-2">
                 {platform === "wechat"
                   ? "公众号版：3个标题候选 + 公众号版正文 + 封面图文案 + 核心要点"
-                  : "头条版：5个标题候选 + 原创优化正文 + 话题标签 + 金句 + 封面文案"}
+                  : platform === "toutiao"
+                  ? "头条版：5个标题候选 + 原创优化正文 + 话题标签 + 金句 + 封面文案"
+                  : platform === "zhihu"
+                  ? "知乎版：3个问题式标题 + 干货分点论述 + 话题标签 + 核心观点"
+                  : "掘金版：3个技术标题 + 深度正文 + 分类标签 + 封面文案"}
+              </p>
+            </div>
+          )}
+
+          {/* SEO 空状态 */}
+          {!loading && !seoData && platform === "seo" && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="text-5xl mb-4">🔍</div>
+              <p className="text-gray-600 font-medium">
+                输入帖子 ID，生成 SEO 优化方案
+              </p>
+              <p className="text-xs text-gray-400 mt-2">
+                SEO 版：5个关键词标题 + Meta描述 + 关键词布局 + 优化建议
               </p>
             </div>
           )}
@@ -271,17 +349,27 @@ export default function ContentAdaptModal({
                 </div>
               )}
 
-              {/* 头条话题标签 */}
-              {platform === "toutiao" && (currentData as ToutiaoVersion).topics && (
+              {platform === "zhihu" && (currentData as ZhihuVersion).keyPoints && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">核心观点</h3>
+                  <div className="space-y-1">
+                    {(currentData as ZhihuVersion).keyPoints.map((point, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                        <span className="text-blue-500 mt-0.5">💡</span>
+                        <span>{point}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {platform === "juejin" && (currentData as JuejinVersion).tags && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-gray-700">话题标签</h3>
+                    <h3 className="text-sm font-semibold text-gray-700">掘金标签</h3>
                     <button
                       onClick={() =>
-                        copyText(
-                          (currentData as ToutiaoVersion).topics.map((t) => `#${t}#`).join(" "),
-                          "话题标签"
-                        )
+                        copyText((currentData as JuejinVersion).tags.join(", "), "标签")
                       }
                       className="text-xs text-blue-600 hover:text-blue-700"
                     >
@@ -289,17 +377,61 @@ export default function ContentAdaptModal({
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(currentData as ToutiaoVersion).topics.map((topic, i) => (
+                    {(currentData as JuejinVersion).tags.map((tag, i) => (
                       <span
                         key={i}
-                        className="px-2.5 py-1 bg-orange-50 text-orange-700 text-xs rounded-full border border-orange-200"
+                        className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200"
                       >
-                        #{topic}#
+                        #{tag}
                       </span>
                     ))}
+                    {(currentData as JuejinVersion).category && (
+                      <span className="px-2.5 py-1 bg-green-50 text-green-700 text-xs rounded-full border border-green-200">
+                        分类：{(currentData as JuejinVersion).category}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
+
+              {/* 话题标签（头条/知乎共用） */}
+              {(platform === "toutiao" || platform === "zhihu") &&
+                (currentData as ToutiaoVersion | ZhihuVersion).topics && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        {platform === "zhihu" ? "知乎话题" : "话题标签"}
+                      </h3>
+                      <button
+                        onClick={() =>
+                          copyText(
+                            (currentData as ToutiaoVersion).topics.map((t) =>
+                              platform === "toutiao" ? `#${t}#` : t
+                            ).join(" "),
+                            "话题标签"
+                          )
+                        }
+                        className="text-xs text-blue-600 hover:text-blue-700"
+                      >
+                        复制
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(currentData as ToutiaoVersion).topics.map((topic, i) => (
+                        <span
+                          key={i}
+                          className={`px-2.5 py-1 text-xs rounded-full border ${
+                            platform === "toutiao"
+                              ? "bg-orange-50 text-orange-700 border-orange-200"
+                              : "bg-blue-50 text-blue-700 border-blue-200"
+                          }`}
+                        >
+                          {platform === "toutiao" ? `#${topic}#` : topic}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               {/* 正文 */}
               <div>
@@ -324,7 +456,15 @@ export default function ContentAdaptModal({
           {currentData && activeTab === "titles" && (
             <div className="space-y-3">
               <p className="text-xs text-gray-500 mb-2">
-                点击标题即可复制，选一个最吸引眼球的作为{platform === "wechat" ? "公众号" : "头条"}标题
+                点击标题即可复制，选一个最合适的作为
+                {platform === "wechat"
+                  ? "公众号"
+                  : platform === "toutiao"
+                  ? "头条"
+                  : platform === "zhihu"
+                  ? "知乎"
+                  : "掘金"}
+                标题
               </p>
               {currentData.titleCandidates.map((title, i) => (
                 <div
@@ -346,7 +486,7 @@ export default function ContentAdaptModal({
             </div>
           )}
 
-          {currentData && activeTab === "cover" && (
+          {currentData && activeTab === "cover" && currentData.coverPrompt && (
             <div className="space-y-4">
               {/* 封面文案 */}
               <div>
@@ -375,7 +515,7 @@ export default function ContentAdaptModal({
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-gray-700">AI 绘图提示词</h3>
                   <button
-                    onClick={() => copyText(currentData.coverPrompt.fullPrompt, "提示词")}
+                    onClick={() => copyText(currentData.coverPrompt?.fullPrompt || "", "提示词")}
                     className="text-xs text-blue-600 hover:text-blue-700"
                   >
                     复制提示词
@@ -389,8 +529,178 @@ export default function ContentAdaptModal({
               {/* 提示 */}
               <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
                 💡 把提示词复制到任意 AI 绘图工具（Midjourney、DALL·E、Stable Diffusion
-                等）即可生成封面图。尺寸：{currentData.coverPrompt.style}。
+                等）即可生成封面图。尺寸：{currentData.coverPrompt?.style}。
               </div>
+            </div>
+          )}
+
+          {/* SEO: 标题 Tab */}
+          {seoData && activeTab === "titles" && platform === "seo" && (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500 mb-2">
+                5 个不同关键词布局的 SEO 标题，点击即可复制
+              </p>
+              {seoData.seoTitles.map((title, i) => (
+                <div
+                  key={i}
+                  onClick={() => copyText(title, `SEO标题${i + 1}`)}
+                  className="p-4 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 flex items-center justify-center bg-green-100 text-green-600 text-xs font-bold rounded-full">
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 text-gray-900 font-medium">{title}</span>
+                    <span className="text-xs text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      点击复制
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Meta Description */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-700">Meta Description</h3>
+                </div>
+                {seoData.metaDescriptions.map((desc, i) => (
+                  <div
+                    key={i}
+                    onClick={() => copyText(desc, `描述${i + 1}`)}
+                    className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700 mb-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="text-xs text-gray-400 mb-1">候选 {i + 1}</div>
+                    {desc}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SEO: 关键词 Tab */}
+          {seoData && activeTab === "keywords" && platform === "seo" && (
+            <div className="space-y-5">
+              {/* 主关键词 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">🎯 主关键词</h3>
+                <div className="inline-block px-4 py-2 bg-red-50 text-red-700 rounded-lg font-medium border border-red-200">
+                  {seoData.mainKeyword}
+                </div>
+              </div>
+
+              {/* 长尾关键词 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-700">📈 长尾关键词</h3>
+                  <button
+                    onClick={() =>
+                      copyText(seoData.longTailKeywords.join("\n"), "长尾关键词")
+                    }
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    复制全部
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {seoData.longTailKeywords.map((kw, i) => (
+                    <span
+                      key={i}
+                      className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-200"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 相关关键词 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-700">🔗 相关关键词</h3>
+                  <button
+                    onClick={() =>
+                      copyText(seoData.relatedKeywords.join("\n"), "相关关键词")
+                    }
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    复制全部
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {seoData.relatedKeywords.map((kw, i) => (
+                    <span
+                      key={i}
+                      className="px-3 py-1.5 bg-purple-50 text-purple-700 text-sm rounded-full border border-purple-200"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SEO: 优化建议 Tab */}
+          {seoData && activeTab === "content" && platform === "seo" && (
+            <div className="space-y-5">
+              {/* 关键词布局建议 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">📍 关键词布局建议</h3>
+                {seoData.keywordLayout?.positions && (
+                  <div className="mb-3">
+                    <div className="text-xs text-gray-500 mb-2">出现位置</div>
+                    <div className="space-y-1">
+                      {seoData.keywordLayout.positions.map((p, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                          <span className="text-blue-500 mt-0.5">•</span>
+                          <span>{p}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {seoData.keywordLayout?.headings && (
+                  <div className="mb-3">
+                    <div className="text-xs text-gray-500 mb-2">H2/H3 小标题优化</div>
+                    <div className="space-y-1">
+                      {seoData.keywordLayout.headings.map((h, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                          <span className="text-green-500 mt-0.5">✓</span>
+                          <span>{h}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {seoData.keywordLayout?.internalLinks && (
+                  <div>
+                    <div className="text-xs text-gray-500 mb-2">内链建议</div>
+                    <div className="space-y-1">
+                      {seoData.keywordLayout.internalLinks.map((l, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                          <span className="text-purple-500 mt-0.5">🔗</span>
+                          <span>{l}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 结构化数据建议 */}
+              {seoData.schemaSuggestions && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">🏗️ 结构化数据建议</h3>
+                  <div className="space-y-1">
+                    {seoData.schemaSuggestions.map((s, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                        <span className="text-amber-500 mt-0.5">💡</span>
+                        <span>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

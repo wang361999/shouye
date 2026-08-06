@@ -6,7 +6,7 @@ import prisma from '@/lib/prisma';
 // POST /api/admin/content-adapt
 // Body: { postId: string, platform: 'wechat' | 'toutiao' | 'all' }
 
-type Platform = 'wechat' | 'toutiao' | 'all';
+type Platform = 'wechat' | 'toutiao' | 'zhihu' | 'juejin' | 'seo' | 'all';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +55,27 @@ export async function POST(request: NextRequest) {
       result.toutiao = {
         ...toutiaoVersion,
         coverPrompt: toutiaoCover,
+      };
+    }
+
+    if (platform === 'zhihu' || platform === 'all') {
+      const zhihuVersion = await generateZhihuVersion(post);
+      result.zhihu = {
+        ...zhihuVersion,
+      };
+    }
+
+    if (platform === 'juejin' || platform === 'all') {
+      const juejinVersion = await generateJuejinVersion(post);
+      result.juejin = {
+        ...juejinVersion,
+      };
+    }
+
+    if (platform === 'seo' || platform === 'all') {
+      const seoVersion = await generateSEOVersion(post);
+      result.seo = {
+        ...seoVersion,
       };
     }
 
@@ -202,6 +223,211 @@ ${contentPreview}
 }`;
 
   return callAIAndParse(prompt, 12000);
+}
+
+// ============ 知乎版本生成 ============
+async function generateZhihuVersion(post: {
+  id: string;
+  title: string;
+  content: string;
+  category: { name: string; slug: string } | null;
+  tags: { tag: { name: string } }[];
+}) {
+  const tagNames = post.tags?.map((t) => t.tag.name).join('、') || '';
+  const categoryName = post.category?.name || '技术';
+  const contentPreview = truncateContent(post.content, 5000);
+
+  const prompt = `你是一位知乎高赞答主，擅长写干货满满的知乎回答和文章。
+请把以下技术文章改造成适合知乎发布的版本。
+
+## 原文信息
+标题：${post.title}
+分类：${categoryName}
+标签：${tagNames}
+
+## 原文内容
+${contentPreview}
+
+## 知乎改造要求
+
+### 一、标题（3个候选，不同角度）
+知乎标题要像一个"问题"或"经验分享"，让人有点击欲：
+1. **问题式**：以"如何""为什么""是什么"开头
+2. **经验式**："我用X做了Y，效果如何"
+3. **对比式**："X和Y到底有什么区别"
+每个标题 15-30 字，要有信息增量。
+
+### 二、知乎版正文
+1. **开头先亮明观点/结论**：知乎用户喜欢先知道你要说什么，别铺垫
+2. **分点论述**：用"第一/第二/第三"或"1./2./3."清晰分段
+3. **加入个人经验**：多用"我试过""我的经验是""踩过的坑"等第一人称表述
+4. **数据/案例支撑**：用具体例子和数据增强说服力
+5. **金句加粗**：核心结论和金句加粗，方便快速阅读
+6. **代码要规范**：代码块用正确语言标记，加注释
+7. **结尾总结 + 互动**：最后总结核心观点，加一个引导讨论的问题
+8. **字数**：1500-3000 字，知乎用户喜欢有深度的内容
+
+### 三、知乎话题标签
+3-5 个适合的知乎话题（直接写话题名，不带#）
+
+### 四、一句话摘要
+适合放在文章开头的摘要（100字以内）
+
+### 五、核心观点
+3-5 条核心观点，每条 20 字以内
+
+## 输出格式
+只输出 JSON，不要其他文字：
+{
+  "titleCandidates": ["标题1", "标题2", "标题3"],
+  "content": "知乎版正文（Markdown格式）",
+  "summary": "一句话摘要",
+  "topics": ["话题1", "话题2", "话题3"],
+  "keyPoints": ["核心观点1", "核心观点2", "核心观点3"]
+}`;
+
+  return callAIAndParse(prompt, 12000);
+}
+
+// ============ 掘金版本生成 ============
+async function generateJuejinVersion(post: {
+  id: string;
+  title: string;
+  content: string;
+  category: { name: string; slug: string } | null;
+  tags: { tag: { name: string } }[];
+}) {
+  const tagNames = post.tags?.map((t) => t.tag.name).join('、') || '';
+  const categoryName = post.category?.name || '技术';
+  const contentPreview = truncateContent(post.content, 6000);
+
+  const prompt = `你是一位掘金资深博主，擅长写高质量技术博文，熟悉掘金社区的调性和热榜规则。
+请把以下技术文章改造成适合掘金发布的版本。
+
+## 原文信息
+标题：${post.title}
+分类：${categoryName}
+标签：${tagNames}
+
+## 原文内容
+${contentPreview}
+
+## 掘金改造要求
+
+### 一、标题（3个候选，不同风格）
+掘金标题要专业、有干货感、吸引开发者点击：
+1. **教程型**："手把手教你XXX"
+2. **深度型**："深入理解XXX原理"
+3. **实战型**："从0到1实现XXX"
+每个标题 15-25 字，要有明确的技术关键词（方便 SEO 和搜索）。
+
+### 二、掘金版正文
+1. **开头要有"钩子"**：用痛点、数据、或一个引人思考的问题开头
+2. **结构清晰**：用 ## 大标题和 ### 小标题分层，目录感强
+3. **代码要完整**：代码示例要完整可运行，关键部分加注释
+4. **图文并茂**：在适合的地方标注【示意图：XXX】，说明可以配什么图
+5. **有深度有细节**：掘金用户喜欢深挖原理，不要太浅
+6. **结尾有总结**：最后用"总结"或"写在最后"收束全文
+7. **引导关注**：文末可以加一句"觉得有用点个赞关注一下"
+8. **字数**：2000-4000 字，掘金长文更容易上热榜
+
+### 三、掘金分类和标签
+- 推荐分类（前端/后端/人工智能/...）
+- 3-5 个技术标签（掘金支持的标签名）
+
+### 四、封面图文案
+- 主标题：8个字以内
+- 副标题：15个字以内
+
+### 五、掘金文章摘要
+100字以内，适合显示在列表页的摘要
+
+## 输出格式
+只输出 JSON，不要其他文字：
+{
+  "titleCandidates": ["标题1", "标题2", "标题3"],
+  "content": "掘金版正文（Markdown格式）",
+  "summary": "文章摘要",
+  "category": "推荐分类",
+  "tags": ["标签1", "标签2", "标签3"],
+  "coverMainTitle": "封面主标题",
+  "coverSubTitle": "封面副标题"
+}`;
+
+  return callAIAndParse(prompt, 12000);
+}
+
+// ============ SEO 优化版本生成 ============
+async function generateSEOVersion(post: {
+  id: string;
+  title: string;
+  content: string;
+  category: { name: string; slug: string } | null;
+  tags: { tag: { name: string } }[];
+}) {
+  const tagNames = post.tags?.map((t) => t.tag.name).join('、') || '';
+  const categoryName = post.category?.name || '技术';
+  const contentPreview = truncateContent(post.content, 4000);
+
+  const prompt = `你是一位 SEO 专家，擅长搜索引擎优化和关键词布局。
+请根据以下技术文章，生成 SEO 优化版本。
+
+## 原文信息
+标题：${post.title}
+分类：${categoryName}
+标签：${tagNames}
+
+## 原文内容（摘要）
+${contentPreview}
+
+## SEO 优化要求
+
+### 一、SEO 标题（5个候选，不同关键词布局）
+针对百度、Google 搜索优化，每个标题包含 1-2 个核心关键词：
+1. **教程型**："XXX教程/入门/怎么学"
+2. **对比型**："XXX和YYY的区别/哪个好"
+3. **问题型**："XXX是什么/为什么/怎么办"
+4. **清单型**："XXX有哪些/推荐/排行榜"
+5. **深度型**："XXX原理/实现/源码解析"
+每个标题 15-30 字，关键词前置，自然不堆砌。
+
+### 二、Meta Description（2个候选）
+- 150字以内
+- 包含核心关键词
+- 有吸引力，让人想点击
+- 用数字、疑问、利益点吸引点击
+
+### 三、核心关键词
+- 主关键词（1个）
+- 长尾关键词（5-8个）
+- 相关关键词（5-8个）
+
+### 四、文章内关键词布局建议
+- 关键词出现位置（标题、首段、小标题、结尾）
+- 建议的 H2/H3 小标题优化
+- 内链建议（可以链接到哪些相关内容）
+
+### 五、结构化数据建议
+- 适合用什么类型的 Schema 标记
+- 重点标记哪些内容
+
+## 输出格式
+只输出 JSON，不要其他文字：
+{
+  "seoTitles": ["SEO标题1", "SEO标题2", "SEO标题3", "SEO标题4", "SEO标题5"],
+  "metaDescriptions": ["描述1", "描述2"],
+  "mainKeyword": "主关键词",
+  "longTailKeywords": ["长尾词1", "长尾词2", "长尾词3"],
+  "relatedKeywords": ["相关词1", "相关词2", "相关词3"],
+  "keywordLayout": {
+    "positions": ["位置1", "位置2"],
+    "headings": ["H2建议1", "H2建议2"],
+    "internalLinks": ["内链建议1", "内链建议2"]
+  },
+  "schemaSuggestions": ["建议1", "建议2"]
+}`;
+
+  return callAIAndParse(prompt, 8000);
 }
 
 // ============ 通用 AI 调用 ============
