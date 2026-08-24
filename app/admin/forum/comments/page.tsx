@@ -1,364 +1,454 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
-import { adminFetch } from "@/lib/admin-fetch";
-import { formatDateTime } from "@/lib/admin-utils";
-import toast from "react-hot-toast";
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  PageHeader,
-  Card,
-  CardBody,
-  Button,
-  Badge,
-  DataTable,
-  IconButton,
-  SearchInput,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
   Select,
-  ConfirmDialog,
-  EmptyState,
-  TableLoading,
-  Pagination,
-  Icons,
-} from "@/components/admin/ui";
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  Trash2,
+  Eye,
+  Search,
+  Filter,
+  RefreshCw,
+  Ban,
+  CheckCircle,
+  User,
+  MessageSquare,
+  Calendar,
+  Loader2,
+} from 'lucide-react';
+import Link from 'next/link';
 
 interface Comment {
   id: string;
   content: string;
-  author: { id: string; username: string };
+  authorId: string;
   postId: string;
-  post: { id: string; title: string } | null;
-  likeCount: number;
-  isApproved: boolean;
+  parentId?: string;
   createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+  author?: {
+    id: string;
+    username: string;
+    email: string;
+    avatar?: string;
+  };
+  post?: {
+    id: string;
+    title: string;
+    slug: string;
+    categoryId?: string;
+  };
 }
 
-interface Post {
-  id: string;
-  title: string;
+interface PageState {
+  comments: Comment[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
-type StatusFilter = "all" | "approved" | "pending";
+interface Filters {
+  search?: string;
+  status?: 'all' | 'published' | 'deleted';
+  sortBy?: 'createdAt' | 'updatedAt';
+  sortOrder?: 'asc' | 'desc';
+}
 
-const PAGE_SIZE = 15;
-
-export default function ForumCommentsPage() {
-  const { token } = useAppStore();
+export default function ForumCommentsAdminPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token') || '';
 
   const [comments, setComments] = useState<Comment[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [postFilter, setPostFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const [deleteTarget, setDeleteTarget] = useState<Comment | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [filters, setFilters] = useState<Filters>({
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedComment, setSelectedComment] = useState<Comment | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const fetchComments = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const params = new URLSearchParams({
-        approved: statusFilter === "all" ? "all" : statusFilter === "approved" ? "true" : "false",
-        limit: "200",
+        page: '1',
+        limit: '50',
+        sort: filters.sortBy || 'createdAt',
+        order: filters.sortOrder || 'desc',
       });
-      if (searchKeyword.trim()) {
-        params.set("search", searchKeyword.trim());
+
+      if (filters.status && filters.status !== 'all') {
+        params.append('status', filters.status);
       }
-      if (postFilter !== "all") {
-        params.set("postId", postFilter);
+
+      if (searchTerm) {
+        params.append('search', searchTerm);
       }
-      const res = await adminFetch(`/api/forum/comments?${params.toString()}`);
-      if (!res.ok) throw new Error("获取失败");
-      const data = await res.json();
-      setComments(
-        (data.data || []).map((c: Comment) => ({
-          ...c,
-          id: String(c.id),
-          postId: String(c.postId),
-          post: c.post
-            ? { id: String(c.post.id), title: c.post.title }
-            : null,
-        }))
-      );
-    } catch {
-      toast.error("获取评论列表失败");
+
+      const response = await fetch(`/api/forum/comments?${params.toString()}`);
+      if (response.ok) {
+        const data: PageState = await response.json();
+        setComments(data.comments);
+      }
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
     } finally {
       setLoading(false);
     }
-  }, [token, statusFilter, searchKeyword, postFilter]);
+  }, [filters, searchTerm]);
 
-  const fetchPosts = useCallback(async () => {
-    try {
-      const res = await fetch("/api/forum/posts?limit=100");
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(
-          (data.posts || []).map((p: Post) => ({
-            id: String(p.id),
-            title: p.title,
-          }))
-        );
-      }
-    } catch {
-      // 忽略
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
+
+  const handleDelete = async (commentId: string) => {
+    if (!confirm('确定要删除这条评论吗？此操作不可恢复。')) {
+      return;
     }
-  }, []);
 
-  useEffect(() => {
-    if (token) fetchComments();
-  }, [token, fetchComments]);
-
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
-
-  // 分页
-  const totalPages = Math.max(1, Math.ceil(comments.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const pagedComments = comments.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE
-  );
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchKeyword, statusFilter, postFilter]);
-
-  // 待审核数量
-  const pendingCount = useMemo(() => {
-    return comments.filter((c) => !c.isApproved).length;
-  }, [comments]);
-
-  async function handleApprove(comment: Comment) {
-    if (actionLoading) return;
     try {
-      setActionLoading(comment.id);
-      const res = await adminFetch("/api/forum/comments", {
-        method: "PATCH",
-        body: JSON.stringify({ commentId: comment.id, action: "approve" }),
+      const response = await fetch(`/api/forum/comments/${commentId}`, {
+        method: 'DELETE',
       });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "审核失败");
-        return;
+
+      if (response.ok) {
+        fetchComments();
+      } else {
+        const data = await response.json();
+        alert(data.error || '删除失败');
       }
-      const data = await res.json();
-      toast.success(data.message);
-      setComments((prev) =>
-        prev.map((c) =>
-          c.id === comment.id ? { ...c, isApproved: true } : c
-        )
+    } catch (error) {
+      console.error('Delete comment error:', error);
+      alert('删除失败');
+    }
+  };
+
+  const handleView = (comment: Comment) => {
+    setSelectedComment(comment);
+    setIsViewDialogOpen(true);
+  };
+
+  const getStatusBadge = (comment: Comment) => {
+    if (comment.deletedAt) {
+      return (
+        <Badge variant="destructive">已删除</Badge>
       );
-    } catch {
-      toast.error("审核失败，请稍后重试");
-    } finally {
-      setActionLoading(null);
     }
-  }
+    return (
+      <Badge variant="secondary">已发布</Badge>
+    );
+  };
 
-  async function handleDelete() {
-    if (!deleteTarget || deleting) return;
-    try {
-      setDeleting(true);
-      const res = await adminFetch("/api/forum/comments", {
-        method: "DELETE",
-        body: JSON.stringify({ commentId: deleteTarget.id }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "删除失败");
-        return;
-      }
-      toast.success("评论已删除");
-      setComments((prev) => prev.filter((c) => c.id !== deleteTarget.id));
-      setDeleteTarget(null);
-    } catch {
-      toast.error("删除失败，请稍后重试");
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  // 删除确认消息（包含评论内容预览）
-  const deleteMessage = deleteTarget
-    ? `确定要删除这条评论吗？此操作不可撤销。${
-        deleteTarget.content
-          ? ` 评论内容：「${deleteTarget.content.substring(0, 100)}${
-              deleteTarget.content.length > 100 ? "..." : ""
-            }」`
-          : ""
-      }`
-    : "";
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   return (
-    <AdminLayout activeKey="forum-comments">
-      <div className="space-y-6">
-        {/* 页头 */}
-        <PageHeader
-          title="评论管理"
-          actions={
-            pendingCount > 0 ? (
-              <Badge color="yellow">
-                有 {pendingCount} 条评论待审核
-              </Badge>
-            ) : undefined
-          }
-        />
-
-        {/* 搜索筛选栏 */}
-        <Card>
-          <CardBody>
-            <div className="flex flex-wrap items-center gap-3">
-              <SearchInput
-                value={searchKeyword}
-                onChange={setSearchKeyword}
-                placeholder="搜索评论内容..."
-              />
-              <Select
-                value={postFilter}
-                onChange={(e) => setPostFilter(e.target.value)}
-              >
-                <option value="all">全部帖子</option>
-                {posts.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title.length > 20 ? p.title.substring(0, 20) + "..." : p.title}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              >
-                <option value="all">全部状态</option>
-                <option value="approved">已通过</option>
-                <option value="pending">待审核</option>
-              </Select>
-              <Button variant="secondary" onClick={fetchComments}>
-                搜索
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* 评论表格 */}
-        {loading ? (
-          <Card>
-            <DataTable headers={["评论内容", "所属帖子", "作者", "时间", "点赞", "操作"]}>
-              <TableLoading cols={6} rows={6} />
-            </DataTable>
-          </Card>
-        ) : pagedComments.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<Icons.Comment className="w-12 h-12" />}
-              title={
-                searchKeyword ||
-                statusFilter !== "all" ||
-                postFilter !== "all"
-                  ? "没有符合条件的评论"
-                  : "暂无评论"
-              }
-            />
-          </Card>
-        ) : (
-          <Card>
-            <DataTable headers={["评论内容", "所属帖子", "作者", "时间", "点赞", "操作"]}>
-              {pagedComments.map((comment) => (
-                <tr
-                  key={comment.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-4 py-3 max-w-[280px]">
-                    <div className="flex items-start gap-2">
-                      {!comment.isApproved && (
-                        <Badge color="yellow">待审</Badge>
-                      )}
-                      <p
-                        className="text-gray-700 line-clamp-2"
-                        title={comment.content}
-                      >
-                        {comment.content}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 max-w-[160px]">
-                    {comment.post ? (
-                      <Link
-                        href={`/forum/post/${comment.post.id}`}
-                        className="text-blue-600 hover:underline line-clamp-1 block"
-                        title={comment.post.title}
-                      >
-                        {comment.post.title}
-                      </Link>
-                    ) : (
-                      <span className="text-gray-400">
-                        帖子 #{comment.postId}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {comment.author.username}
-                  </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                    {formatDateTime(comment.createdAt)}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{comment.likeCount}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      {!comment.isApproved && (
-                        <IconButton
-                          icon={<Icons.Check />}
-                          onClick={() => handleApprove(comment)}
-                          title="通过审核"
-                        />
-                      )}
-                      <IconButton
-                        icon={<Icons.Trash />}
-                        onClick={() => setDeleteTarget(comment)}
-                        title="删除评论"
-                        variant="danger"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </DataTable>
-          </Card>
-        )}
-
-        {/* 底部分页 */}
-        {!loading && comments.length > 0 && (
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="text-sm text-gray-500">
-              共 <span className="font-medium text-gray-700">{comments.length}</span> 条评论
-            </div>
-            <Pagination
-              page={safePage}
-              totalPages={totalPages}
-              onChange={setCurrentPage}
-            />
-          </div>
-        )}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">评论管理</h1>
+          <p className="text-muted-foreground">
+            管理和审核论坛评论
+          </p>
+        </div>
+        <Button onClick={fetchComments} disabled={loading}>
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          刷新
+        </Button>
       </div>
 
-      {/* 删除确认弹窗 */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        title="确认删除"
-        message={deleteMessage}
-        confirmText="确认删除"
-        cancelText="取消"
-        onConfirm={handleDelete}
-        onCancel={() => {
-          if (!deleting) setDeleteTarget(null);
-        }}
-        danger
-      />
-    </AdminLayout>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            筛选条件
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">搜索</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索评论内容..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">状态</label>
+              <Select
+                value={filters.status || 'all'}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, status: value as Filters['status'] })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="published">已发布</SelectItem>
+                  <SelectItem value="deleted">已删除</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">排序字段</label>
+              <Select
+                value={filters.sortBy || 'createdAt'}
+                onValueChange={(value) =>
+                  setFilters({
+                    ...filters,
+                    sortBy: value as Filters['sortBy'],
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt">创建时间</SelectItem>
+                  <SelectItem value="updatedAt">更新时间</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">排序方式</label>
+              <Select
+                value={filters.sortOrder || 'desc'}
+                onValueChange={(value) =>
+                  setFilters({
+                    ...filters,
+                    sortOrder: value as Filters['sortOrder'],
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">降序</SelectItem>
+                  <SelectItem value="asc">升序</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>评论列表</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              暂无评论
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>作者</TableHead>
+                    <TableHead>评论内容</TableHead>
+                    <TableHead>所属帖子</TableHead>
+                    <TableHead>状态</TableHead>
+                    <TableHead>创建时间</TableHead>
+                    <TableHead>操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {comments.map((comment) => (
+                    <TableRow key={comment.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            {comment.author?.username || '未知用户'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-md">
+                        <div className="line-clamp-2 text-sm">
+                          {comment.content}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {comment.post ? (
+                          <Link
+                            href={`/forum/post/${comment.post.slug}`}
+                            className="text-blue-600 hover:underline text-sm"
+                            target="_blank"
+                          >
+                            {comment.post.title}
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            -
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(comment)}</TableCell>
+                      <TableCell>
+                        <div className="text-sm text-muted-foreground">
+                          {formatDate(comment.createdAt)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleView(comment)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>查看详情</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
+                          {!comment.deletedAt && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDelete(comment.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>删除评论</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* View Comment Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>评论详情</DialogTitle>
+          </DialogHeader>
+          {selectedComment && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">
+                      {selectedComment.author?.username || '未知用户'}
+                    </span>
+                    {getStatusBadge(selectedComment)}
+                  </div>
+                  <div className="text-sm text-muted-foreground flex items-center gap-4 mt-1">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatDate(selectedComment.createdAt)}
+                    </span>
+                    {selectedComment.post && (
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3" />
+                        <Link
+                          href={`/forum/post/${selectedComment.post.slug}`}
+                          className="text-blue-600 hover:underline"
+                          target="_blank"
+                        >
+                          {selectedComment.post.title}
+                        </Link>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="prose prose-sm max-w-none">
+                <p className="whitespace-pre-wrap">{selectedComment.content}</p>
+              </div>
+
+              {selectedComment.updatedAt !== selectedComment.createdAt && (
+                <div className="text-xs text-muted-foreground">
+                  最后更新：{formatDate(selectedComment.updatedAt)}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

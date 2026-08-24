@@ -1,401 +1,688 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useCallback } from "react";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
-import { adminFetch } from "@/lib/admin-fetch";
-import { formatDateTime } from "@/lib/admin-utils";
-import toast from "react-hot-toast";
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
-  PageHeader, Card, CardBody, Button, Badge, Input, Textarea, Select,
-  FormField, Modal, ConfirmDialog, DataTable, EmptyState, TableLoading,
-  StatCard, SearchInput, Icons, IconButton,
-} from "@/components/admin/ui";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Award,
+  Search,
+  Plus,
+  RefreshCw,
+  Gift,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  Star,
+  Zap,
+  Shield,
+  Trophy,
+  Crown,
+  Flame,
+  Heart,
+  MessageCircle,
+  Eye,
+  ThumbsUp,
+  Download,
+  Edit,
+  Trash2,
+  Filter,
+  Settings,
+  Info,
+  Loader2,
+} from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
-interface BadgeData {
+interface Badge {
   id: string;
   name: string;
   description: string;
   icon: string;
-  type: string;
-  condition: string | null;
+  criteria: string;
+  category: string;
+  sortOrder: number;
+  isEnabled: boolean;
   createdAt: string;
-  awardedCount: number;
+  updatedAt: string;
 }
 
-interface UserData {
+interface User {
   id: string;
   username: string;
   email: string;
-  role: string;
+  avatar: string;
 }
 
+interface AwardRecord {
+  id: string;
+  badgeId: string;
+  userId: string;
+  awardedAt: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+  reason: string | null;
+  badge: Badge;
+  user: User;
+}
+
+const CATEGORIES = [
+  { value: 'activity', label: '活跃度', icon: Zap },
+  { value: 'quality', label: '质量贡献', icon: Star },
+  { value: 'community', label: '社区贡献', icon: Heart },
+  { value: 'special', label: '特殊成就', icon: Trophy },
+];
+
 export default function BadgesPage() {
-  const { token } = useAppStore();
-  const [badges, setBadges] = useState<BadgeData[]>([]);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [awards, setAwards] = useState<AwardRecord[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showAwardDialog, setShowAwardDialog] = useState(false);
+  const [showRevokerDialog, setShowRevokerDialog] = useState(false);
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [reason, setReason] = useState('');
+  const [searchUsers, setSearchUsers] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'revoked'>('all');
+  const [expandedBadge, setExpandedBadge] = useState<string | null>(null);
 
-  // 创建徽章
-  const [createOpen, setCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    icon: "",
-    type: "manual" as "manual" | "auto",
-    conditionField: "postCount",
-    conditionOperator: ">=",
-    conditionValue: "1",
-  });
-
-  // 颁发徽章
-  const [awardOpen, setAwardOpen] = useState(false);
-  const [awarding, setAwarding] = useState(false);
-  const [awardBadgeId, setAwardBadgeId] = useState("");
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [userSearch, setUserSearch] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
-
-  // 删除
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
+  // Fetch badges
   const fetchBadges = useCallback(async () => {
-    if (!token) return;
     try {
-      setLoading(true);
-      const res = await adminFetch("/api/badges");
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setBadges(data.badges || []);
-    } catch {
-      toast.error("获取徽章列表失败");
+      const response = await fetch('/api/badges');
+      if (response.ok) {
+        const data = await response.json();
+        setBadges(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch badges:', error);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
+
+  // Fetch awards
+  const fetchAwards = useCallback(async () => {
+    try {
+      const response = await fetch('/api/badges');
+      if (response.ok) {
+        const data = await response.json();
+        setAwards(data.awards || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch awards:', error);
+    }
+  }, []);
+
+  // Fetch users
+  const fetchUsers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/users?page=1&limit=100');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    if (token) fetchBadges();
-  }, [token, fetchBadges]);
+    fetchBadges();
+    fetchAwards();
+    fetchUsers();
+  }, [fetchBadges, fetchAwards, fetchUsers]);
 
-  // 搜索用户
-  const fetchUsers = useCallback(async (q: string) => {
-    if (!token || !q.trim()) return;
+  // Filter badges
+  const filteredBadges = badges.filter((badge) => {
+    const matchesSearch =
+      badge.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      badge.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      selectedCategory === 'all' || badge.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Filter awards
+  const filteredAwards = awards.filter((award) => {
+    const matchesSearch =
+      award.user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      award.badge.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      filterStatus === 'all' ||
+      (filterStatus === 'active' && !award.revokedAt) ||
+      (filterStatus === 'revoked' && award.revokedAt);
+    return matchesSearch && matchesStatus;
+  });
+
+  // Award badge to user
+  const handleAwardBadge = async () => {
+    if (!selectedBadge || !selectedUser) return;
+
     try {
-      const res = await adminFetch(`/api/admin/users?search=${encodeURIComponent(q)}&limit=20`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setUsers(data.data || []);
-    } catch { /* ignore */ }
-  }, [token]);
+      const response = await fetch(`/api/badges/${selectedBadge.id}/award`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          reason: reason || '手动授予',
+        }),
+      });
 
-  const debouncedUserSearch = useCallback(
-    (q: string) => {
-      const t = setTimeout(() => fetchUsers(q), 300);
-      return () => clearTimeout(t);
-    },
-    [fetchUsers],
-  );
+      if (response.ok) {
+        setShowAwardDialog(false);
+        setSelectedBadge(null);
+        setSelectedUser(null);
+        setReason('');
+        fetchBadges();
+        fetchAwards();
+      }
+    } catch (error) {
+      console.error('Failed to award badge:', error);
+    }
+  };
 
-  function handleCreate() {
-    if (!form.name.trim() || !form.description.trim() || !form.icon.trim()) {
-      toast.error("名称、描述、图标不能为空");
+  // Revoke badge
+  const handleRevokeBadge = async (awardId: string) => {
+    if (!reason) {
+      alert('请填写撤销原因');
       return;
     }
 
-    setCreating(true);
-    const body: Record<string, unknown> = {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      icon: form.icon.trim(),
-      type: form.type,
+    try {
+      const response = await fetch(`/api/badges/awards/${awardId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason,
+        }),
+      });
+
+      if (response.ok) {
+        setShowRevokerDialog(false);
+        setReason('');
+        fetchAwards();
+      }
+    } catch (error) {
+      console.error('Failed to revoke badge:', error);
+    }
+  };
+
+  // Toggle badge enabled status
+  const handleToggleBadge = async (badgeId: string) => {
+    try {
+      const response = await fetch(`/api/badges/${badgeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isEnabled: !badges.find((b) => b.id === badgeId)?.isEnabled,
+        }),
+      });
+
+      if (response.ok) {
+        fetchBadges();
+      }
+    } catch (error) {
+      console.error('Failed to toggle badge:', error);
+    }
+  };
+
+  // Delete badge
+  const handleDeleteBadge = async (badgeId: string) => {
+    if (!confirm('确定要删除这个徽章吗？此操作不可恢复。')) return;
+
+    try {
+      const response = await fetch(`/api/badges/${badgeId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchBadges();
+        fetchAwards();
+      }
+    } catch (error) {
+      console.error('Failed to delete badge:', error);
+    }
+  };
+
+  // Get icon component
+  const getIconComponent = (iconName: string) => {
+    const iconMap: Record<string, React.ElementType> = {
+      Zap,
+      Star,
+      Shield,
+      Trophy,
+      Crown,
+      Flame,
+      Heart,
+      MessageCircle,
+      Eye,
+      ThumbsUp,
+      Download,
+      Award,
+      Users,
+      Gift,
     };
+    return iconMap[iconName] || Award;
+  };
 
-    if (form.type === "auto") {
-      body.condition = {
-        field: form.conditionField,
-        operator: form.conditionOperator,
-        value: Number(form.conditionValue),
-      };
-    }
-
-    adminFetch("/api/badges", {
-      method: "POST",
-      body: JSON.stringify(body),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const d = await res.json();
-          throw new Error(d.error || "创建失败");
-        }
-        toast.success("徽章创建成功");
-        setCreateOpen(false);
-        setForm({ name: "", description: "", icon: "", type: "manual", conditionField: "postCount", conditionOperator: ">=", conditionValue: "1" });
-        fetchBadges();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setCreating(false));
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
-
-  function handleAward() {
-    if (!awardBadgeId || !selectedUserId) {
-      toast.error("请选择徽章和用户");
-      return;
-    }
-
-    setAwarding(true);
-    adminFetch(`/api/badges/${awardBadgeId}/award`, {
-      method: "POST",
-      body: JSON.stringify({ userId: selectedUserId }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const d = await res.json();
-          throw new Error(d.error || "颁发失败");
-        }
-        toast.success("徽章颁发成功");
-        setAwardOpen(false);
-        setSelectedUserId("");
-        setUserSearch("");
-        setUsers([]);
-        fetchBadges();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setAwarding(false));
-  }
-
-  function handleDelete() {
-    if (!deleteId) return;
-    setDeleting(true);
-    // 直接通过SQL删除（没有DELETE API，用admin fetch到数据库管理）
-    adminFetch(`/api/admin/database`, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "execute",
-        sql: `DELETE FROM UserBadge WHERE badge_id = '${deleteId}'; DELETE FROM Badge WHERE id = '${deleteId}';`,
-      }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          // 降级：直接调用badges API没有DELETE，用提示
-          toast.error("删除失败，请通过数据库管理页面手动删除");
-          return;
-        }
-        toast.success("徽章已删除");
-        setDeleteId(null);
-        fetchBadges();
-      })
-      .catch(() => toast.error("删除失败"))
-      .finally(() => setDeleting(false));
-  }
-
-  const filtered = badges.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase()) ||
-    b.description.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const manualCount = badges.filter((b) => b.type === "manual").length;
-  const autoCount = badges.filter((b) => b.type === "auto").length;
-  const totalAwarded = badges.reduce((sum, b) => sum + b.awardedCount, 0);
 
   return (
-    <AdminLayout activeKey="badges">
-      <PageHeader
-        title="徽章管理"
-        subtitle="创建徽章、手动颁发给用户"
-        actions={
-          <>
-            <Button variant="secondary" onClick={() => { setAwardBadgeId(badges[0]?.id || ""); setAwardOpen(true); }} disabled={badges.length === 0}>
-              <Icons.Users className="w-4 h-4" />
-              颁发徽章
-            </Button>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Icons.Plus className="w-4 h-4" />
-              创建徽章
-            </Button>
-          </>
-        }
-      />
-
-      {/* 统计 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="徽章总数" value={badges.length} icon={<Icons.Scroll className="w-5 h-5" />} color="blue" />
-        <StatCard label="手动徽章" value={manualCount} icon={<Icons.Key className="w-5 h-5" />} color="indigo" />
-        <StatCard label="自动徽章" value={autoCount} icon={<Icons.Chart className="w-5 h-5" />} color="purple" />
-        <StatCard label="已颁发总数" value={totalAwarded} icon={<Icons.Check className="w-5 h-5" />} color="green" />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">徽章管理</h1>
+          <p className="text-muted-foreground">管理系统徽章和授予记录</p>
+        </div>
+        <Button onClick={fetchBadges} variant="outline">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          刷新
+        </Button>
       </div>
 
-      {/* 搜索 */}
-      <div className="mb-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="搜索徽章名称或描述..." />
-      </div>
+      <Tabs defaultValue="badges" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="badges">徽章列表</TabsTrigger>
+          <TabsTrigger value="awards">授予记录</TabsTrigger>
+        </TabsList>
 
-      {/* 列表 */}
-      <Card>
-        {loading ? (
-          <TableLoading cols={5} rows={4} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={<Icons.Scroll className="w-12 h-12" />}
-            title="暂无徽章"
-            description="点击右上角「创建徽章」添加第一个徽章"
-            action={<Button onClick={() => setCreateOpen(true)}><Icons.Plus className="w-4 h-4" />创建徽章</Button>}
-          />
-        ) : (
-          <DataTable headers={["图标", "名称", "描述", "类型", "已颁发", "创建时间", "操作"]}>
-            {filtered.map((b) => (
-              <tr key={b.id}>
-                <td><span className="text-2xl">{b.icon}</span></td>
-                <td><span className="font-medium text-gray-900">{b.name}</span></td>
-                <td><span className="text-gray-600 max-w-xs truncate block">{b.description}</span></td>
-                <td>
-                  {b.type === "auto"
-                    ? <Badge color="purple">自动</Badge>
-                    : <Badge color="blue">手动</Badge>}
-                </td>
-                <td><span className="font-medium">{b.awardedCount}</span> 人</td>
-                <td><span className="text-sm text-gray-500">{formatDateTime(b.createdAt)}</span></td>
-                <td>
-                  <div className="flex items-center gap-1">
-                    <IconButton
-                      icon={<Icons.Users className="w-4 h-4" />}
-                      title="颁发给用户"
-                      onClick={() => { setAwardBadgeId(b.id); setAwardOpen(true); }}
-                    />
-                    <IconButton
-                      icon={<Icons.Trash className="w-4 h-4" />}
-                      title="删除"
-                      variant="danger"
-                      onClick={() => setDeleteId(b.id)}
-                    />
+        <TabsContent value="badges" className="space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索徽章..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={selectedCategory}
+              onValueChange={setSelectedCategory}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="选择分类" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部分类</SelectItem>
+                {CATEGORIES.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-4">
+            {filteredBadges.map((badge) => {
+              const IconComponent = getIconComponent(badge.icon);
+              const isExpanded = expandedBadge === badge.id;
+
+              return (
+                <Card key={badge.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <IconComponent className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {badge.name}
+                            <Badge
+                              variant={badge.isEnabled ? 'default' : 'secondary'}
+                              className="text-xs"
+                            >
+                              {badge.isEnabled ? '启用' : '禁用'}
+                            </Badge>
+                          </CardTitle>
+                          <CardDescription>{badge.description}</CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleToggleBadge(badge.id)}
+                              >
+                                {badge.isEnabled ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-red-500" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {badge.isEnabled ? '禁用徽章' : '启用徽章'}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteBadge(badge.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>删除徽章</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setExpandedBadge(isExpanded ? null : badge.id)
+                          }
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  {isExpanded && (
+                    <CardContent className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium">授予条件</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {badge.criteria}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>排序: {badge.sortOrder}</span>
+                        <span>•</span>
+                        <span>
+                          更新于{' '}
+                          {new Date(badge.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+
+          {filteredBadges.length === 0 && (
+            <div className="text-center py-12">
+              <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium">暂无徽章</h3>
+              <p className="text-muted-foreground">
+                没有找到匹配的徽章，请调整搜索条件
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="awards" className="space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索用户或徽章..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={filterStatus}
+              onValueChange={(v) => setFilterStatus(v as 'all' | 'active' | 'revoked')}
+            >
+              <SelectTrigger className="w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部状态</SelectItem>
+                <SelectItem value="active">已授予</SelectItem>
+                <SelectItem value="revoked">已撤销</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-3">
+            {filteredAwards.map((award) => (
+              <Card key={award.id}>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={award.user.avatar || '/placeholder-avatar.png'}
+                        alt={award.user.username}
+                        className="h-10 w-10 rounded-full"
+                      />
+                      <div>
+                        <p className="font-medium">{award.user.username}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {award.badge.name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">
+                          {award.revokedAt ? '已撤销' : '已授予'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(
+                            award.revokedAt || award.awardedAt,
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
+                      {!award.revokedAt && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedBadge(award.badge);
+                                  setSelectedUser(award.user);
+                                  setShowRevokerDialog(true);
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>撤销徽章</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </div>
-                </td>
-              </tr>
+                  {award.reason && (
+                    <div className="mt-3 text-sm text-muted-foreground">
+                      {award.revokedAt ? '撤销原因: ' + award.reason : '授予原因: ' + award.reason}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             ))}
-          </DataTable>
-        )}
-      </Card>
+          </div>
 
-      {/* 创建徽章 Modal */}
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="创建徽章" size="md">
-        <div className="space-y-4">
-          <FormField label="徽章名称">
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如：技术专家" />
-          </FormField>
-          <FormField label="徽章描述">
-            <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="如：在技术领域有突出贡献的用户" />
-          </FormField>
-          <FormField label="图标" hint="输入 emoji 或图标 URL">
-            <Input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} placeholder="如：🏆" />
-          </FormField>
-          <FormField label="徽章类型">
-            <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as "manual" | "auto" })}>
-              <option value="manual">手动颁发</option>
-              <option value="auto">自动颁发（满足条件自动发放）</option>
-            </Select>
-          </FormField>
-          {form.type === "auto" && (
-            <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-              <p className="text-sm font-medium text-gray-700">自动颁发条件</p>
-              <div className="grid grid-cols-3 gap-3">
-                <FormField label="字段">
-                  <Select value={form.conditionField} onChange={(e) => setForm({ ...form, conditionField: e.target.value })}>
-                    <option value="postCount">帖子数</option>
-                    <option value="commentCount">评论数</option>
-                    <option value="reputation">声望值</option>
-                  </Select>
-                </FormField>
-                <FormField label="比较">
-                  <Select value={form.conditionOperator} onChange={(e) => setForm({ ...form, conditionOperator: e.target.value })}>
-                    <option value=">=">≥ 大于等于</option>
-                    <option value=">">&gt; 大于</option>
-                    <option value="<=">≤ 小于等于</option>
-                    <option value="<">&lt; 小于</option>
-                    <option value="==">= 等于</option>
-                  </Select>
-                </FormField>
-                <FormField label="数值">
-                  <Input type="number" value={form.conditionValue} onChange={(e) => setForm({ ...form, conditionValue: e.target.value })} />
-                </FormField>
-              </div>
+          {filteredAwards.length === 0 && (
+            <div className="text-center py-12">
+              <Gift className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium">暂无授予记录</h3>
+              <p className="text-muted-foreground">还没有徽章授予记录</p>
             </div>
           )}
-        </div>
-        <div className="flex justify-end gap-2 mt-6">
-          <Button variant="secondary" onClick={() => setCreateOpen(false)}>取消</Button>
-          <Button onClick={handleCreate} loading={creating}>创建</Button>
-        </div>
-      </Modal>
+        </TabsContent>
+      </Tabs>
 
-      {/* 颁发徽章 Modal */}
-      <Modal open={awardOpen} onClose={() => { setAwardOpen(false); setSelectedUserId(""); setUserSearch(""); setUsers([]); }} title="手动颁发徽章" size="md">
-        <div className="space-y-4">
-          <FormField label="选择徽章">
-            <Select value={awardBadgeId} onChange={(e) => setAwardBadgeId(e.target.value)}>
-              {badges.map((b) => (
-                <option key={b.id} value={b.id}>{b.icon} {b.name}</option>
-              ))}
-            </Select>
-          </FormField>
-
-          <FormField label="搜索用户">
-            <SearchInput
-              value={userSearch}
-              onChange={(v) => { setUserSearch(v); debouncedUserSearch(v); }}
-              placeholder="输入用户名或邮箱..."
-            />
-          </FormField>
-
-          {users.length > 0 && (
-            <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
-              {users.map((u) => (
-                <button
-                  key={u.id}
-                  onClick={() => setSelectedUserId(u.id)}
-                  className={`flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm border-b border-gray-50 last:border-0 transition-colors ${selectedUserId === u.id ? "bg-brand-50" : "hover:bg-gray-50"}`}
-                >
-                  <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-medium">
-                    {u.username.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">{u.username}</p>
-                    <p className="text-xs text-gray-400 truncate">{u.email}</p>
-                  </div>
-                  {u.role === "ADMIN" && <Badge color="indigo">管理员</Badge>}
-                  {selectedUserId === u.id && <Icons.Check className="w-4 h-4 text-brand-600" />}
-                </button>
-              ))}
+      {/* Award Dialog */}
+      <Dialog open={showAwardDialog} onOpenChange={setShowAwardDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>授予徽章</DialogTitle>
+            <DialogDescription>
+              选择要授予徽章的用户
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="user-search">搜索用户</Label>
+              <Input
+                id="user-search"
+                placeholder="输入用户名..."
+                value={searchUsers}
+                onChange={(e) => setSearchUsers(e.target.value)}
+              />
             </div>
-          )}
-
-          {selectedUserId && (
-            <div className="flex items-center gap-2 p-3 bg-brand-50 rounded-lg text-sm text-brand-700">
-              <Icons.Check className="w-4 h-4" />
-              已选择: {users.find((u) => u.id === selectedUserId)?.username}
+            <div className="max-h-40 overflow-y-auto space-y-2">
+              {users
+                .filter((u) =>
+                  u.username.toLowerCase().includes(searchUsers.toLowerCase()),
+                )
+                .map((user) => (
+                  <Button
+                    key={user.id}
+                    variant={selectedUser?.id === user.id ? 'default' : 'outline'}
+                    className="w-full justify-start"
+                    onClick={() => setSelectedUser(user)}
+                  >
+                    <img
+                      src={user.avatar || '/placeholder-avatar.png'}
+                      alt={user.username}
+                      className="h-5 w-5 rounded-full mr-2"
+                    />
+                    {user.username}
+                  </Button>
+                ))}
             </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 mt-6">
-          <Button variant="secondary" onClick={() => { setAwardOpen(false); setSelectedUserId(""); setUserSearch(""); setUsers([]); }}>取消</Button>
-          <Button onClick={handleAward} loading={awarding} disabled={!selectedUserId}>
-            <Icons.Check className="w-4 h-4" />
-            确认颁发
-          </Button>
-        </div>
-      </Modal>
+            <div>
+              <Label htmlFor="reason">授予原因</Label>
+              <Input
+                id="reason"
+                placeholder="可选，填写授予原因..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAwardDialog(false)}>
+              取消
+            </Button>
+            <Button
+              onClick={handleAwardBadge}
+              disabled={!selectedUser}
+            >
+              授予
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* 删除确认 */}
-      <ConfirmDialog
-        open={!!deleteId}
-        title="删除徽章"
-        message="确定要删除此徽章吗？已颁发给用户的记录也会一并删除，此操作不可撤销。"
-        confirmText="删除"
-        danger
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteId(null)}
-      />
-    </AdminLayout>
+      {/* Revoke Dialog */}
+      <Dialog open={showRevokerDialog} onOpenChange={setShowRevokerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>撤销徽章</DialogTitle>
+            <DialogDescription>
+              确认要撤销 {selectedUser?.username} 的 {selectedBadge?.name} 徽章吗？
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="revoke-reason">撤销原因（必填）</Label>
+              <Input
+                id="revoke-reason"
+                placeholder="请填写撤销原因..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRevokerDialog(false)}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedBadge && selectedUser) {
+                  const award = awards.find(
+                    (a) =>
+                      a.badgeId === selectedBadge.id &&
+                      a.userId === selectedUser.id,
+                  );
+                  if (award) {
+                    handleRevokeBadge(award.id);
+                  }
+                }
+              }}
+              disabled={!reason}
+            >
+              确认撤销
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
