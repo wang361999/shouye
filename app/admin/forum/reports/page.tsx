@@ -1,262 +1,340 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
-import { adminFetch } from "@/lib/admin-fetch";
-import { formatDateTime } from "@/lib/admin-utils";
-import UserAvatar from "@/components/common/UserAvatar";
-import toast from "react-hot-toast";
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAdminAuth } from '@/hooks/use-admin-auth';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
-  PageHeader,
-  Card,
-  CardBody,
-  Button,
-  Badge,
-  StatusBadge,
-  Pagination,
-  EmptyState,
-  LoadingState,
-  Icons,
-} from "@/components/admin/ui";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Search,
+  Trash2,
+  Eye,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Filter,
+  RefreshCw,
+  AlertTriangle,
+  MessageSquare,
+} from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface Report {
   id: string;
-  reporterId: string;
-  targetType: string;
-  targetId: string;
   reason: string;
-  description: string | null;
-  status: string;
+  description: string;
+  status: 'PENDING' | 'RESOLVED' | 'DISMISSED';
+  reporterId: string;
+  reporterName: string;
+  reportedPostId: string;
+  reportedPostTitle: string;
+  reportedUserId: string;
+  reportedUserName: string;
   createdAt: string;
-  reporter: {
-    id: string;
-    username: string;
-    avatar: string | null;
-  };
+  resolvedAt?: string;
+  resolvedBy?: string;
 }
 
-const REASON_MAP = {
-  spam: { label: "垃圾广告", color: "yellow" as const },
-  abuse: { label: "辱骂攻击", color: "red" as const },
-  inappropriate: { label: "不当内容", color: "purple" as const },
-  other: { label: "其他", color: "gray" as const },
-};
-
-const STATUS_MAP = {
-  pending: { label: "待处理", color: "yellow" as const },
-  resolved: { label: "已处理", color: "green" as const },
-  dismissed: { label: "已驳回", color: "gray" as const },
-};
-
-const statusTabs = [
-  { value: "pending", label: "待处理" },
-  { value: "resolved", label: "已处理" },
-  { value: "dismissed", label: "已驳回" },
-  { value: "all", label: "全部" },
-];
-
-export default function AdminReportsPage() {
-  const { token } = useAppStore();
+export default function ReportsPage() {
+  const router = useRouter();
+  const { admin, loading: authLoading } = useAdminAuth();
   const [reports, setReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'resolved' | 'dismissed'>('all');
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isResolving, setIsResolving] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
-  const fetchReports = useCallback(async () => {
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setToken(localStorage.getItem('token'));
+    }
+  }, []);
+
+  const loadReports = useCallback(async () => {
+    if (!token) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: String(currentPage),
-        limit: "20",
+      const response = await fetch('/api/forum/reports', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
-      if (statusFilter !== "all") {
-        params.set("status", statusFilter);
+      if (response.ok) {
+        const data = await response.json();
+        setReports(data.reports || []);
       }
-      const res = await adminFetch(`/api/forum/reports?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setReports(data.data || []);
-        setTotal(data.total || 0);
-        setTotalPages(data.totalPages || 1);
-      }
-    } catch (err) {
-      console.error("获取举报列表失败:", err);
+    } catch (error) {
+      console.error('Failed to load reports:', error);
     } finally {
       setLoading(false);
     }
-  }, [token, currentPage, statusFilter]);
+  }, [token]);
 
   useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+    if (!authLoading && !admin) {
+      router.push('/admin/login');
+    }
+  }, [admin, authLoading, router]);
 
-  const handleUpdateStatus = async (reportId: string, status: "resolved" | "dismissed") => {
-    if (actionLoading) return;
-    setActionLoading(reportId);
+  useEffect(() => {
+    if (admin) {
+      loadReports();
+    }
+  }, [admin, loadReports]);
+
+  const handleResolve = async (reportId: string, action: 'resolve' | 'dismiss') => {
+    if (!token) return;
+    if (!confirm(`确定要${action === 'resolve' ? '处理' : '驳回'}这个举报吗？`)) return;
+
+    setIsResolving(reportId);
     try {
-      const res = await adminFetch(`/api/forum/reports/${reportId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
+      const response = await fetch(`/api/forum/reports/${reportId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          status: action === 'resolve' ? 'RESOLVED' : 'DISMISSED',
+          resolvedBy: admin?.username,
+        }),
       });
-      if (res.ok) {
-        toast.success(status === "resolved" ? "举报已处理" : "举报已驳回");
-        await fetchReports();
+
+      if (response.ok) {
+        toast({
+          title: action === 'resolve' ? '举报已处理' : '举报已驳回',
+          description: action === 'resolve' ? '举报已标记为已处理' : '举报已标记为已驳回',
+        });
+        loadReports();
       } else {
-        const data = await res.json();
-        toast.error(data.error || "操作失败");
+        const error = await response.json();
+        toast({
+          title: '操作失败',
+          description: error.error || '请重试',
+          variant: 'destructive',
+        });
       }
-    } catch {
-      toast.error("网络错误");
+    } catch (error) {
+      toast({
+        title: '网络错误',
+        description: '请检查网络连接后重试',
+        variant: 'destructive',
+      });
     } finally {
-      setActionLoading(null);
+      setIsResolving(null);
     }
   };
 
-  return (
-    <AdminLayout activeKey="forum-reports">
-      <div className="space-y-6">
-        {/* 页面标题 */}
-        <PageHeader title="举报管理" subtitle="处理用户举报的帖子和评论" />
+  const handleView = (report: Report) => {
+    setSelectedReport(report);
+    setIsViewDialogOpen(true);
+  };
 
-        {/* 状态筛选 */}
-        <div className="flex items-center gap-2">
-          {statusTabs.map((tab) => (
-            <Button
-              key={tab.value}
-              variant={statusFilter === tab.value ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => {
-                setStatusFilter(tab.value);
-                setCurrentPage(1);
-              }}
-            >
-              {tab.label}
-              {tab.value === "pending" &&
-                total > 0 &&
-                statusFilter === "pending" && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-white/30 rounded-full">
-                    {total}
-                  </span>
-                )}
-            </Button>
-          ))}
+  const filteredReports = reports.filter(report => {
+    const matchesSearch =
+      report.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.reporterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.reportedUserName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      report.reportedPostTitle.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFilter =
+      filterStatus === 'all' ||
+      (filterStatus === 'pending' && report.status === 'PENDING') ||
+      (filterStatus === 'resolved' && report.status === 'RESOLVED') ||
+      (filterStatus === 'dismissed' && report.status === 'DISMISSED');
+
+    return matchesSearch && matchesFilter;
+  });
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">加载中...</p>
         </div>
-
-        {/* 举报列表 */}
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i}>
-                <CardBody>
-                  <LoadingState rows={3} />
-                </CardBody>
-              </Card>
-            ))}
-          </div>
-        ) : reports.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<Icons.Check className="w-12 h-12" />}
-              title="暂无举报记录"
-            />
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {reports.map((report) => {
-              const reasonConfig = REASON_MAP[report.reason as keyof typeof REASON_MAP] || REASON_MAP.other;
-              const targetLink =
-                report.targetType === "post"
-                  ? `/forum/post/${report.targetId}`
-                  : `/forum`;
-
-              return (
-                <Card key={report.id}>
-                  <CardBody>
-                    {/* 顶部：举报人信息 + 状态 */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <UserAvatar
-                          username={report.reporter.username}
-                          avatar={report.reporter.avatar}
-                          size="sm"
-                        />
-                        <div>
-                          <span className="text-sm font-medium text-gray-700">
-                            {report.reporter.username}
-                          </span>
-                          <span className="text-xs text-gray-400 ml-2">
-                            {formatDateTime(report.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <StatusBadge status={report.status} map={STATUS_MAP} />
-                    </div>
-
-                    {/* 举报内容 */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge color={reasonConfig.color}>{reasonConfig.label}</Badge>
-                        <span className="text-xs text-gray-400">
-                          举报对象: {report.targetType === "post" ? "帖子" : "评论"}
-                        </span>
-                        <Link
-                          href={targetLink}
-                          target="_blank"
-                          className="text-xs text-blue-500 hover:text-blue-600 inline-flex items-center gap-0.5"
-                        >
-                          查看内容
-                          <Icons.ExternalLink className="w-3 h-3" />
-                        </Link>
-                      </div>
-                      {report.description && (
-                        <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-                          {report.description}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* 操作按钮 */}
-                    {report.status === "pending" && (
-                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleUpdateStatus(report.id, "resolved")}
-                          disabled={actionLoading === report.id}
-                        >
-                          <Icons.Check className="w-3 h-3 mr-1 inline" />
-                          标记已处理
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleUpdateStatus(report.id, "dismissed")}
-                          disabled={actionLoading === report.id}
-                        >
-                          <Icons.Close className="w-3 h-3 mr-1 inline" />
-                          驳回举报
-                        </Button>
-                      </div>
-                    )}
-                  </CardBody>
-                </Card>
-              );
-            })}
-
-            {/* 分页 */}
-            <Pagination
-              page={currentPage}
-              totalPages={totalPages}
-              onChange={setCurrentPage}
-            />
-          </div>
-        )}
       </div>
-    </AdminLayout>
-  );
-}
+    );
+  }
+
+  if (!admin) {
+    return null;
+  }
+
+  return (
+    <div className="container mx-auto p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">举报管理</h1>
+          <p className="text-muted-foreground mt-1">处理用户举报，维护社区秩序</p>
+        </div>
+        <Button onClick={() => router.push('/admin')}>
+          返回后台
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>举报列表</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4 mb-6">
+            <div className="flex items-center space-x-2 flex-1">
+              <Search className="w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索举报..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <Select
+                value={filterStatus}
+                onValueChange={(value: 'all' | 'pending' | 'resolved' | 'dismissed') => setFilterStatus(value)}
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="状态" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="pending">待处理</SelectItem>
+                  <SelectItem value="resolved">已处理</SelectItem>
+                  <SelectItem value="dismissed">已驳回</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" onClick={loadReports} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              刷新
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredReports.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              暂无举报数据
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>举报原因</TableHead>
+                  <TableHead>举报人</TableHead>
+                  <TableHead>被举报人</TableHead>
+                  <TableHead>相关帖子</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>举报时间</TableHead>
+                  <TableHead>操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredReports.map((report) => (
+                  <TableRow key={report.id}>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                        <span className="font-medium">{report.reason}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {report.description}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
+                          {report.reporterName?.[0]?.toUpperCase() || 'U'}
+                        </div>
+                        <span className="font-medium">{report.reporterName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-sm font-medium">
+                          {report.reportedUserName?.[0]?.toUpperCase() || 'U'}
+                        </div>
+                        <span className="font-medium">{report.reportedUserName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-xs">
+                        <div className="font-medium text-sm">{report.reportedPostTitle}</div>
+                        <div className="text-xs text-muted-foreground">ID: {report.reportedPostId}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {report.status === 'PENDING' ? (
+                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          待处理
+                        </Badge>
+                      ) : report.status === 'RESOLVED' ? (
+                        <Badge variant="outline" className="bg-green-100 text-green-800">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          已处理
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-red-100 text-red-800">
+                          <XCircle className="w-3 h-3 mr-1" />
+                          已驳回
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(report.createdAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleView(report)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        {report.status === 'PENDING' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleResolve(report.id, 'resolve')}
+                              disabled={isResolving === report.id}
+                            >
+                              {isResolving === report.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-green-500" />
+                              ) : (
+                                <CheckCircle className="w-4 h-4 text-green-500" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
