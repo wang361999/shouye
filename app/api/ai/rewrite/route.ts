@@ -134,7 +134,7 @@ function parseTags(text: string): string[] {
 function parseTitles(text: string): string[] {
   return text
     .split(/\n+/)
-    .map((l) => l.trim().replace(/^\d+[\.\)、]\s*/, '').replace(/^["'""'']|["'""'']$/g, ''))
+    .map((l) => l.trim().replace(/^\d+[\.\)、]\s*/, '').replace(/^["'"'"'"]|["'"'"'"]$/g, ''))
     .filter((l) => l.length > 5 && l.length <= 80)
     .slice(0, 3);
 }

@@ -153,7 +153,9 @@ export async function POST(request: NextRequest) {
     // 尝试记录日志
     try {
       await logVerification(null, licenseKey, domain, ip, userAgent, 'invalid', `服务器错误: ${Date.now() - startTime}ms`);
-    } catch {}
+    } catch (_) {
+      // 日志记录失败不影响主流程
+    }
 
     return NextResponse.json({
       valid: false,
@@ -185,7 +187,7 @@ async function logVerification(
         message,
       },
     });
-  } catch {
+  } catch (_) {
     // 日志记录失败不影响主流程
   }
 }

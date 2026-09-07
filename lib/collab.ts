@@ -66,21 +66,21 @@ export function parseGithubRepoUrl(url: string): ParsedRepoUrl | null {
 
   try {
     // 格式1: git@github.com:owner/repo.git (SSH)
-    const sshMatch = trimmed.match(/^git@github\.com:([^\/\s]+)\/([^\/\s]+?)(?:\.git)?(?:\/.*)?$/);
+    const sshMatch = trimmed.match(/^git@github\.com:([^/\s]+)\/([^/\s]+?)(?:\.git)?(?:\/.*)?$/);
     if (sshMatch) {
       return { owner: sshMatch[1], repo: sshMatch[2] };
     }
 
     // 格式2: https://github.com/owner/repo(/...)(.git)
     const httpsMatch = trimmed.match(
-      /^https?:\/\/github\.com\/([^\/\s]+)\/([^\/\s]+?)(?:\.git)?(?:\/.*)?$/
+      /^https?:\/\/github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?(?:\/.*)?$/
     );
     if (httpsMatch) {
       return { owner: httpsMatch[1], repo: httpsMatch[2] };
     }
 
     // 格式3: 简写 owner/repo
-    const shortMatch = trimmed.match(/^([^\/\s]+)\/([^\/\s]+)$/);
+    const shortMatch = trimmed.match(/^([^/\s]+)\/([^/\s]+)$/);
     if (shortMatch && !trimmed.includes('://')) {
       return { owner: shortMatch[1], repo: shortMatch[2] };
     }
@@ -618,7 +618,7 @@ export async function createGithubBranch(
     if (!baseSha) return false;
 
     // 2. 创建新分支
-    const createResponse = await fetch(
+    const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/refs`,
       {
         method: 'POST',
@@ -630,202 +630,37 @@ export async function createGithubBranch(
       },
     );
 
-    return createResponse.ok;
+    return response.ok;
   } catch (error) {
-    console.error('[GITHUB CREATE BRANCH ERROR]', error);
+    console.error('[GITHUB BRANCH CREATE ERROR]', error);
     return false;
   }
 }
 
 /**
- * 列出仓库的所有分支
- * 调用 GitHub REST API: GET /repos/{owner}/{repo}/branches
- *
- * @param owner 仓库所有者
- * @param repo 仓库名
- * @returns 分支名列表，失败返回空数组
- */
-export async function fetchGithubBranches(
-  owner: string,
-  repo: string,
-): Promise<string[]> {
-  try {
-    const token = await getGithubToken();
-    const headers = buildGithubHeaders(token);
-
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`,
-      { headers },
-    );
-
-    if (!response.ok) return [];
-
-    const data = await response.json();
-    if (!Array.isArray(data)) return [];
-
-    return data.map((b: any) => b.name).filter(Boolean);
-  } catch (error) {
-    console.error('[GITHUB BRANCHES ERROR]', error);
-    return [];
-  }
-}
-
-/** 分支比较结果 */
-export interface BranchComparison {
-  /** 两个分支是否有差异 */
-  hasDiffs: boolean;
-  /** 差异提交数 */
-  commitsAhead: number;
- /** 源分支是否不存在 */
-  headNotFound: boolean;
-  /** 错误信息（比较本身失败时） */
-  error: string | null;
-}
-
-/**
- * 比较两个分支是否有差异
- * 调用 GitHub REST API: GET /repos/{owner}/{repo}/compare/{base}...{head}
- *
- * @param owner 仓库所有者
- * @param repo 仓库名
- * @param base 目标分支
- * @param head 源分支
- * @returns 比较结果
- */
-export async function compareGithubBranches(
-  owner: string,
-  repo: string,
-  base: string,
-  head: string,
-): Promise<BranchComparison> {
-  try {
-    const token = await getGithubToken();
-    const headers = buildGithubHeaders(token);
-
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/compare/${base}...${head}`,
-      { headers },
-    );
-
-    if (response.status === 404) {
-      // 404 可能是分支不存在
-      return {
-        hasDiffs: false,
-        commitsAhead: 0,
-        headNotFound: true,
-        error: `分支不存在：${base} 或 ${head} 在仓库 ${owner}/${repo} 中不存在`,
-      };
-    }
-
-    if (!response.ok) {
-      return {
-        hasDiffs: false,
-        commitsAhead: 0,
-        headNotFound: false,
-        error: `比较分支失败 (HTTP ${response.status})`,
-      };
-    }
-
-    const data = await response.json();
-    const commitsAhead = data.ahead_by ?? 0;
-    return {
-      hasDiffs: commitsAhead > 0,
-      commitsAhead,
-      headNotFound: false,
-      error: null,
-    };
-  } catch (error) {
-    console.error('[GITHUB COMPARE BRANCHES ERROR]', error);
-    return {
-      hasDiffs: false,
-      commitsAhead: 0,
-      headNotFound: false,
-      error: '比较分支时发生异常',
-    };
-  }
-}
-
-/** 创建 PR 的结果 */
-export interface GithubPullRequest {
-  number: number;
-  title: string;
-  url: string;
-  state: string;
-}
-
-/** 创建 PR 的返回值：成功时 data 有值，失败时 error 有值 */
-export interface CreatePRResult {
-  data: GithubPullRequest | null;
-  error: string | null;
-}
-
-/**
- * 创建 Pull Request
+ * 合并分支（创建 Pull Request）
  * 调用 GitHub REST API: POST /repos/{owner}/{repo}/pulls
  *
  * @param owner 仓库所有者
  * @param repo 仓库名
- * @param title PR 标题
- * @param body PR 描述
  * @param head 源分支
- * @param base 目标分支（默认仓库默认分支）
- * @returns { data, error } 成功时 data 有值，失败时 error 包含 GitHub 返回的错误信息
+ * @param base 目标分支
+ * @param title PR 标题
+ * @param body PR 正文（可选）
+ * @returns 是否创建成功
  */
-export async function createGithubPullRequest(
+export async function createPullRequest(
   owner: string,
   repo: string,
-  title: string,
-  body: string,
   head: string,
-  base?: string,
-): Promise<CreatePRResult> {
+  base: string,
+  title: string,
+  body?: string,
+): Promise<boolean> {
   try {
     const token = await getGithubToken();
     const headers = buildGithubHeaders(token);
     headers['Content-Type'] = 'application/json';
-
-    // 未指定 base 时获取默认分支
-    let baseBranch: string = base || '';
-    if (!baseBranch) {
-      const repoResponse = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}`,
-        { headers },
-      );
-      if (repoResponse.ok) {
-        const repoData = await repoResponse.json();
-        baseBranch = repoData.default_branch || 'main';
-      } else {
-        baseBranch = 'main';
-      }
-    }
-
-    // head 和 base 不能相同
-    if (head === baseBranch) {
-      return {
-        data: null,
-        error: '源分支和目标分支不能相同，请选择不同的分支',
-      };
-    }
-
-    // ---- 预检查：比较两个分支是否有差异 ----
-    // 如果源分支相对于目标分支没有任何新提交，GitHub 会返回 422 错误。
-    // 提前用 compare API 检测，给用户更清晰的引导。
-    const comparison = await compareGithubBranches(owner, repo, baseBranch, head);
-    if (comparison.headNotFound) {
-      return {
-        data: null,
-        error: `源分支 "${head}" 不存在，请检查分支名是否正确`,
-      };
-    }
-    if (comparison.error) {
-      // 比较本身失败，不阻塞，继续尝试创建 PR（让 GitHub 给最终答案）
-      console.warn('[PR PRE-CHECK] comparison failed, proceeding anyway:', comparison.error);
-    } else if (!comparison.hasDiffs) {
-      return {
-        data: null,
-        error: `源分支 "${head}" 相对于目标分支 "${baseBranch}" 没有任何新的提交。请先在源分支上修改文件并保存（会自动生成 commit），然后再发起 PR。操作步骤：选择源分支 → 点击文件编辑 → 保存修改 → 再发起 PR`,
-      };
-    }
 
     const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/pulls`,
@@ -834,175 +669,60 @@ export async function createGithubPullRequest(
         headers,
         body: JSON.stringify({
           title,
-          body,
           head,
-          base: baseBranch,
+          base,
+          body: body || '',
         }),
       },
     );
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => null);
-      const githubMsg = errData?.message || `HTTP ${response.status}`;
-      // GitHub 常见错误的有优化文案
-      let friendly = githubMsg;
-      if (response.status === 422) {
-        // 更具体的 422 错误提示
-        const errors = errData?.errors;
-        let detail = githubMsg;
-        if (Array.isArray(errors) && errors.length > 0) {
-          const errorMessages = errors.map((e: any) => e.message || '').filter(Boolean);
-          if (errorMessages.length > 0) detail = errorMessages.join('; ');
-        }
-        friendly = `GitHub 拒绝创建 PR：${detail}。最常见原因：源分支没有任何新的提交（请先在源分支上编辑文件并保存，再发起 PR）；其次是源分支不存在或仓库未开启 Pull Request 功能`;
-      } else if (response.status === 403) {
-        friendly = `权限不足：${githubMsg}。请检查 GitHub Token 是否有该仓库的写入权限`;
-      } else if (response.status === 404) {
-        friendly = `仓库不存在或 Token 无权访问：${owner}/${repo}`;
-      }
-      console.error(
-        `[GITHUB CREATE PR ERROR] status=${response.status}`,
-        githubMsg,
-      );
-      return { data: null, error: friendly };
-    }
-
-    const data = await response.json();
-
-    return {
-      data: {
-        number: data.number ?? 0,
-        title: data.title ?? title,
-        url: data.html_url ?? '',
-        state: data.state ?? 'open',
-      },
-      error: null,
-    };
+    return response.ok;
   } catch (error) {
-    console.error('[GITHUB CREATE PR ERROR]', error);
-    return { data: null, error: '创建 Pull Request 时发生异常' };
-  }
-}
-
-// ============ PR 审核与合并 ============
-
-/** GitHub PR 信息 */
-export interface GithubPRInfo {
-  number: number;
-  title: string;
-  body: string | null;
-  state: string;
-  htmlUrl: string;
-  headBranch: string;
-  baseBranch: string;
-  user: string | null;
-  userAvatar: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-  draft: boolean;
-  mergeable: boolean | null;
-}
-
-/** 合并 PR 的结果 */
-export interface MergePRResult {
-  success: boolean;
-  message: string;
-  merged: boolean;
-  sha?: string;
-}
-
-/**
- * 获取仓库的 PR 列表
- * 调用 GitHub REST API: GET /repos/{owner}/{repo}/pulls
- *
- * @param owner 仓库所有者
- * @param repo 仓库名
- * @param state PR 状态：open / closed / all，默认 open
- * @param perPage 每页数量，默认 20
- * @returns PR 列表，失败返回空数组
- */
-export async function fetchGithubPullRequests(
-  owner: string,
-  repo: string,
-  state: string = 'open',
-  perPage: number = 20,
-): Promise<GithubPRInfo[]> {
-  try {
-    const token = await getGithubToken();
-    const headers = buildGithubHeaders(token);
-
-    const url = new URL(`https://api.github.com/repos/${owner}/${repo}/pulls`);
-    url.searchParams.set('state', state);
-    url.searchParams.set('per_page', String(Math.min(Math.max(perPage, 1), 100)));
-    url.searchParams.set('sort', 'created');
-    url.searchParams.set('direction', 'desc');
-
-    const response = await fetch(url.toString(), { headers });
-
-    if (!response.ok) {
-      console.error(
-        `[GITHUB PR LIST ERROR] status=${response.status} owner=${owner} repo=${repo}`,
-      );
-      return [];
-    }
-
-    const data = await response.json();
-    if (!Array.isArray(data)) return [];
-
-    return data.map((item: any) => ({
-      number: item.number ?? 0,
-      title: item.title ?? '',
-      body: item.body ?? null,
-      state: item.state ?? 'open',
-      htmlUrl: item.html_url ?? '',
-      headBranch: item.head?.ref ?? '',
-      baseBranch: item.base?.ref ?? '',
-      user: item.user?.login ?? null,
-      userAvatar: item.user?.avatar_url ?? null,
-      createdAt: item.created_at ?? null,
-      updatedAt: item.updated_at ?? null,
-      draft: item.draft ?? false,
-      mergeable: item.mergeable ?? null,
-    }));
-  } catch (error) {
-    console.error('[GITHUB PR LIST ERROR]', error);
-    return [];
+    console.error('[GITHUB PR CREATE ERROR]', error);
+    return false;
   }
 }
 
 /**
- * 合并 Pull Request
+ * 合并 PR（通过 API 合并）
  * 调用 GitHub REST API: PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge
  *
  * @param owner 仓库所有者
  * @param repo 仓库名
- * @param prNumber PR 编号
- * @param commitTitle 合并提交标题
- * @param commitMessage 合并提交描述
- * @param mergeMethod 合并方式：merge / squash / rebase，默认 merge
- * @returns 合并结果
+ * @param pullNumber PR 编号
+ * @param commitTitle 合并提交标题（可选）
+ * @param commitMessage 合并提交消息（可选）
+ * @returns 是否合并成功
  */
-export async function mergeGithubPullRequest(
+export async function mergePullRequest(
   owner: string,
   repo: string,
-  prNumber: number,
+  pullNumber: number,
   commitTitle?: string,
   commitMessage?: string,
-  mergeMethod: 'merge' | 'squash' | 'rebase' = 'merge',
-): Promise<MergePRResult> {
+): Promise<boolean> {
   try {
     const token = await getGithubToken();
     const headers = buildGithubHeaders(token);
     headers['Content-Type'] = 'application/json';
 
     const body: Record<string, unknown> = {
-      merge_method: mergeMethod,
+      sha: '', // 需要获取当前 HEAD 的 SHA
     };
     if (commitTitle) body.commit_title = commitTitle;
     if (commitMessage) body.commit_message = commitMessage;
 
+    // 先获取 PR 信息以获取 SHA
+    const prResponse = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}`,
+      { headers },
+    );
+    if (!prResponse.ok) return false;
+    const prData = await prResponse.json();
+    body.sha = prData.head?.sha || '';
+
     const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/merge`,
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}/merge`,
       {
         method: 'PUT',
         headers,
@@ -1010,29 +730,92 @@ export async function mergeGithubPullRequest(
       },
     );
 
-    const data = await response.json().catch(() => null);
+    return response.ok;
+  } catch (error) {
+    console.error('[GITHUB PR MERGE ERROR]', error);
+    return false;
+  }
+}
+
+/**
+ * 获取 PR 列表
+ * 调用 GitHub REST API: GET /repos/{owner}/{repo}/pulls
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param state PR 状态（open/closed/all）
+ * @param perPage 每页数量
+ * @returns PR 列表
+ */
+export async function getPullRequests(
+  owner: string,
+  repo: string,
+  state: 'open' | 'closed' | 'all' = 'open',
+  perPage: number = 10,
+): Promise<any[]> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+
+    const url = new URL(
+      `https://api.github.com/repos/${owner}/${repo}/pulls`,
+    );
+    url.searchParams.set('state', state);
+    url.searchParams.set('per_page', String(Math.min(Math.max(perPage, 1), 100)));
+
+    const response = await fetch(url.toString(), { headers });
 
     if (!response.ok) {
-      const errMsg = data?.message || `HTTP ${response.status}`;
-      let friendly = errMsg;
-      if (response.status === 405) {
-        friendly = 'PR 不可合并，可能存在冲突或已关闭';
-      } else if (response.status === 403) {
-        friendly = `权限不足：${errMsg}。请检查 GitHub Token 是否有仓库写入权限`;
-      } else if (response.status === 404) {
-        friendly = `PR #${prNumber} 不存在`;
-      }
-      return { success: false, message: friendly, merged: false };
+      console.error(
+        `[GITHUB PRS ERROR] status=${response.status} owner=${owner} repo=${repo}`,
+      );
+      return [];
     }
 
-    return {
-      success: true,
-      message: data?.message || 'PR 合并成功',
-      merged: data?.merged ?? true,
-      sha: data?.sha,
-    };
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error('[GITHUB MERGE PR ERROR]', error);
-    return { success: false, message: '合并 PR 时发生异常', merged: false };
+    console.error('[GITHUB PRS ERROR]', error);
+    return [];
+  }
+}
+
+/**
+ * 获取仓库分支列表
+ * 调用 GitHub REST API: GET /repos/{owner}/{repo}/branches
+ *
+ * @param owner 仓库所有者
+ * @param repo 仓库名
+ * @param perPage 每页数量
+ * @returns 分支列表
+ */
+export async function getBranches(
+  owner: string,
+  repo: string,
+  perPage: number = 10,
+): Promise<any[]> {
+  try {
+    const token = await getGithubToken();
+    const headers = buildGithubHeaders(token);
+
+    const url = new URL(
+      `https://api.github.com/repos/${owner}/${repo}/branches`,
+    );
+    url.searchParams.set('per_page', String(Math.min(Math.max(perPage, 1), 100)));
+
+    const response = await fetch(url.toString(), { headers });
+
+    if (!response.ok) {
+      console.error(
+        `[GITHUB BRANCHES ERROR] status=${response.status} owner=${owner} repo=${repo}`,
+      );
+      return [];
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('[GITHUB BRANCHES ERROR]', error);
+    return [];
   }
 }
