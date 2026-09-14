@@ -1,401 +1,642 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useCallback } from "react";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
-import { adminFetch } from "@/lib/admin-fetch";
-import { formatDateTime } from "@/lib/admin-utils";
-import toast from "react-hot-toast";
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 import {
-  PageHeader, Card, CardBody, Button, Badge, Input, Textarea, Select,
-  FormField, Modal, ConfirmDialog, DataTable, EmptyState, TableLoading,
-  StatCard, SearchInput, Icons, IconButton,
-} from "@/components/admin/ui";
+  Shield,
+  Award,
+  Check,
+  Search,
+  Filter,
+  Star,
+  Users,
+  RefreshCw,
+  Crown,
+  Plus,
+  Trash2,
+  Edit2,
+  AlertCircle,
+  X,
+  Loader2,
+} from 'lucide-react';
 
-interface BadgeData {
+interface Badge {
   id: string;
   name: string;
   description: string;
   icon: string;
-  type: string;
-  condition: string | null;
+  color: string;
+  type: 'forum' | 'purchase' | 'achievement' | 'custom';
+  criteria: string;
+  isActive: boolean;
+  awardCount: number;
   createdAt: string;
-  awardedCount: number;
 }
 
-interface UserData {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-}
+const DEFAULT_BADGES: Badge[] = [
+  {
+    id: 'first-post',
+    name: '初露头角',
+    description: '发布第一篇论坛帖子',
+    icon: '📝',
+    color: '#10B981',
+    type: 'forum',
+    criteria: '发布一篇被审核通过的帖子',
+    isActive: true,
+    awardCount: 0,
+    createdAt: '2024-01-01',
+  },
+  {
+    id: 'active-contributor',
+    name: '活跃贡献者',
+    description: '累计发布10篇优质帖子',
+    icon: '🔥',
+    color: '#F59E0B',
+    type: 'forum',
+    criteria: '累计发布10篇被审核通过的帖子',
+    isActive: true,
+    awardCount: 0,
+    createdAt: '2024-01-01',
+  },
+  {
+    id: 'community-helper',
+    name: '社区帮手',
+    description: '获得50次评论点赞',
+    icon: '💬',
+    color: '#3B82F6',
+    type: 'forum',
+    criteria: '你的评论累计获得50个赞',
+    isActive: true,
+    awardCount: 0,
+    createdAt: '2024-01-01',
+  },
+  {
+    id: 'first-purchase',
+    name: '首购支持',
+    description: '完成第一笔产品购买',
+    icon: '🛒',
+    color: '#8B5CF6',
+    type: 'purchase',
+    criteria: '购买任意一个产品',
+    isActive: true,
+    awardCount: 0,
+    createdAt: '2024-01-01',
+  },
+  {
+    id: 'premium-member',
+    name: '高级会员',
+    description: '订阅3个月以上的高级套餐',
+    icon: '💎',
+    color: '#EC4899',
+    type: 'purchase',
+    criteria: '连续订阅高级套餐3个月',
+    isActive: true,
+    awardCount: 0,
+    createdAt: '2024-01-01',
+  },
+  {
+    id: 'bug-finder',
+    name: '漏洞猎手',
+    description: '报告并经确认的有效Bug',
+    icon: '🐛',
+    color: '#EF4444',
+    type: 'achievement',
+    criteria: '报告一个被确认的有效漏洞',
+    isActive: true,
+    awardCount: 0,
+    createdAt: '2024-01-01',
+  },
+];
 
 export default function BadgesPage() {
-  const { token } = useAppStore();
-  const [badges, setBadges] = useState<BadgeData[]>([]);
+  const router = useRouter();
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // 创建徽章
-  const [createOpen, setCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    icon: "",
-    type: "manual" as "manual" | "auto",
-    conditionField: "postCount",
-    conditionOperator: ">=",
-    conditionValue: "1",
+  // 新增/编辑表单状态
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    icon: '',
+    color: '#3B82F6',
+    type: 'forum' as Badge['type'],
+    criteria: '',
+    isActive: true,
   });
 
-  // 颁发徽章
-  const [awardOpen, setAwardOpen] = useState(false);
-  const [awarding, setAwarding] = useState(false);
-  const [awardBadgeId, setAwardBadgeId] = useState("");
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [userSearch, setUserSearch] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
+  useEffect(() => {
+    fetchBadges();
+  }, []);
 
-  // 删除
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const fetchBadges = useCallback(async () => {
-    if (!token) return;
+  const fetchBadges = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await adminFetch("/api/badges");
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setBadges(data.badges || []);
+      const res = await fetch('/api/badges');
+      if (res.ok) {
+        const data = await res.json();
+        setBadges(data.badges || DEFAULT_BADGES);
+      } else {
+        setBadges(DEFAULT_BADGES);
+      }
     } catch {
-      toast.error("获取徽章列表失败");
+      setBadges(DEFAULT_BADGES);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  };
 
-  useEffect(() => {
-    if (token) fetchBadges();
-  }, [token, fetchBadges]);
+  const filteredBadges = badges.filter((badge) => {
+    const matchesSearch =
+      badge.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      badge.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = filterType === 'all' || badge.type === filterType;
+    return matchesSearch && matchesType;
+  });
 
-  // 搜索用户
-  const fetchUsers = useCallback(async (q: string) => {
-    if (!token || !q.trim()) return;
+  const handleCreateOrUpdate = async () => {
+    if (!formData.name.trim() || !formData.description.trim()) {
+      alert('请填写名称和描述');
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      const res = await adminFetch(`/api/admin/users?search=${encodeURIComponent(q)}&limit=20`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setUsers(data.data || []);
-    } catch { /* ignore */ }
-  }, [token]);
+      const method = editingBadge ? 'PATCH' : 'POST';
+      const body = editingBadge
+        ? { ...formData, id: editingBadge.id }
+        : formData;
 
-  const debouncedUserSearch = useCallback(
-    (q: string) => {
-      const t = setTimeout(() => fetchUsers(q), 300);
-      return () => clearTimeout(t);
-    },
-    [fetchUsers],
-  );
+      const res = await fetch('/api/badges', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
 
-  function handleCreate() {
-    if (!form.name.trim() || !form.description.trim() || !form.icon.trim()) {
-      toast.error("名称、描述、图标不能为空");
-      return;
+      if (res.ok) {
+        setShowCreateModal(false);
+        setEditingBadge(null);
+        setFormData({
+          name: '',
+          description: '',
+          icon: '',
+          color: '#3B82F6',
+          type: 'forum',
+          criteria: '',
+          isActive: true,
+        });
+        fetchBadges();
+      }
+    } finally {
+      setIsSaving(false);
     }
+  };
 
-    setCreating(true);
-    const body: Record<string, unknown> = {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      icon: form.icon.trim(),
-      type: form.type,
+  const toggleBadgeStatus = async (badge: Badge) => {
+    try {
+      const res = await fetch(`/api/badges/${badge.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !badge.isActive }),
+      });
+      if (res.ok) {
+        fetchBadges();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const openEditModal = (badge: Badge) => {
+    setEditingBadge(badge);
+    setFormData({
+      name: badge.name,
+      description: badge.description,
+      icon: badge.icon,
+      color: badge.color,
+      type: badge.type,
+      criteria: badge.criteria,
+      isActive: badge.isActive,
+    });
+    setShowCreateModal(true);
+  };
+
+  const openCreateModal = () => {
+    setEditingBadge(null);
+    setFormData({
+      name: '',
+      description: '',
+      icon: '',
+      color: '#3B82F6',
+      type: 'forum',
+      criteria: '',
+      isActive: true,
+    });
+    setShowCreateModal(true);
+  };
+
+  const deleteBadge = async (id: string) => {
+    try {
+      const res = await fetch(`/api/badges/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setShowDeleteConfirm(null);
+        fetchBadges();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      forum: '论坛行为',
+      purchase: '购买行为',
+      achievement: '成就',
+      custom: '自定义',
     };
-
-    if (form.type === "auto") {
-      body.condition = {
-        field: form.conditionField,
-        operator: form.conditionOperator,
-        value: Number(form.conditionValue),
-      };
-    }
-
-    adminFetch("/api/badges", {
-      method: "POST",
-      body: JSON.stringify(body),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const d = await res.json();
-          throw new Error(d.error || "创建失败");
-        }
-        toast.success("徽章创建成功");
-        setCreateOpen(false);
-        setForm({ name: "", description: "", icon: "", type: "manual", conditionField: "postCount", conditionOperator: ">=", conditionValue: "1" });
-        fetchBadges();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setCreating(false));
-  }
-
-  function handleAward() {
-    if (!awardBadgeId || !selectedUserId) {
-      toast.error("请选择徽章和用户");
-      return;
-    }
-
-    setAwarding(true);
-    adminFetch(`/api/badges/${awardBadgeId}/award`, {
-      method: "POST",
-      body: JSON.stringify({ userId: selectedUserId }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const d = await res.json();
-          throw new Error(d.error || "颁发失败");
-        }
-        toast.success("徽章颁发成功");
-        setAwardOpen(false);
-        setSelectedUserId("");
-        setUserSearch("");
-        setUsers([]);
-        fetchBadges();
-      })
-      .catch((e) => toast.error(e.message))
-      .finally(() => setAwarding(false));
-  }
-
-  function handleDelete() {
-    if (!deleteId) return;
-    setDeleting(true);
-    // 直接通过SQL删除（没有DELETE API，用admin fetch到数据库管理）
-    adminFetch(`/api/admin/database`, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "execute",
-        sql: `DELETE FROM UserBadge WHERE badge_id = '${deleteId}'; DELETE FROM Badge WHERE id = '${deleteId}';`,
-      }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          // 降级：直接调用badges API没有DELETE，用提示
-          toast.error("删除失败，请通过数据库管理页面手动删除");
-          return;
-        }
-        toast.success("徽章已删除");
-        setDeleteId(null);
-        fetchBadges();
-      })
-      .catch(() => toast.error("删除失败"))
-      .finally(() => setDeleting(false));
-  }
-
-  const filtered = badges.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase()) ||
-    b.description.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const manualCount = badges.filter((b) => b.type === "manual").length;
-  const autoCount = badges.filter((b) => b.type === "auto").length;
-  const totalAwarded = badges.reduce((sum, b) => sum + b.awardedCount, 0);
+    return labels[type] || type;
+  };
 
   return (
-    <AdminLayout activeKey="badges">
-      <PageHeader
-        title="徽章管理"
-        subtitle="创建徽章、手动颁发给用户"
-        actions={
-          <>
-            <Button variant="secondary" onClick={() => { setAwardBadgeId(badges[0]?.id || ""); setAwardOpen(true); }} disabled={badges.length === 0}>
-              <Icons.Users className="w-4 h-4" />
-              颁发徽章
-            </Button>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Icons.Plus className="w-4 h-4" />
-              创建徽章
-            </Button>
-          </>
-        }
-      />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">徽章管理</h1>
+          <p className="text-muted-foreground mt-1">
+            管理系统徽章，自动奖励给用户
+          </p>
+        </div>
+        <Button onClick={openCreateModal}>
+          <Plus className="h-4 w-4 mr-2" />
+          新建徽章
+        </Button>
+      </div>
+
+      {/* 搜索和筛选 */}
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="搜索徽章..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+        >
+          <option value="all">全部类型</option>
+          <option value="forum">论坛行为</option>
+          <option value="purchase">购买行为</option>
+          <option value="achievement">成就</option>
+          <option value="custom">自定义</option>
+        </select>
+        <Button variant="outline" size="icon" onClick={fetchBadges}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
 
       {/* 统计 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="徽章总数" value={badges.length} icon={<Icons.Scroll className="w-5 h-5" />} color="blue" />
-        <StatCard label="手动徽章" value={manualCount} icon={<Icons.Key className="w-5 h-5" />} color="indigo" />
-        <StatCard label="自动徽章" value={autoCount} icon={<Icons.Chart className="w-5 h-5" />} color="purple" />
-        <StatCard label="已颁发总数" value={totalAwarded} icon={<Icons.Check className="w-5 h-5" />} color="green" />
-      </div>
-
-      {/* 搜索 */}
-      <div className="mb-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="搜索徽章名称或描述..." />
-      </div>
-
-      {/* 列表 */}
-      <Card>
-        {loading ? (
-          <TableLoading cols={5} rows={4} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={<Icons.Scroll className="w-12 h-12" />}
-            title="暂无徽章"
-            description="点击右上角「创建徽章」添加第一个徽章"
-            action={<Button onClick={() => setCreateOpen(true)}><Icons.Plus className="w-4 h-4" />创建徽章</Button>}
-          />
-        ) : (
-          <DataTable headers={["图标", "名称", "描述", "类型", "已颁发", "创建时间", "操作"]}>
-            {filtered.map((b) => (
-              <tr key={b.id}>
-                <td><span className="text-2xl">{b.icon}</span></td>
-                <td><span className="font-medium text-gray-900">{b.name}</span></td>
-                <td><span className="text-gray-600 max-w-xs truncate block">{b.description}</span></td>
-                <td>
-                  {b.type === "auto"
-                    ? <Badge color="purple">自动</Badge>
-                    : <Badge color="blue">手动</Badge>}
-                </td>
-                <td><span className="font-medium">{b.awardedCount}</span> 人</td>
-                <td><span className="text-sm text-gray-500">{formatDateTime(b.createdAt)}</span></td>
-                <td>
-                  <div className="flex items-center gap-1">
-                    <IconButton
-                      icon={<Icons.Users className="w-4 h-4" />}
-                      title="颁发给用户"
-                      onClick={() => { setAwardBadgeId(b.id); setAwardOpen(true); }}
-                    />
-                    <IconButton
-                      icon={<Icons.Trash className="w-4 h-4" />}
-                      title="删除"
-                      variant="danger"
-                      onClick={() => setDeleteId(b.id)}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </DataTable>
-        )}
-      </Card>
-
-      {/* 创建徽章 Modal */}
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="创建徽章" size="md">
-        <div className="space-y-4">
-          <FormField label="徽章名称">
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如：技术专家" />
-          </FormField>
-          <FormField label="徽章描述">
-            <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="如：在技术领域有突出贡献的用户" />
-          </FormField>
-          <FormField label="图标" hint="输入 emoji 或图标 URL">
-            <Input value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} placeholder="如：🏆" />
-          </FormField>
-          <FormField label="徽章类型">
-            <Select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as "manual" | "auto" })}>
-              <option value="manual">手动颁发</option>
-              <option value="auto">自动颁发（满足条件自动发放）</option>
-            </Select>
-          </FormField>
-          {form.type === "auto" && (
-            <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-              <p className="text-sm font-medium text-gray-700">自动颁发条件</p>
-              <div className="grid grid-cols-3 gap-3">
-                <FormField label="字段">
-                  <Select value={form.conditionField} onChange={(e) => setForm({ ...form, conditionField: e.target.value })}>
-                    <option value="postCount">帖子数</option>
-                    <option value="commentCount">评论数</option>
-                    <option value="reputation">声望值</option>
-                  </Select>
-                </FormField>
-                <FormField label="比较">
-                  <Select value={form.conditionOperator} onChange={(e) => setForm({ ...form, conditionOperator: e.target.value })}>
-                    <option value=">=">≥ 大于等于</option>
-                    <option value=">">&gt; 大于</option>
-                    <option value="<=">≤ 小于等于</option>
-                    <option value="<">&lt; 小于</option>
-                    <option value="==">= 等于</option>
-                  </Select>
-                </FormField>
-                <FormField label="数值">
-                  <Input type="number" value={form.conditionValue} onChange={(e) => setForm({ ...form, conditionValue: e.target.value })} />
-                </FormField>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Award className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{badges.length}</p>
+                <p className="text-xs text-muted-foreground">总徽章数</p>
               </div>
             </div>
-          )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <Check className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">
+                  {badges.filter((b) => b.isActive).length}
+                </p>
+                <p className="text-xs text-muted-foreground">已启用</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Users className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">
+                  {badges.reduce((sum, b) => sum + b.awardCount, 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">已发放</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple-500/10">
+                <Star className="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">
+                  {new Set(badges.map((b) => b.type)).size}
+                </p>
+                <p className="text-xs text-muted-foreground">类型数</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 徽章列表 */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <Skeleton className="h-24 w-full" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        <div className="flex justify-end gap-2 mt-6">
-          <Button variant="secondary" onClick={() => setCreateOpen(false)}>取消</Button>
-          <Button onClick={handleCreate} loading={creating}>创建</Button>
+      ) : filteredBadges.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>没有找到匹配的徽章</p>
         </div>
-      </Modal>
-
-      {/* 颁发徽章 Modal */}
-      <Modal open={awardOpen} onClose={() => { setAwardOpen(false); setSelectedUserId(""); setUserSearch(""); setUsers([]); }} title="手动颁发徽章" size="md">
-        <div className="space-y-4">
-          <FormField label="选择徽章">
-            <Select value={awardBadgeId} onChange={(e) => setAwardBadgeId(e.target.value)}>
-              {badges.map((b) => (
-                <option key={b.id} value={b.id}>{b.icon} {b.name}</option>
-              ))}
-            </Select>
-          </FormField>
-
-          <FormField label="搜索用户">
-            <SearchInput
-              value={userSearch}
-              onChange={(v) => { setUserSearch(v); debouncedUserSearch(v); }}
-              placeholder="输入用户名或邮箱..."
-            />
-          </FormField>
-
-          {users.length > 0 && (
-            <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
-              {users.map((u) => (
-                <button
-                  key={u.id}
-                  onClick={() => setSelectedUserId(u.id)}
-                  className={`flex items-center gap-3 w-full px-4 py-2.5 text-left text-sm border-b border-gray-50 last:border-0 transition-colors ${selectedUserId === u.id ? "bg-brand-50" : "hover:bg-gray-50"}`}
-                >
-                  <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-medium">
-                    {u.username.charAt(0).toUpperCase()}
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredBadges.map((badge) => (
+            <Card key={badge.id} className="relative group">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div
+                    className="text-4xl"
+                    style={{ color: badge.color }}
+                  >
+                    {badge.icon || '🏅'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">{u.username}</p>
-                    <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold truncate">{badge.name}</h3>
+                      <Badge
+                        variant={badge.isActive ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {badge.isActive ? '启用' : '禁用'}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {badge.description}
+                    </p>
+                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                      <span>{getTypeLabel(badge.type)}</span>
+                      <span>·</span>
+                      <span>{badge.awardCount} 人已获得</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                      <span className="font-medium">条件：</span>
+                      {badge.criteria}
+                    </p>
                   </div>
-                  {u.role === "ADMIN" && <Badge color="indigo">管理员</Badge>}
-                  {selectedUserId === u.id && <Icons.Check className="w-4 h-4 text-brand-600" />}
-                </button>
-              ))}
-            </div>
-          )}
+                </div>
 
-          {selectedUserId && (
-            <div className="flex items-center gap-2 p-3 bg-brand-50 rounded-lg text-sm text-brand-700">
-              <Icons.Check className="w-4 h-4" />
-              已选择: {users.find((u) => u.id === selectedUserId)?.username}
-            </div>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 mt-6">
-          <Button variant="secondary" onClick={() => { setAwardOpen(false); setSelectedUserId(""); setUserSearch(""); setUsers([]); }}>取消</Button>
-          <Button onClick={handleAward} loading={awarding} disabled={!selectedUserId}>
-            <Icons.Check className="w-4 h-4" />
-            确认颁发
-          </Button>
-        </div>
-      </Modal>
+                <Separator className="my-4" />
 
-      {/* 删除确认 */}
-      <ConfirmDialog
-        open={!!deleteId}
-        title="删除徽章"
-        message="确定要删除此徽章吗？已颁发给用户的记录也会一并删除，此操作不可撤销。"
-        confirmText="删除"
-        danger
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteId(null)}
-      />
-    </AdminLayout>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => toggleBadgeStatus(badge)}
+                  >
+                    {badge.isActive ? (
+                      <>
+                        <X className="h-3 w-3 mr-1" />
+                        禁用
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-3 w-3 mr-1" />
+                        启用
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditModal(badge)}
+                  >
+                    <Edit2 className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(badge.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </CardContent>
+
+              {/* 删除确认 */}
+              {showDeleteConfirm === badge.id && (
+                <div className="absolute inset-0 bg-background/95 backdrop-blur-sm rounded-lg flex items-center justify-center p-4">
+                  <div className="text-center">
+                    <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                    <p className="text-sm font-medium">确认删除徽章？</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      此操作不可撤销
+                    </p>
+                    <div className="flex gap-2 mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDeleteConfirm(null)}
+                      >
+                        取消
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteBadge(badge.id)}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* 创建/编辑 Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">
+                  {editingBadge ? '编辑徽章' : '新建徽章'}
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">徽章名称 *</label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    placeholder="例如：初露头角"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">描述 *</label>
+                  <Input
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    placeholder="简短描述此徽章的获得条件"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">图标 Emoji</label>
+                  <Input
+                    value={formData.icon}
+                    onChange={(e) =>
+                      setFormData({ ...formData, icon: e.target.value })
+                    }
+                    placeholder="例如：🏅"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">颜色</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={formData.color}
+                      onChange={(e) =>
+                        setFormData({ ...formData, color: e.target.value })
+                      }
+                      className="w-10 h-10 rounded cursor-pointer"
+                    />
+                    <Input
+                      value={formData.color}
+                      onChange={(e) =>
+                        setFormData({ ...formData, color: e.target.value })
+                      }
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">类型</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        type: e.target.value as Badge['type'],
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background"
+                  >
+                    <option value="forum">论坛行为</option>
+                    <option value="purchase">购买行为</option>
+                    <option value="achievement">成就</option>
+                    <option value="custom">自定义</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">获得条件</label>
+                  <textarea
+                    value={formData.criteria}
+                    onChange={(e) =>
+                      setFormData({ ...formData, criteria: e.target.value })
+                    }
+                    placeholder="描述用户需要满足什么条件才能获得此徽章"
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={formData.isActive}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        isActive: e.target.checked,
+                      })
+                    }
+                    className="rounded"
+                  />
+                  <label htmlFor="isActive" className="text-sm">
+                    默认启用
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  取消
+                </Button>
+                <Button onClick={handleCreateOrUpdate} disabled={isSaving}>
+                  {isSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  {editingBadge ? '保存修改' : '创建徽章'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 }

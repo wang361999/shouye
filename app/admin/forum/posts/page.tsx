@@ -1,455 +1,359 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
-import { adminFetch } from "@/lib/admin-fetch";
-import toast from "react-hot-toast";
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  PageHeader,
-  Card,
-  CardBody,
-  Button,
-  Badge,
-  StatCard,
-  DataTable,
-  IconButton,
-  SearchInput,
-  Select,
-  ConfirmDialog,
-  EmptyState,
-  TableLoading,
-  Pagination,
-  Icons,
-  Spinner,
-} from "@/components/admin/ui";
+  MessageSquare,
+  Search,
+  Filter,
+  Trash2,
+  Eye,
+  User,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  ThumbsUp,
+  MessageCircle,
+} from 'lucide-react';
 
 interface Post {
   id: string;
   title: string;
   content: string;
-  author: { id: string; username: string };
-  category: { id: string; name: string; slug: string } | null;
+  authorId: string;
+  authorName: string;
+  authorAvatar?: string;
+  categoryId: string;
+  categoryName: string;
   viewCount: number;
   likeCount: number;
   commentCount: number;
-  isPinned: boolean;
-  isEssence: boolean;
+  status: 'DRAFT' | 'PUBLISHED' | 'HIDDEN' | 'DELETED';
+  isSticky: boolean;
   isLocked: boolean;
-  status: string;
   createdAt: string;
+  updatedAt: string;
 }
-
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-type StatusFilter = "all" | "normal" | "pinned" | "essence" | "deleted";
-
-const PAGE_SIZE = 15;
 
 export default function ForumPostsPage() {
-  const { token } = useAppStore();
   const router = useRouter();
-
   const [posts, setPosts] = useState<Post[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [token, setToken] = useState('');
 
-  // 操作确认弹窗
-  const [deleteTarget, setDeleteTarget] = useState<Post | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [wechatSyncing, setWechatSyncing] = useState<string | null>(null);
+  useEffect(() => {
+    const stored = localStorage.getItem('admin_token');
+    if (stored) setToken(stored);
+  }, []);
 
   const fetchPosts = useCallback(async () => {
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
+    setLoading(true);
     try {
-      setLoading(true);
       const params = new URLSearchParams({
-        admin: "1",
-        page: String(currentPage),
-        limit: String(PAGE_SIZE),
-        search: searchKeyword.trim(),
+        page: currentPage.toString(),
+        limit: '20',
+        ...(filterStatus !== 'all' && { status: filterStatus }),
+        ...(searchQuery && { search: searchQuery }),
       });
 
-      // 状态筛选传递给 API（all 不传）
-      if (statusFilter === "deleted") {
-        params.set("status", "DELETED");
-      } else if (statusFilter === "normal") {
-        params.set("status", "PUBLISHED");
-      }
+      const res = await fetch(`/api/forum/posts?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // 分类筛选传递给 API
-      if (categoryFilter !== "all") {
-        params.set("category", categoryFilter);
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(data.posts || []);
+        setTotalPages(data.totalPages || 1);
       }
-
-      const res = await adminFetch(`/api/forum/posts?${params.toString()}`);
-      if (!res.ok) throw new Error("获取失败");
-      const data = await res.json();
-      setPosts(
-        (data.posts || []).map((p: Post) => ({
-          ...p,
-          id: String(p.id),
-          category: p.category
-            ? {
-                id: String(p.category.id),
-                name: p.category.name,
-                slug: p.category.slug,
-              }
-            : null,
-        }))
-      );
-      setTotalPages(data.totalPages || 1);
-      setTotalCount(data.total || 0);
-    } catch {
-      toast.error("获取帖子列表失败");
     } finally {
       setLoading(false);
     }
-  }, [token, searchKeyword, statusFilter, categoryFilter, currentPage]);
+  }, [token, currentPage, filterStatus, searchQuery, router]);
 
-  const fetchCategories = useCallback(async () => {
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  const handleDelete = async (postId: string) => {
+    if (!confirm('确定要删除这篇帖子吗？此操作不可恢复。')) return;
+
     try {
-      const res = await fetch("/api/forum/categories");
+      const res = await fetch(`/api/forum/posts/${postId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
       if (res.ok) {
-        const data = await res.json();
-        setCategories(data);
+        fetchPosts();
       }
     } catch {
-      // 忽略分类获取失败
+      // ignore
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    if (token) fetchPosts();
-  }, [token, fetchPosts]);
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  // 筛选条件变化时重置到第一页
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchKeyword, statusFilter, categoryFilter]);
-
-  // 统计
-  const stats = useMemo(() => {
-    return { total: totalCount, todayNew: 0, deleted: 0 };
-  }, [totalCount]);
-
-  async function patchPost(post: Post, action: string) {
-    if (actionLoading || post.status === "DELETED") return;
+  const handleToggleStatus = async (post: Post) => {
+    const newStatus = post.status === 'HIDDEN' ? 'PUBLISHED' : 'HIDDEN';
     try {
-      setActionLoading(`${post.id}-${action}`);
-      const res = await adminFetch(`/api/forum/posts/${post.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action }),
+      const res = await fetch(`/api/forum/posts/${post.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "操作失败");
-        return;
-      }
-      const data = await res.json();
-      toast.success(data.message);
-      setPosts((prev) =>
-        prev.map((p) => {
-          if (p.id !== post.id) return p;
-          return {
-            ...p,
-            isPinned: data.isPinned !== undefined ? data.isPinned : p.isPinned,
-            isEssence:
-              data.isEssence !== undefined ? data.isEssence : p.isEssence,
-            isLocked:
-              data.isLocked !== undefined ? data.isLocked : p.isLocked,
-          };
-        })
-      );
-    } catch {
-      toast.error("操作失败，请稍后重试");
-    } finally {
-      setActionLoading(null);
-    }
-  }
 
-  async function handleDelete() {
-    if (!deleteTarget || deleting) return;
-    try {
-      setDeleting(true);
-      const res = await adminFetch(`/api/forum/posts/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "删除失败");
-        return;
+      if (res.ok) {
+        fetchPosts();
       }
-      toast.success("帖子已删除");
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === deleteTarget.id ? { ...p, status: "DELETED" } : p
-        )
-      );
-      setDeleteTarget(null);
     } catch {
-      toast.error("删除失败，请稍后重试");
-    } finally {
-      setDeleting(false);
+      // ignore
     }
-  }
+  };
 
-  async function handleWechatSync(post: Post) {
-    if (wechatSyncing || post.status === "DELETED") return;
-    try {
-      setWechatSyncing(post.id);
-      const res = await adminFetch("/api/wechat/sync", {
-        method: "POST",
-        body: JSON.stringify({ postId: post.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "同步失败");
-        return;
-      }
-      toast.success("已同步到微信草稿箱");
-    } catch {
-      toast.error("同步失败，请稍后重试");
-    } finally {
-      setWechatSyncing(null);
-    }
-  }
+  const getStatusBadge = (status: string) => {
+    const badges: Record<string, { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline' }> = {
+      PUBLISHED: { label: '已发布', variant: 'default' },
+      DRAFT: { label: '草稿', variant: 'secondary' },
+      HIDDEN: { label: '已隐藏', variant: 'destructive' },
+      DELETED: { label: '已删除', variant: 'destructive' },
+    };
+    const badge = badges[status] || { label: status, variant: 'secondary' };
+    return <Badge variant={badge.variant}>{badge.label}</Badge>;
+  };
 
   return (
-    <AdminLayout activeKey="forum-posts">
-      <div className="space-y-6">
-        {/* 页头 */}
-        <PageHeader
-          title="帖子管理"
-          actions={
-            <Link
-              href="/forum/new"
-              className="admin-btn-primary inline-flex items-center gap-1.5"
-            >
-              <Icons.Plus className="w-4 h-4" />
-              发布公告
-            </Link>
-          }
-        />
-
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard
-            label="总帖子"
-            value={stats.total}
-            icon={<Icons.Doc className="w-5 h-5" />}
-            color="blue"
-          />
-          <StatCard
-            label="今日新增"
-            value={stats.todayNew}
-            icon={<Icons.Plus className="w-5 h-5" />}
-            color="green"
-          />
-          <StatCard
-            label="已删除"
-            value={stats.deleted}
-            icon={<Icons.Trash className="w-5 h-5" />}
-            color="red"
-          />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">帖子管理</h1>
+          <p className="text-muted-foreground mt-1">
+            管理论坛帖子内容
+          </p>
         </div>
-
-        {/* 搜索筛选栏 */}
-        <Card>
-          <CardBody>
-            <div className="flex flex-wrap items-center gap-3">
-              <SearchInput
-                value={searchKeyword}
-                onChange={setSearchKeyword}
-                placeholder="搜索帖子标题或内容..."
-              />
-              <Select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">全部分类</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.slug}>
-                    {cat.name}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              >
-                <option value="all">全部状态</option>
-                <option value="normal">正常</option>
-                <option value="pinned">置顶</option>
-                <option value="essence">精华</option>
-                <option value="deleted">已删除</option>
-              </Select>
-              <Button variant="secondary" onClick={fetchPosts}>
-                搜索
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* 帖子表格 */}
-        {loading ? (
-          <Card>
-            <DataTable headers={["标题", "分类", "作者", "回复", "点赞", "状态", "操作"]}>
-              <TableLoading cols={7} rows={6} />
-            </DataTable>
-          </Card>
-        ) : posts.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<Icons.Chat className="w-12 h-12" />}
-              title={
-                searchKeyword ||
-                statusFilter !== "all" ||
-                categoryFilter !== "all"
-                  ? "没有符合条件的帖子"
-                  : "暂无帖子"
-              }
-            />
-          </Card>
-        ) : (
-          <Card>
-            <DataTable headers={["标题", "分类", "作者", "回复", "点赞", "状态", "操作"]}>
-              {posts.map((post) => (
-                <tr
-                  key={post.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-4 py-3 max-w-[240px]">
-                    <Link
-                      href={`/forum/post/${post.id}`}
-                      className="text-gray-900 hover:text-blue-600 hover:underline line-clamp-1 block"
-                      title={post.title}
-                    >
-                      {post.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {post.category?.name || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {post.author.username}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{post.commentCount}</td>
-                  <td className="px-4 py-3 text-gray-600">{post.likeCount}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {post.status === "DELETED" ? (
-                        <Badge color="gray">已删</Badge>
-                      ) : (
-                        <>
-                          {post.isPinned && <Badge color="red">置顶</Badge>}
-                          {post.isEssence && <Badge color="purple">精华</Badge>}
-                          {post.isLocked && <Badge color="yellow">锁定</Badge>}
-                          {!post.isPinned &&
-                            !post.isEssence &&
-                            !post.isLocked && <Badge color="green">正常</Badge>}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-0.5 flex-wrap">
-                      <IconButton
-                        icon={<Icons.Edit />}
-                        onClick={() => router.push(`/forum/post/${post.id}/edit`)}
-                        title="编辑"
-                      />
-                      <IconButton
-                        icon={<Icons.Eye />}
-                        onClick={() => router.push(`/forum/post/${post.id}`)}
-                        title="查看"
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">📌</span>}
-                        onClick={() => patchPost(post, "pin")}
-                        title={post.isPinned ? "取消置顶" : "置顶"}
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">⭐</span>}
-                        onClick={() => patchPost(post, "essence")}
-                        title={post.isEssence ? "取消精华" : "加精"}
-                      />
-                      <IconButton
-                        icon={<Icons.Lock />}
-                        onClick={() =>
-                          patchPost(post, post.isLocked ? "unlock" : "lock")
-                        }
-                        title={post.isLocked ? "解锁" : "锁定"}
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">📱</span>}
-                        onClick={() => handleWechatSync(post)}
-                        title="同步到微信"
-                      />
-                      {post.status !== "DELETED" && (
-                        <IconButton
-                          icon={<Icons.Trash />}
-                          onClick={() => setDeleteTarget(post)}
-                          title="删除"
-                          variant="danger"
-                        />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </DataTable>
-          </Card>
-        )}
-
-        {/* 底部分页 */}
-        {!loading && posts.length > 0 && (
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="text-sm text-gray-500">
-              共 <span className="font-medium text-gray-700">{totalCount}</span> 篇帖子
-            </div>
-            <Pagination
-              page={currentPage}
-              totalPages={totalPages}
-              onChange={setCurrentPage}
-            />
-          </div>
-        )}
+        <Button variant="outline" onClick={fetchPosts}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          刷新
+        </Button>
       </div>
 
-      {/* 删除确认弹窗 */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        title="确认删除"
-        message={
-          deleteTarget
-            ? `确定要删除帖子「${deleteTarget.title}」吗？此为软删除，可在数据库恢复。`
-            : ""
-        }
-        confirmText="确认删除"
-        cancelText="取消"
-        onConfirm={handleDelete}
-        onCancel={() => {
-          if (!deleting) setDeleteTarget(null);
-        }}
-        danger
-      />
-    </AdminLayout>
+      {/* 搜索和筛选 */}
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="搜索帖子标题..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+        >
+          <option value="all">全部状态</option>
+          <option value="PUBLISHED">已发布</option>
+          <option value="DRAFT">草稿</option>
+          <option value="HIDDEN">已隐藏</option>
+          <option value="DELETED">已删除</option>
+        </select>
+      </div>
+
+      {/* 帖子列表 */}
+      {loading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>没有找到帖子</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {posts.map((post) => (
+            <Card key={post.id} className="hover:border-primary/50 transition-colors">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                    {post.authorAvatar ? (
+                      <img
+                        src={post.authorAvatar}
+                        alt={post.authorName}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold truncate">{post.title}</h3>
+                      {post.isSticky && (
+                        <Badge variant="default" className="text-xs">置顶</Badge>
+                      )}
+                      {getStatusBadge(post.status)}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      作者：<span className="font-medium">{post.authorName}</span>
+                      {' · '}分类：<span className="font-medium">{post.categoryName}</span>
+                    </p>
+                    <p className="mt-2 text-sm line-clamp-2">{post.content}</p>
+                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-3 w-3" />
+                        {post.viewCount} 浏览
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <ThumbsUp className="h-3 w-3" />
+                        {post.likeCount} 点赞
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MessageCircle className="h-3 w-3" />
+                        {post.commentCount} 评论
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(post.createdAt).toLocaleDateString('zh-CN')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedPost(post)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleStatus(post)}
+                    >
+                      {post.status === 'HIDDEN' ? '公开' : '隐藏'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(post.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* 分页 */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => p - 1)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            第 {currentPage} / {totalPages} 页
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => p + 1)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* 详情 Modal */}
+      {selectedPost && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">帖子详情</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedPost(null)}
+                >
+                  ✕
+                </Button>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                    {selectedPost.authorAvatar ? (
+                      <img
+                        src={selectedPost.authorAvatar}
+                        alt={selectedPost.authorName}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-6 w-6 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium">{selectedPost.authorName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(selectedPost.createdAt).toLocaleString('zh-CN')}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">{selectedPost.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    分类：{selectedPost.categoryName}
+                  </p>
+                </div>
+                <div className="prose prose-sm max-w-none">
+                  <div className="p-4 bg-muted rounded-lg whitespace-pre-wrap">
+                    {selectedPost.content}
+                  </div>
+                </div>
+                <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                  <span>👁️ {selectedPost.viewCount} 浏览</span>
+                  <span>👍 {selectedPost.likeCount} 点赞</span>
+                  <span>💬 {selectedPost.commentCount} 评论</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 }
