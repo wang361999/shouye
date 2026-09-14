@@ -1,455 +1,205 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
-import { adminFetch } from "@/lib/admin-fetch";
-import toast from "react-hot-toast";
-import {
-  PageHeader,
-  Card,
-  CardBody,
-  Button,
-  Badge,
-  StatCard,
-  DataTable,
-  IconButton,
-  SearchInput,
-  Select,
-  ConfirmDialog,
-  EmptyState,
-  TableLoading,
-  Pagination,
-  Icons,
-  Spinner,
-} from "@/components/admin/ui";
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardBody, CardHeader, Button } from '@/components/admin/ui';
+import { Post, MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Post {
   id: string;
   title: string;
   content: string;
-  author: { id: string; username: string };
-  category: { id: string; name: string; slug: string } | null;
-  viewCount: number;
-  likeCount: number;
-  commentCount: number;
-  isPinned: boolean;
-  isEssence: boolean;
-  isLocked: boolean;
-  status: string;
+  author: {
+    id: string;
+    username: string;
+    avatar?: string;
+  };
+  category: {
+    id: string;
+    name: string;
+  };
   createdAt: string;
+  status: 'PUBLISHED' | 'DRAFT' | 'DELETED';
+  viewCount: number;
+  commentCount: number;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-type StatusFilter = "all" | "normal" | "pinned" | "essence" | "deleted";
-
-const PAGE_SIZE = 15;
-
-export default function ForumPostsPage() {
-  const { token } = useAppStore();
-  const router = useRouter();
-
+export default function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-
-  // 操作确认弹窗
-  const [deleteTarget, setDeleteTarget] = useState<Post | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [wechatSyncing, setWechatSyncing] = useState<string | null>(null);
+  const [token, setToken] = useState<string>('');
 
   const fetchPosts = useCallback(async () => {
     try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        admin: "1",
-        page: String(currentPage),
-        limit: String(PAGE_SIZE),
-        search: searchKeyword.trim(),
-      });
-
-      // 状态筛选传递给 API（all 不传）
-      if (statusFilter === "deleted") {
-        params.set("status", "DELETED");
-      } else if (statusFilter === "normal") {
-        params.set("status", "PUBLISHED");
-      }
-
-      // 分类筛选传递给 API
-      if (categoryFilter !== "all") {
-        params.set("category", categoryFilter);
-      }
-
-      const res = await adminFetch(`/api/forum/posts?${params.toString()}`);
-      if (!res.ok) throw new Error("获取失败");
-      const data = await res.json();
-      setPosts(
-        (data.posts || []).map((p: Post) => ({
-          ...p,
-          id: String(p.id),
-          category: p.category
-            ? {
-                id: String(p.category.id),
-                name: p.category.name,
-                slug: p.category.slug,
-              }
-            : null,
-        }))
-      );
+      const response = await fetch(`/api/forum/posts?page=${page}&limit=20`);
+      if (!response.ok) throw new Error('获取帖子列表失败');
+      const data = await response.json();
+      setPosts(data.posts || []);
       setTotalPages(data.totalPages || 1);
-      setTotalCount(data.total || 0);
-    } catch {
-      toast.error("获取帖子列表失败");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '获取帖子列表失败');
     } finally {
       setLoading(false);
     }
-  }, [token, searchKeyword, statusFilter, categoryFilter, currentPage]);
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await fetch("/api/forum/categories");
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data);
-      }
-    } catch {
-      // 忽略分类获取失败
-    }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
-    if (token) fetchPosts();
-  }, [token, fetchPosts]);
+    fetchPosts();
+  }, [fetchPosts]);
 
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  // 筛选条件变化时重置到第一页
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchKeyword, statusFilter, categoryFilter]);
-
-  // 统计
-  const stats = useMemo(() => {
-    return { total: totalCount, todayNew: 0, deleted: 0 };
-  }, [totalCount]);
-
-  async function patchPost(post: Post, action: string) {
-    if (actionLoading || post.status === "DELETED") return;
+  const handleStatusChange = async (id: string, status: Post['status']) => {
     try {
-      setActionLoading(`${post.id}-${action}`);
-      const res = await adminFetch(`/api/forum/posts/${post.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action }),
+      const csrfToken = await fetch('/api/csrf').then(r => r.json()).then(d => d.csrfToken);
+      const response = await fetch(`/api/forum/posts/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ status }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "操作失败");
-        return;
-      }
-      const data = await res.json();
-      toast.success(data.message);
-      setPosts((prev) =>
-        prev.map((p) => {
-          if (p.id !== post.id) return p;
-          return {
-            ...p,
-            isPinned: data.isPinned !== undefined ? data.isPinned : p.isPinned,
-            isEssence:
-              data.isEssence !== undefined ? data.isEssence : p.isEssence,
-            isLocked:
-              data.isLocked !== undefined ? data.isLocked : p.isLocked,
-          };
-        })
-      );
-    } catch {
-      toast.error("操作失败，请稍后重试");
-    } finally {
-      setActionLoading(null);
+      
+      if (!response.ok) throw new Error('操作失败');
+      
+      toast.success('帖子状态已更新');
+      fetchPosts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '操作失败');
     }
-  }
+  };
 
-  async function handleDelete() {
-    if (!deleteTarget || deleting) return;
+  const handleDelete = async (id: string) => {
+    if (!confirm('确定要删除这篇帖子吗？此操作不可恢复。')) return;
+    
     try {
-      setDeleting(true);
-      const res = await adminFetch(`/api/forum/posts/${deleteTarget.id}`, {
-        method: "DELETE",
+      const csrfToken = await fetch('/api/csrf').then(r => r.json()).then(d => d.csrfToken);
+      const response = await fetch(`/api/forum/posts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
       });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "删除失败");
-        return;
-      }
-      toast.success("帖子已删除");
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === deleteTarget.id ? { ...p, status: "DELETED" } : p
-        )
-      );
-      setDeleteTarget(null);
-    } catch {
-      toast.error("删除失败，请稍后重试");
-    } finally {
-      setDeleting(false);
+      
+      if (!response.ok) throw new Error('删除失败');
+      
+      toast.success('帖子已删除');
+      fetchPosts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '删除失败');
     }
-  }
+  };
 
-  async function handleWechatSync(post: Post) {
-    if (wechatSyncing || post.status === "DELETED") return;
-    try {
-      setWechatSyncing(post.id);
-      const res = await adminFetch("/api/wechat/sync", {
-        method: "POST",
-        body: JSON.stringify({ postId: post.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "同步失败");
-        return;
-      }
-      toast.success("已同步到微信草稿箱");
-    } catch {
-      toast.error("同步失败，请稍后重试");
-    } finally {
-      setWechatSyncing(null);
-    }
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
-    <AdminLayout activeKey="forum-posts">
-      <div className="space-y-6">
-        {/* 页头 */}
-        <PageHeader
-          title="帖子管理"
-          actions={
-            <Link
-              href="/forum/new"
-              className="admin-btn-primary inline-flex items-center gap-1.5"
-            >
-              <Icons.Plus className="w-4 h-4" />
-              发布公告
-            </Link>
-          }
-        />
-
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard
-            label="总帖子"
-            value={stats.total}
-            icon={<Icons.Doc className="w-5 h-5" />}
-            color="blue"
-          />
-          <StatCard
-            label="今日新增"
-            value={stats.todayNew}
-            icon={<Icons.Plus className="w-5 h-5" />}
-            color="green"
-          />
-          <StatCard
-            label="已删除"
-            value={stats.deleted}
-            icon={<Icons.Trash className="w-5 h-5" />}
-            color="red"
-          />
-        </div>
-
-        {/* 搜索筛选栏 */}
-        <Card>
-          <CardBody>
-            <div className="flex flex-wrap items-center gap-3">
-              <SearchInput
-                value={searchKeyword}
-                onChange={setSearchKeyword}
-                placeholder="搜索帖子标题或内容..."
-              />
-              <Select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">全部分类</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.slug}>
-                    {cat.name}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              >
-                <option value="all">全部状态</option>
-                <option value="normal">正常</option>
-                <option value="pinned">置顶</option>
-                <option value="essence">精华</option>
-                <option value="deleted">已删除</option>
-              </Select>
-              <Button variant="secondary" onClick={fetchPosts}>
-                搜索
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* 帖子表格 */}
-        {loading ? (
-          <Card>
-            <DataTable headers={["标题", "分类", "作者", "回复", "点赞", "状态", "操作"]}>
-              <TableLoading cols={7} rows={6} />
-            </DataTable>
-          </Card>
-        ) : posts.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<Icons.Chat className="w-12 h-12" />}
-              title={
-                searchKeyword ||
-                statusFilter !== "all" ||
-                categoryFilter !== "all"
-                  ? "没有符合条件的帖子"
-                  : "暂无帖子"
-              }
-            />
-          </Card>
-        ) : (
-          <Card>
-            <DataTable headers={["标题", "分类", "作者", "回复", "点赞", "状态", "操作"]}>
-              {posts.map((post) => (
-                <tr
-                  key={post.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-4 py-3 max-w-[240px]">
-                    <Link
-                      href={`/forum/post/${post.id}`}
-                      className="text-gray-900 hover:text-blue-600 hover:underline line-clamp-1 block"
-                      title={post.title}
-                    >
-                      {post.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {post.category?.name || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {post.author.username}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{post.commentCount}</td>
-                  <td className="px-4 py-3 text-gray-600">{post.likeCount}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {post.status === "DELETED" ? (
-                        <Badge color="gray">已删</Badge>
-                      ) : (
-                        <>
-                          {post.isPinned && <Badge color="red">置顶</Badge>}
-                          {post.isEssence && <Badge color="purple">精华</Badge>}
-                          {post.isLocked && <Badge color="yellow">锁定</Badge>}
-                          {!post.isPinned &&
-                            !post.isEssence &&
-                            !post.isLocked && <Badge color="green">正常</Badge>}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-0.5 flex-wrap">
-                      <IconButton
-                        icon={<Icons.Edit />}
-                        onClick={() => router.push(`/forum/post/${post.id}/edit`)}
-                        title="编辑"
-                      />
-                      <IconButton
-                        icon={<Icons.Eye />}
-                        onClick={() => router.push(`/forum/post/${post.id}`)}
-                        title="查看"
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">📌</span>}
-                        onClick={() => patchPost(post, "pin")}
-                        title={post.isPinned ? "取消置顶" : "置顶"}
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">⭐</span>}
-                        onClick={() => patchPost(post, "essence")}
-                        title={post.isEssence ? "取消精华" : "加精"}
-                      />
-                      <IconButton
-                        icon={<Icons.Lock />}
-                        onClick={() =>
-                          patchPost(post, post.isLocked ? "unlock" : "lock")
-                        }
-                        title={post.isLocked ? "解锁" : "锁定"}
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">📱</span>}
-                        onClick={() => handleWechatSync(post)}
-                        title="同步到微信"
-                      />
-                      {post.status !== "DELETED" && (
-                        <IconButton
-                          icon={<Icons.Trash />}
-                          onClick={() => setDeleteTarget(post)}
-                          title="删除"
-                          variant="danger"
-                        />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </DataTable>
-          </Card>
-        )}
-
-        {/* 底部分页 */}
-        {!loading && posts.length > 0 && (
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="text-sm text-gray-500">
-              共 <span className="font-medium text-gray-700">{totalCount}</span> 篇帖子
-            </div>
-            <Pagination
-              page={currentPage}
-              totalPages={totalPages}
-              onChange={setCurrentPage}
-            />
-          </div>
-        )}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">帖子管理</h1>
       </div>
 
-      {/* 删除确认弹窗 */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        title="确认删除"
-        message={
-          deleteTarget
-            ? `确定要删除帖子「${deleteTarget.title}」吗？此为软删除，可在数据库恢复。`
-            : ""
-        }
-        confirmText="确认删除"
-        cancelText="取消"
-        onConfirm={handleDelete}
-        onCancel={() => {
-          if (!deleting) setDeleteTarget(null);
-        }}
-        danger
-      />
-    </AdminLayout>
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">帖子列表</h2>
+        </CardHeader>
+        <CardBody>
+          {posts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Post className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>暂无帖子</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <div key={post.id} className="p-4 border rounded-lg">
+                  <div className="flex items-start space-x-4">
+                    <img
+                      src={post.author.avatar || `/api/placeholder/40/40`}
+                      alt={post.author.username}
+                      className="w-10 h-10 rounded-full"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-semibold">{post.title}</span>
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          post.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' :
+                          post.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {post.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        作者: {post.author.username} | 分类: {post.category.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        发布于: {new Date(post.createdAt).toLocaleDateString()} | 
+                        浏览: {post.viewCount} | 评论: {post.commentCount}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end space-x-2 mt-4">
+                    {post.status === 'PUBLISHED' ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatusChange(post.id, 'DRAFT')}
+                      >
+                        设为草稿
+                      </Button>
+                    ) : post.status === 'DRAFT' ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleStatusChange(post.id, 'PUBLISHED')}
+                      >
+                        发布
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(post.id)}
+                    >
+                      删除
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="flex items-center justify-center space-x-2 mt-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              上一页
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              第 {page} 页，共 {totalPages} 页
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              下一页
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+    </div>
   );
 }
