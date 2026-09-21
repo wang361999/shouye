@@ -1,896 +1,1254 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import toast from "react-hot-toast";
-import { adminFetch } from "@/lib/admin-fetch";
-import { Spinner } from "@/components/admin/ui";
-import MarkdownRenderer from "@/components/forum/MarkdownRenderer";
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  IconButton,
+  Box,
+  Typography,
+  Chip,
+  Divider,
+  Stack,
+  useTheme,
+  Alert,
+  CircularProgress,
+  Tabs,
+  Tab,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SaveIcon from '@mui/icons-material/Save';
+import AddIcon from '@mui/icons-material/Add';
+import DownloadIcon from '@mui/icons-material/Download';
+import UploadIcon from '@mui/icons-material/Upload';
+import DescriptionIcon from '@mui/icons-material/Description';
+import FormatAlignLeftIcon from '@mui/icons-material/FormatAlignLeft';
+import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
+import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
+import FormatBoldIcon from '@mui/icons-material/FormatBold';
+import FormatItalicIcon from '@mui/icons-material/FormatItalic';
+import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
+import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
+import CodeIcon from '@mui/icons-material/Code';
+import LinkIcon from '@mui/icons-material/Link';
+import ImageIcon from '@mui/icons-material/Image';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import { createClient } from '@/lib/supabase/client';
 
-type Platform = "wechat" | "toutiao" | "zhihu" | "juejin" | "seo";
+// 工具类型定义
+export interface ToolCard {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  category?: string;
+  tags?: string[];
+  hot?: boolean;
+}
 
-interface BaseVersion {
-  titleCandidates: string[];
+export interface ForumPost {
+  id: string;
+  title: string;
   content: string;
-  summary: string;
-  coverMainTitle?: string;
-  coverSubTitle?: string;
-  coverPrompt?: {
-    style: string;
-    fullPrompt: string;
-  };
+  authorName?: string;
+  createdAt?: string;
+  categorySlug?: string;
+  tags?: string[];
+  views?: number;
+  likes?: number;
+  comments?: number;
 }
 
-interface WechatVersion extends BaseVersion {
-  keyPoints: string[];
+export interface ToolCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string;
+  description?: string;
+  sortOrder?: number;
+  parent_id?: string | null;
+  children?: ToolCategory[];
+  tool_count?: number;
 }
 
-interface ToutiaoVersion extends BaseVersion {
-  topics: string[];
-  goldenSentences: string[];
+// 工具分类树数据结构
+export interface CategoryNode {
+  id: string;
+  name: string;
+  slug: string;
+  level: number;
+  children?: CategoryNode[];
+  checked: boolean;
+  parent?: CategoryNode;
+  forceAddToParent?: boolean;
 }
 
-interface ZhihuVersion extends BaseVersion {
-  topics: string[];
-  keyPoints: string[];
+// AI模型配置
+export interface AIModelConfig {
+  model: string;
+  label: string;
+  default: boolean;
 }
 
-interface JuejinVersion extends BaseVersion {
-  category: string;
-  tags: string[];
+// 适配器接口
+export interface AdaptAdapter {
+  id: string;
+  label: string;
+  description: string;
+  icon?: string;
+  defaultModel?: string;
+  config?: Record<string, unknown>;
 }
 
-interface SEOVersion {
-  seoTitles: string[];
-  metaDescriptions: string[];
-  mainKeyword: string;
-  longTailKeywords: string[];
-  relatedKeywords: string[];
-  keywordLayout: {
-    positions: string[];
-    headings: string[];
-    internalLinks: string[];
-  };
-  schemaSuggestions: string[];
+// 工具卡片模板
+interface TemplateCard {
+  id: string;
+  title: string;
+  layout: 'simple' | 'detailed' | 'compact';
+  showTags?: boolean;
+  showDesc?: boolean;
+  showUrl?: boolean;
 }
 
-interface Props {
-  defaultPostId?: string;
-  defaultPostTitle?: string;
-  defaultPlatform?: Platform;
+// 帖子模板
+interface TemplatePost {
+  id: string;
+  title: string;
+  hasIntro?: boolean;
+  hasConclusion?: boolean;
+  hasCta?: boolean;
+}
+
+// 格式化选项
+interface FormatOptions {
+  align?: 'left' | 'center' | 'right';
+  bold?: boolean;
+  italic?: boolean;
+  list?: 'bullet' | 'number';
+}
+
+// ContentAdaptModalProps 接口
+interface ContentAdaptModalProps {
   open: boolean;
   onClose: () => void;
-  onOpenPicker?: () => void;
+  selectedItems: Array<
+    | { type: 'tool'; item: ToolCard }
+    | { type: 'post'; item: ForumPost }
+    | { type: 'category'; item: ToolCategory }
+  >;
+  onSuccess?: (type: string, adaptedItems: unknown[]) => void;
 }
 
+// 默认AI模型配置
+const DEFAULT_AI_MODELS: AIModelConfig[] = [
+  {
+    model: 'qwen3-235b-a22b',
+    label: 'Qwen3-235B',
+    default: true,
+  },
+  {
+    model: 'qwen3-30b-a3b',
+    label: 'Qwen3-30B',
+    default: false,
+  },
+  {
+    model: 'deepseek-v3.2',
+    label: 'DeepSeek-V3.2',
+    default: false,
+  },
+  {
+    model: 'gpt-4o-mini',
+    label: 'GPT-4o Mini',
+    default: false,
+  },
+  {
+    model: 'claude-3-haiku',
+    label: 'Claude 3 Haiku',
+    default: false,
+  },
+];
+
+// 默认适配器配置
+const DEFAULT_ADAPTERS: AdaptAdapter[] = [
+  {
+    id: 'tool-category',
+    label: '工具->分类',
+    description: '将工具转换为分类信息',
+    icon: '📁',
+    defaultModel: 'qwen3-235b-a22b',
+  },
+  {
+    id: 'post-to-tool',
+    label: '帖子->工具',
+    description: '从帖子中提取工具信息',
+    icon: '🔧',
+    defaultModel: 'qwen3-235b-a22b',
+  },
+  {
+    id: 'tool-to-post',
+    label: '工具->帖子',
+    description: '将工具信息转换为论坛帖子',
+    icon: '📝',
+    defaultModel: 'qwen3-235b-a22b',
+  },
+  {
+    id: 'category-to-tool',
+    label: '分类->工具',
+    description: '将分类信息转换为工具列表',
+    icon: '🛠️',
+    defaultModel: 'qwen3-235b-a22b',
+  },
+];
+
+// 默认模板配置
+const DEFAULT_TOOL_TEMPLATES: TemplateCard[] = [
+  {
+    id: 'simple',
+    title: '简洁模板',
+    layout: 'simple',
+    showTags: true,
+    showDesc: false,
+    showUrl: true,
+  },
+  {
+    id: 'detailed',
+    title: '详细模板',
+    layout: 'detailed',
+    showTags: true,
+    showDesc: true,
+    showUrl: true,
+  },
+  {
+    id: 'compact',
+    title: '紧凑模板',
+    layout: 'compact',
+    showTags: false,
+    showDesc: true,
+    showUrl: false,
+  },
+];
+
+const DEFAULT_POST_TEMPLATES: TemplatePost[] = [
+  {
+    id: 'standard',
+    title: '标准模板',
+    hasIntro: true,
+    hasConclusion: true,
+    hasCta: true,
+  },
+  {
+    id: 'simple',
+    title: '简洁模板',
+    hasIntro: false,
+    hasConclusion: false,
+    hasCta: false,
+  },
+  {
+    id: 'marketing',
+    title: '营销模板',
+    hasIntro: true,
+    hasConclusion: true,
+    hasCta: true,
+  },
+];
+
+// 默认格式化选项
+const DEFAULT_FORMAT_OPTIONS: FormatOptions = {
+  align: 'left',
+  bold: false,
+  italic: false,
+  list: 'bullet',
+};
+
 export default function ContentAdaptModal({
-  defaultPostId = "",
-  defaultPostTitle = "",
-  defaultPlatform = "wechat",
   open,
   onClose,
-  onOpenPicker,
-}: Props) {
-  const [postId, setPostId] = useState(defaultPostId);
-  const [postTitle, setPostTitle] = useState(defaultPostTitle);
-  const [platform, setPlatform] = useState<Platform>(defaultPlatform);
+  selectedItems,
+  onSuccess,
+}: ContentAdaptModalProps) {
+  const theme = useTheme();
+  const [activeTab, setActiveTab] = useState(0);
+  const [selectedAdapter, setSelectedAdapter] = useState('tool-category');
+  const [aiModels, setAiModels] = useState<AIModelConfig[]>(DEFAULT_AI_MODELS);
+  const [adapters, setAdapters] = useState<AdaptAdapter[]>(DEFAULT_ADAPTERS);
   const [loading, setLoading] = useState(false);
-  const [formatting, setFormatting] = useState(false);
-  const [wechatTemplate, setWechatTemplate] = useState<"technical" | "open-source">("technical");
-  const [result, setResult] = useState<{
-    wechat?: WechatVersion;
-    toutiao?: ToutiaoVersion;
-    zhihu?: ZhihuVersion;
-    juejin?: JuejinVersion;
-    seo?: SEOVersion;
-  } | null>(null);
-  const [activeTab, setActiveTab] = useState<"content" | "titles" | "cover" | "keywords">("content");
-
-  // 打开弹窗时同步默认值（支持从帖子选择器传入）
+  const [adaptResult, setAdaptResult] = useState<unknown[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  
+  // 适配器配置状态
+  const [adapterConfigs, setAdapterConfigs] = useState<Record<string, Record<string, unknown>>>({});
+  const [selectedModel, setSelectedModel] = useState('qwen3-235b-a22b');
+  const [customPrompt, setCustomPrompt] = useState('');
+  
+  // 模板配置状态
+  const [toolTemplates, setToolTemplates] = useState<TemplateCard[]>(DEFAULT_TOOL_TEMPLATES);
+  const [selectedToolTemplate, setSelectedToolTemplate] = useState('simple');
+  const [postTemplates, setPostTemplates] = useState<TemplatePost[]>(DEFAULT_POST_TEMPLATES);
+  const [selectedPostTemplate, setSelectedPostTemplate] = useState('standard');
+  
+  // 格式化选项状态
+  const [formatOptions, setFormatOptions] = useState<FormatOptions>(DEFAULT_FORMAT_OPTIONS);
+  
+  // 预览状态
+  const [previewContent, setPreviewContent] = useState<string>('');
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  
+  // 批量操作状态
+  const [bulkAction, setBulkAction] = useState<'save' | 'publish' | 'draft'>('save');
+  const [bulkProgress, setBulkProgress] = useState(0);
+  const [bulkTotal, setBulkTotal] = useState(0);
+  
+  // 历史记录状态
+  const [historyItems, setHistoryItems] = useState<Array<{
+    id: string;
+    type: string;
+    adapter: string;
+    timestamp: string;
+    preview: string;
+  }>>([]);
+  
+  // 分类选择状态
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [categorySearch, setCategorySearch] = useState('');
+  
+  // 加载AI模型配置
   useEffect(() => {
-    if (open) {
-      setPostId(defaultPostId);
-      setPostTitle(defaultPostTitle);
-      setPlatform(defaultPlatform);
-      setResult(null);
-      setActiveTab("content");
+    loadAIModels();
+  }, []);
+  
+  // 加载适配器配置
+  useEffect(() => {
+    loadAdapters();
+  }, []);
+  
+  // 加载分类树
+  useEffect(() => {
+    if (open && selectedItems.some(item => item.type === 'tool')) {
+      loadCategoryTree();
     }
-  }, [open, defaultPostId, defaultPostTitle, defaultPlatform]);
-
-  if (!open) return null;
-
-  async function handleGenerate() {
-    const id = parsePostId(postId);
-    if (!id) {
-      toast.error("请输入有效的帖子 ID 或链接");
+  }, [open, selectedItems]);
+  
+  // 从数据库加载AI模型配置
+  const loadAIModels = async () => {
+    try {
+      const response = await fetch('/api/admin/ai-models');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.models && data.models.length > 0) {
+          setAiModels(data.models.map((m: any) => ({
+            model: m.id,
+            label: m.name,
+            default: m.priority === 1,
+          })));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load AI models:', error);
+    }
+  };
+  
+  // 从数据库加载适配器配置
+  const loadAdapters = async () => {
+    try {
+      const response = await fetch('/api/admin/content-adapt/adapters');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.adapters && data.adapters.length > 0) {
+          setAdapters(data.adapters);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load adapters:', error);
+    }
+  };
+  
+  // 加载分类树
+  const loadCategoryTree = async () => {
+    try {
+      const response = await fetch('/api/tools/categories');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.categories) {
+          const tree = buildCategoryTree(data.categories);
+          setCategoryTree(tree);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load category tree:', error);
+    }
+  };
+  
+  // 构建分类树
+  const buildCategoryTree = (categories: ToolCategory[]): CategoryNode[] => {
+    const nodeMap = new Map<string, CategoryNode>();
+    const roots: CategoryNode[] = [];
+    
+    // 创建所有节点
+    categories.forEach((cat) => {
+      nodeMap.set(cat.id, {
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug,
+        level: 0,
+        checked: false,
+        parent: undefined,
+        forceAddToParent: false,
+      });
+    });
+    
+    // 建立父子关系
+    categories.forEach((cat) => {
+      const node = nodeMap.get(cat.id)!;
+      if (cat.parent_id) {
+        const parent = nodeMap.get(cat.parent_id);
+        if (parent) {
+          node.level = parent.level + 1;
+          node.parent = parent;
+          if (!parent.children) {
+            parent.children = [];
+          }
+          parent.children.push(node);
+        }
+      } else {
+        roots.push(node);
+      }
+    });
+    
+    // 应用搜索过滤
+    if (categorySearch) {
+      const searchResults = new Set<string>();
+      const searchInTree = (nodes: CategoryNode[]) => {
+        nodes.forEach((node) => {
+          if (node.name.toLowerCase().includes(categorySearch.toLowerCase()) ||
+              node.slug.toLowerCase().includes(categorySearch.toLowerCase())) {
+            searchResults.add(node.id);
+            // 添加所有父节点
+            let parent = node.parent;
+            while (parent) {
+              searchResults.add(parent.id);
+              parent = parent.parent;
+            }
+          }
+          if (node.children) {
+            searchInTree(node.children);
+          }
+        });
+      };
+      searchInTree(roots);
+      
+      // 过滤树
+      const filterTree = (nodes: CategoryNode[]): CategoryNode[] => {
+        return nodes.filter((node) => {
+          const matches = searchResults.has(node.id);
+          if (node.children) {
+            const filteredChildren = filterTree(node.children);
+            if (filteredChildren.length > 0) {
+              return true;
+            }
+          }
+          return matches;
+        }).map((node) => ({
+          ...node,
+          children: node.children ? filterTree(node.children) : undefined,
+        }));
+      };
+      
+      return filterTree(roots);
+    }
+    
+    return roots;
+  };
+  
+  // 切换分类展开状态
+  const toggleCategoryExpand = useCallback((categoryId: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+      return next;
+    });
+  }, []);
+  
+  // 处理分类勾选
+  const handleCategoryCheck = useCallback((node: CategoryNode) => {
+    const toggleNodeCheck = (n: CategoryNode): boolean => {
+      if (n.id === node.id) {
+        return !n.checked;
+      }
+      if (n.children) {
+        n.children = n.children.map(toggleNodeCheck);
+      }
+      return n.checked;
+    };
+    
+    const updateCheckedStatus = (nodes: CategoryNode[]): CategoryNode[] => {
+      return nodes.map(n => {
+        if (n.children) {
+          const updatedChildren = updateCheckedStatus(n.children);
+          const allChecked = updatedChildren.every(c => c.checked);
+          const someChecked = updatedChildren.some(c => c.checked);
+          return {
+            ...n,
+            children: updatedChildren,
+            checked: allChecked ? true : someChecked ? 'indeterminate' as any : false,
+          };
+        }
+        return n;
+      });
+    };
+    
+    setCategoryTree(prev => updateCheckedStatus(prev.map(n => 
+      n.id === node.id ? { ...n, checked: !n.checked } : n
+    )));
+  }, []);
+  
+  // 搜索分类
+  const handleCategorySearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCategorySearch(e.target.value);
+  };
+  
+  // 清除分类搜索
+  const clearCategorySearch = () => {
+    setCategorySearch('');
+  };
+  
+  // 执行内容适配
+  const handleAdapt = async () => {
+    if (!selectedAdapter) {
+      setError('请选择适配器');
       return;
     }
+    
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setResult(null);
-      const res = await adminFetch("/api/admin/content-adapt", {
-        method: "POST",
-        body: JSON.stringify({ postId: id, platform }),
+      // 准备请求数据
+      const requestData = {
+        adapterId: selectedAdapter,
+        items: selectedItems,
+        model: selectedModel,
+        prompt: customPrompt,
+        template: activeTab === 0 ? {
+          id: selectedToolTemplate,
+          ...toolTemplates.find(t => t.id === selectedToolTemplate),
+        } : activeTab === 1 ? {
+          id: selectedPostTemplate,
+          ...postTemplates.find(t => t.id === selectedPostTemplate),
+        } : undefined,
+        formatOptions,
+        categoryIds: selectedCategories,
+        config: adapterConfigs[selectedAdapter],
+      };
+      
+      // 调用适配API
+      const response = await fetch('/api/admin/content-adapt/adapt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        const errMsg = data.error || data.detail || "生成失败";
-        toast.error(errMsg, { duration: 5000 });
-        console.error("[ContentAdapt] 生成失败:", data);
-        return;
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
-      setResult(data);
-      setPostTitle(data.originalTitle || postTitle);
-      setActiveTab("content");
-      toast.success("生成成功");
+      
+      const data = await response.json();
+      setAdaptResult(data.result);
+      setPreviewContent(JSON.stringify(data.result, null, 2));
+      
+      // 添加到历史记录
+      const historyItem = {
+        id: Date.now().toString(),
+        type: selectedAdapter,
+        adapter: adapters.find(a => a.id === selectedAdapter)?.label || selectedAdapter,
+        timestamp: new Date().toLocaleString(),
+        preview: JSON.stringify(data.result).slice(0, 100) + '...',
+      };
+      setHistoryItems(prev => [historyItem, ...prev.slice(0, 9)]);
+      
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : "生成失败";
-      toast.error(errMsg + "，请稍后重试", { duration: 5000 });
-      console.error("[ContentAdapt] 调用失败:", err);
+      setError(err instanceof Error ? err.message : '适配失败');
+      setAdaptResult(null);
     } finally {
       setLoading(false);
     }
-  }
-
-  function copyText(text: string, label = "内容") {
-    navigator.clipboard.writeText(text);
-    toast.success(`${label}已复制`);
-  }
-
-  // 将 AI 生成的公众号内容套用模板，以富文本格式复制到剪贴板
-  async function copyWechatFormatted() {
-    const wechatData = result?.wechat;
-    if (!wechatData?.content) {
-      toast.error("没有可格式化的内容");
+  };
+  
+  // 批量执行内容适配
+  const handleBulkAdapt = async () => {
+    if (!selectedAdapter || selectedItems.length === 0) {
+      setError('请选择适配器和至少一个项目');
       return;
     }
+    
+    setLoading(true);
+    setError(null);
+    setBulkProgress(0);
+    setBulkTotal(selectedItems.length);
+    
     try {
-      setFormatting(true);
-      const res = await adminFetch("/api/admin/wechat-format", {
-        method: "POST",
+      const results: unknown[] = [];
+      
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        
+        // 准备单个项目的请求数据
+        const requestData = {
+          adapterId: selectedAdapter,
+          items: [item],
+          model: selectedModel,
+          prompt: customPrompt,
+          template: activeTab === 0 ? {
+            id: selectedToolTemplate,
+            ...toolTemplates.find(t => t.id === selectedToolTemplate),
+          } : activeTab === 1 ? {
+            id: selectedPostTemplate,
+            ...postTemplates.find(t => t.id === selectedPostTemplate),
+          } : undefined,
+          formatOptions,
+          categoryIds: selectedCategories,
+          config: adapterConfigs[selectedAdapter],
+        };
+        
+        // 调用适配API
+        const response = await fetch('/api/admin/content-adapt/adapt', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        results.push(...data.result);
+        
+        // 更新进度
+        setBulkProgress(i + 1);
+      }
+      
+      setAdaptResult(results);
+      setPreviewContent(JSON.stringify(results, null, 2));
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '批量适配失败');
+      setAdaptResult(null);
+    } finally {
+      setLoading(false);
+      setBulkProgress(0);
+      setBulkTotal(0);
+    }
+  };
+  
+  // 复制结果
+  const handleCopy = useCallback((id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }, []);
+  
+  // 导出结果
+  const handleExport = useCallback((format: 'json' | 'csv' | 'md') => {
+    if (!adaptResult) return;
+    
+    let content = '';
+    let filename = `content-adapt-${Date.now()}.${format}`;
+    
+    if (format === 'json') {
+      content = JSON.stringify(adaptResult, null, 2);
+    } else if (format === 'csv') {
+      // 简化处理，假设是对象数组
+      if (Array.isArray(adaptResult) && adaptResult.length > 0) {
+        const headers = Object.keys(adaptResult[0] as Record<string, unknown>).join(',');
+        const rows = (adaptResult as Record<string, unknown>[]).map(row => 
+          Object.values(row).join(',')
+        );
+        content = [headers, ...rows].join('\n');
+      }
+    } else if (format === 'md') {
+      content = adaptResult.map((item, index) => 
+        `## 结果 ${index + 1}\n\n${JSON.stringify(item, null, 2)}`
+      ).join('\n\n');
+    }
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [adaptResult]);
+  
+  // 保存结果
+  const handleSave = useCallback(async () => {
+    if (!adaptResult) return;
+    
+    try {
+      const response = await fetch('/api/admin/content-adapt/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          content: wechatData.content,
-          title: wechatData.titleCandidates?.[0] || postTitle || "公众号文章",
-          digest: wechatData.summary,
-          template: wechatTemplate,
+          type: selectedAdapter,
+          items: adaptResult,
+          action: bulkAction,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "格式化失败");
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
-
-      const fullHtml = data.fullContent;
-      const plainText = `${data.title}\n\n${data.digest || ""}`;
-
-      // 优先使用 ClipboardItem API 写入 text/html
-      try {
-        const htmlBlob = new Blob([fullHtml], { type: "text/html" });
-        const textBlob = new Blob([plainText], { type: "text/plain" });
-        const clipboardItem = new ClipboardItem({
-          "text/html": htmlBlob,
-          "text/plain": textBlob,
-        });
-        await navigator.clipboard.write([clipboardItem]);
-        toast.success("公众号格式已复制，粘贴到公众号编辑器即可保留样式");
-      } catch {
-        // 降级：用 execCommand 复制 HTML
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = fullHtml;
-        tempDiv.style.position = "fixed";
-        tempDiv.style.left = "-9999px";
-        tempDiv.style.top = "0";
-        document.body.appendChild(tempDiv);
-        const range = document.createRange();
-        range.selectNodeContents(tempDiv);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-        document.execCommand("copy");
-        selection?.removeAllRanges();
-        document.body.removeChild(tempDiv);
-        toast.success("公众号格式已复制，粘贴到公众号编辑器即可");
-      }
+      
+      onSuccess?.(selectedAdapter, adaptResult);
+      onClose();
+      
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "格式化失败");
-      console.error("[WechatFormat] 失败:", err);
-    } finally {
-      setFormatting(false);
+      setError(err instanceof Error ? err.message : '保存失败');
     }
-  }
-
-  const currentData =
-    platform === "wechat"
-      ? result?.wechat
-      : platform === "toutiao"
-      ? result?.toutiao
-      : platform === "zhihu"
-      ? result?.zhihu
-      : platform === "juejin"
-      ? result?.juejin
-      : null;
-
-  const seoData = result?.seo;
-
+  }, [adaptResult, selectedAdapter, bulkAction, onSuccess, onClose]);
+  
+  // 删除历史记录
+  const handleDeleteHistory = useCallback((id: string) => {
+    setHistoryItems(prev => prev.filter(item => item.id !== id));
+  }, []);
+  
+  // 加载历史记录
+  const handleLoadHistory = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/admin/content-adapt/history/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAdaptResult(data.result);
+        setPreviewContent(JSON.stringify(data.result, null, 2));
+      }
+    } catch (error) {
+      setError('加载历史记录失败');
+    }
+  }, []);
+  
+  // 清理历史记录
+  const handleClearHistory = useCallback(() => {
+    setHistoryItems([]);
+  }, []);
+  
+  // 渲染分类树
+  const renderCategoryTree = (nodes: CategoryNode[], level: number = 0) => {
+    return nodes.map((node) => (
+      <Box key={node.id}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: 1,
+            marginLeft: `${level * 20}px`,
+            cursor: 'pointer',
+            '&:hover': {
+              backgroundColor: theme.palette.action.hover,
+            },
+          }}
+        >
+          {node.children && node.children.length > 0 && (
+            <IconButton
+              size="small"
+              onClick={() => toggleCategoryExpand(node.id)}
+              sx={{ marginRight: 0.5 }}
+            >
+              {expandedCategories.has(node.id) ? '▼' : '▶'}
+            </IconButton>
+          )}
+          <Checkbox
+            checked={node.checked}
+            onChange={() => handleCategoryCheck(node)}
+            indeterminate={typeof node.checked === 'string'}
+            sx={{ marginRight: 0.5 }}
+          />
+          <Typography variant="body2">{node.name}</Typography>
+        </Box>
+        {expandedCategories.has(node.id) && node.children && (
+          renderCategoryTree(node.children, level + 1)
+        )}
+      </Box>
+    ));
+  };
+  
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">多平台内容适配</h2>
-            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
-              {postTitle || "输入帖子 ID 或链接开始生成"}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* 平台选择 + 输入 */}
-        <div className="px-6 py-3 border-b border-gray-100 bg-gray-50 space-y-3">
-          {/* 平台切换 */}
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-            {[
-              { key: "wechat", label: "📱 公众号" },
-              { key: "toutiao", label: "📰 头条" },
-              { key: "zhihu", label: "💡 知乎" },
-              { key: "juejin", label: "⛏️ 掘金" },
-              { key: "seo", label: "🔍 SEO" },
-            ].map((p) => (
-              <button
-                key={p.key}
-                onClick={() => {
-                  setPlatform(p.key as Platform);
-                  setResult(null);
-                }}
-                className={`text-center rounded-lg border px-2 py-2 transition-colors ${
-                  platform === p.key
-                    ? "border-blue-500 bg-blue-50 ring-1 ring-blue-200"
-                    : "border-gray-200 bg-white hover:border-blue-200 hover:bg-gray-50"
-                }`}
+    <Dialog 
+      open={open} 
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          overflow: 'hidden',
+        }
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <DialogTitle>
+          内容适配转换器
+          {selectedItems.length > 0 && (
+            <Chip 
+              label={`${selectedItems.length} 项已选中`} 
+              size="small" 
+              sx={{ marginLeft: 1 }}
+            />
+          )}
+        </DialogTitle>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon />
+        </IconButton>
+      </Box>
+      
+      <DialogContent dividers>
+        {/* 顶部选项卡 */}
+        <Tabs 
+          value={activeTab} 
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          sx={{ mb: 2 }}
+        >
+          <Tab label="工具转分类" />
+          <Tab label="帖子转工具" />
+          <Tab label="工具转帖子" />
+          <Tab label="分类转工具" />
+        </Tabs>
+        
+        {/* 错误提示 */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        
+        {/* 主内容区域 */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+          {/* 左侧：配置区 */}
+          <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              适配配置
+            </Typography>
+            
+            {/* 适配器选择 */}
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>适配器</InputLabel>
+              <Select
+                value={selectedAdapter}
+                label="适配器"
+                onChange={(e) => setSelectedAdapter(e.target.value)}
               >
-                <div className="text-sm font-semibold text-gray-900">{p.label}</div>
-              </button>
-            ))}
-          </div>
-
-          {/* 帖子输入 */}
-          <div className="space-y-2">
-            {postTitle && (
-              <div className="flex items-center justify-between px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-blue-500 text-base">📄</span>
-                  <span className="text-sm font-medium text-blue-900 truncate">
-                    {postTitle}
-                  </span>
-                </div>
-                {onOpenPicker && (
-                  <button
-                    onClick={onOpenPicker}
-                    className="flex-shrink-0 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    重新选择
-                  </button>
-                )}
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={postId}
-                onChange={(e) => setPostId(e.target.value)}
-                placeholder="输入帖子 ID 或链接，如 /forum/post/123"
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading) handleGenerate();
-                }}
-              />
-              {onOpenPicker && (
-                <button
-                  onClick={onOpenPicker}
-                  className="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors inline-flex items-center gap-1"
+                {adapters.map((adapter) => (
+                  <MenuItem key={adapter.id} value={adapter.id}>
+                    {adapter.icon} {adapter.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            {/* AI模型选择 */}
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>AI模型</InputLabel>
+              <Select
+                value={selectedModel}
+                label="AI模型"
+                onChange={(e) => setSelectedModel(e.target.value)}
+              >
+                {aiModels.map((model) => (
+                  <MenuItem key={model.model} value={model.model}>
+                    {model.label}
+                    {model.default && <Chip label="默认" size="small" sx={{ marginLeft: 1 }} />}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            {/* 自定义提示词 */}
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              label="自定义提示词"
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="输入自定义提示词，留空使用默认模板..."
+              sx={{ mb: 2 }}
+            />
+            
+            {/* 模板选择（根据当前tab显示不同模板） */}
+            {activeTab === 0 && (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>工具模板</InputLabel>
+                <Select
+                  value={selectedToolTemplate}
+                  label="工具模板"
+                  onChange={(e) => setSelectedToolTemplate(e.target.value)}
                 >
-                  <span>📋</span>
-                  选帖子
-                </button>
+                  {toolTemplates.map((template) => (
+                    <MenuItem key={template.id} value={template.id}>
+                      {template.title}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            
+            {activeTab === 1 && (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>帖子模板</InputLabel>
+                <Select
+                  value={selectedPostTemplate}
+                  label="帖子模板"
+                  onChange={(e) => setSelectedPostTemplate(e.target.value)}
+                >
+                  {postTemplates.map((template) => (
+                    <MenuItem key={template.id} value={template.id}>
+                      {template.title}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            
+            {/* 格式化选项 */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                格式化选项
+              </Typography>
+              <Stack direction="row" spacing={1} useSpacer flexWrap="wrap">
+                <IconButton
+                  size="small"
+                  color={formatOptions.align === 'left' ? 'primary' : 'default'}
+                  onClick={() => setFormatOptions({ ...formatOptions, align: 'left' })}
+                >
+                  <FormatAlignLeftIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  color={formatOptions.align === 'center' ? 'primary' : 'default'}
+                  onClick={() => setFormatOptions({ ...formatOptions, align: 'center' })}
+                >
+                  <FormatAlignCenterIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  color={formatOptions.align === 'right' ? 'primary' : 'default'}
+                  onClick={() => setFormatOptions({ ...formatOptions, align: 'right' })}
+                >
+                  <FormatAlignRightIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  color={formatOptions.bold ? 'primary' : 'default'}
+                  onClick={() => setFormatOptions({ ...formatOptions, bold: !formatOptions.bold })}
+                >
+                  <FormatBoldIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  color={formatOptions.italic ? 'primary' : 'default'}
+                  onClick={() => setFormatOptions({ ...formatOptions, italic: !formatOptions.italic })}
+                >
+                  <FormatItalicIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  color={formatOptions.list === 'bullet' ? 'primary' : 'default'}
+                  onClick={() => setFormatOptions({ ...formatOptions, list: 'bullet' })}
+                >
+                  <FormatListBulletedIcon />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  color={formatOptions.list === 'number' ? 'primary' : 'default'}
+                  onClick={() => setFormatOptions({ ...formatOptions, list: 'number' })}
+                >
+                  <FormatListNumberedIcon />
+                </IconButton>
+              </Stack>
+            </Box>
+            
+            {/* 分类选择（仅工具转分类和分类转工具时显示） */}
+            {(activeTab === 0 || activeTab === 3) && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  目标分类
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="搜索分类..."
+                  value={categorySearch}
+                  onChange={handleCategorySearch}
+                  sx={{ mb: 1 }}
+                  InputProps={{
+                    endAdornment: categorySearch && (
+                      <IconButton onClick={clearCategorySearch} size="small">
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    ),
+                  }}
+                />
+                <Box 
+                  sx={{ 
+                    maxHeight: 200, 
+                    overflow: 'auto', 
+                    border: 1, 
+                    borderColor: 'divider', 
+                    borderRadius: 1,
+                    p: 1
+                  }}
+                >
+                  {renderCategoryTree(categoryTree)}
+                </Box>
+              </Box>
+            )}
+            
+            {/* 批量操作选项 */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                批量操作
+              </Typography>
+              <FormControl fullWidth>
+                <InputLabel>操作类型</InputLabel>
+                <Select
+                  value={bulkAction}
+                  label="操作类型"
+                  onChange={(e) => setBulkAction(e.target.value as 'save' | 'publish' | 'draft')}
+                >
+                  <MenuItem value="save">保存为草稿</MenuItem>
+                  <MenuItem value="publish">直接发布</MenuItem>
+                  <MenuItem value="draft">保存草稿</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            
+            {/* 执行按钮 */}
+            <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+              <Button
+                variant="contained"
+                onClick={handleAdapt}
+                disabled={loading || !selectedAdapter}
+                startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
+              >
+                执行适配
+              </Button>
+              {selectedItems.length > 1 && (
+                <Button
+                  variant="outlined"
+                  onClick={handleBulkAdapt}
+                  disabled={loading || !selectedAdapter}
+                  startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
+                >
+                  批量适配
+                </Button>
               )}
-              <button
-                onClick={handleGenerate}
-                disabled={loading || !postId.trim()}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1.5"
+            </Stack>
+            
+            {/* 批量进度 */}
+            {loading && bulkTotal > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" gutterBottom>
+                  处理中: {bulkProgress}/{bulkTotal}
+                </Typography>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={(bulkProgress / bulkTotal) * 100} 
+                />
+              </Box>
+            )}
+          </Box>
+          
+          {/* 右侧：预览区 */}
+          <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1">
+                预览结果
+              </Typography>
+              {adaptResult && (
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => handleExport('json')}
+                  >
+                    导出JSON
+                  </Button>
+                  <Button
+                    size="small"
+                    startIcon={<DownloadIcon />}
+                    onClick={() => handleExport('csv')}
+                  >
+                    导出CSV
+                  </Button>
+                  <Button
+                    size="small"
+                    startIcon={<SaveIcon />}
+                    onClick={handleSave}
+                  >
+                    保存
+                  </Button>
+                </Stack>
+              )}
+            </Box>
+            
+            {isPreviewing ? (
+              <Box sx={{ position: 'relative', minHeight: 300 }}>
+                <pre
+                  style={{
+                    background: theme.palette.background.paper,
+                    padding: theme.spacing(2),
+                    borderRadius: theme.shape.borderRadius,
+                    overflow: 'auto',
+                    maxHeight: 400,
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {previewContent}
+                </pre>
+                <IconButton
+                  size="small"
+                  sx={{ position: 'absolute', top: 8, right: 8 }}
+                  onClick={() => handleCopy('preview', previewContent)}
+                >
+                  {copiedId === 'preview' ? <CheckIcon /> : <ContentCopyIcon />}
+                </IconButton>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  minHeight: 300,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: theme.palette.background.paper,
+                  borderRadius: theme.shape.borderRadius,
+                }}
               >
                 {loading ? (
-                  <>
-                    <Spinner className="w-4 h-4" />
-                    生成中...
-                  </>
+                  <CircularProgress />
+                ) : adaptResult ? (
+                  <Typography color="text.secondary">
+                    适配完成，共 {Array.isArray(adaptResult) ? adaptResult.length : 0} 条结果
+                  </Typography>
                 ) : (
-                  <>
-                    <span className="text-base">✨</span>
-                    生成
-                    {platform === "wechat"
-                      ? "公众号"
-                      : platform === "toutiao"
-                      ? "头条"
-                      : platform === "zhihu"
-                      ? "知乎"
-                      : platform === "juejin"
-                      ? "掘金"
-                      : "SEO"}
-                    版
-                  </>
+                  <Typography color="text.secondary">
+                    等待适配结果...
+                  </Typography>
                 )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Tab 切换 */}
-        {(currentData || seoData) && (
-          <div className="flex gap-1 px-6 pt-3 border-b border-gray-100">
-            {(platform === "seo"
-              ? [
-                  { key: "titles", label: "SEO 标题" },
-                  { key: "keywords", label: "关键词" },
-                  { key: "content", label: "优化建议" },
-                ]
-              : [
-                  { key: "content", label: "正文内容" },
-                  { key: "titles", label: "标题候选" },
-                  { key: "cover", label: "封面图" },
-                ]
-            ).map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                  activeTab === tab.key
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
+              </Box>
+            )}
+          </Box>
+        </Box>
+        
+        {/* 历史记录 */}
+        {historyItems.length > 0 && (
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              历史记录
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+              <Button
+                size="small"
+                onClick={handleClearHistory}
+                startIcon={<DeleteIcon />}
               >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+                清空历史
+              </Button>
+            </Stack>
+            <Box
+              sx={{
+                maxHeight: 200,
+                overflow: 'auto',
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+              }}
+            >
+              {historyItems.map((item) => (
+                <Box
+                  key={item.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 1,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    '&:last-child': {
+                      borderBottom: 'none',
+                    },
+                  }}
+                >
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2">
+                      {item.adapter} - {item.type}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {item.timestamp}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mx: 2 }}>
+                    {item.preview}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleLoadHistory(item.id)}
+                  >
+                    <DescriptionIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDeleteHistory(item.id)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              ))}
+            </Box>
+          </Box>
         )}
-
-        {/* 内容区 */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
-              <p className="text-sm text-gray-500">
-                AI 正在生成
-                {platform === "wechat"
-                  ? "公众号"
-                  : platform === "toutiao"
-                  ? "头条"
-                  : platform === "zhihu"
-                  ? "知乎"
-                  : platform === "juejin"
-                  ? "掘金"
-                  : "SEO"}
-                版本，约 10-20 秒...
-              </p>
-            </div>
-          )}
-
-          {!loading && !currentData && platform !== "seo" && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="text-5xl mb-4">✨</div>
-              <p className="text-gray-600 font-medium">
-                选择平台，输入帖子 ID，一键生成适配内容
-              </p>
-              <p className="text-xs text-gray-400 mt-2">
-                {platform === "wechat"
-                  ? "公众号版：3个标题候选 + 公众号版正文 + 封面图文案 + 核心要点"
-                  : platform === "toutiao"
-                  ? "头条版：5个标题候选 + 原创优化正文 + 话题标签 + 金句 + 封面文案"
-                  : platform === "zhihu"
-                  ? "知乎版：3个问题式标题 + 干货分点论述 + 话题标签 + 核心观点"
-                  : "掘金版：3个技术标题 + 深度正文 + 分类标签 + 封面文案"}
-              </p>
-            </div>
-          )}
-
-          {/* SEO 空状态 */}
-          {!loading && !seoData && platform === "seo" && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="text-5xl mb-4">🔍</div>
-              <p className="text-gray-600 font-medium">
-                输入帖子 ID，生成 SEO 优化方案
-              </p>
-              <p className="text-xs text-gray-400 mt-2">
-                SEO 版：5个关键词标题 + Meta描述 + 关键词布局 + 优化建议
-              </p>
-            </div>
-          )}
-
-          {currentData && activeTab === "content" && (
-            <div className="space-y-4">
-              {/* 摘要 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700">一句话摘要</h3>
-                  <button
-                    onClick={() => copyText(currentData.summary, "摘要")}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    复制
-                  </button>
-                </div>
-                <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-900">
-                  {currentData.summary}
-                </div>
-              </div>
-
-              {/* 核心要点 / 金句 */}
-              {platform === "wechat" && (currentData as WechatVersion).keyPoints && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">核心要点</h3>
-                  <div className="space-y-1">
-                    {(currentData as WechatVersion).keyPoints.map((point, i) => (
-                      <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                        <span className="text-green-500 mt-0.5">✓</span>
-                        <span>{point}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {platform === "toutiao" && (currentData as ToutiaoVersion).goldenSentences && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">核心金句</h3>
-                  <div className="space-y-2">
-                    {(currentData as ToutiaoVersion).goldenSentences.map((s, i) => (
-                      <div
-                        key={i}
-                        className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg text-sm text-purple-900 italic border-l-4 border-purple-400"
-                      >
-                        "{s}"
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {platform === "zhihu" && (currentData as ZhihuVersion).keyPoints && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">核心观点</h3>
-                  <div className="space-y-1">
-                    {(currentData as ZhihuVersion).keyPoints.map((point, i) => (
-                      <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                        <span className="text-blue-500 mt-0.5">💡</span>
-                        <span>{point}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {platform === "juejin" && (currentData as JuejinVersion).tags && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-gray-700">掘金标签</h3>
-                    <button
-                      onClick={() =>
-                        copyText((currentData as JuejinVersion).tags.join(", "), "标签")
-                      }
-                      className="text-xs text-blue-600 hover:text-blue-700"
-                    >
-                      复制
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {(currentData as JuejinVersion).tags.map((tag, i) => (
-                      <span
-                        key={i}
-                        className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                    {(currentData as JuejinVersion).category && (
-                      <span className="px-2.5 py-1 bg-green-50 text-green-700 text-xs rounded-full border border-green-200">
-                        分类：{(currentData as JuejinVersion).category}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* 话题标签（头条/知乎共用） */}
-              {(platform === "toutiao" || platform === "zhihu") &&
-                (currentData as ToutiaoVersion | ZhihuVersion).topics && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-semibold text-gray-700">
-                        {platform === "zhihu" ? "知乎话题" : "话题标签"}
-                      </h3>
-                      <button
-                        onClick={() =>
-                          copyText(
-                            (currentData as ToutiaoVersion).topics.map((t) =>
-                              platform === "toutiao" ? `#${t}#` : t
-                            ).join(" "),
-                            "话题标签"
-                          )
-                        }
-                        className="text-xs text-blue-600 hover:text-blue-700"
-                      >
-                        复制
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {(currentData as ToutiaoVersion).topics.map((topic, i) => (
-                        <span
-                          key={i}
-                          className={`px-2.5 py-1 text-xs rounded-full border ${
-                            platform === "toutiao"
-                              ? "bg-orange-50 text-orange-700 border-orange-200"
-                              : "bg-blue-50 text-blue-700 border-blue-200"
-                          }`}
-                        >
-                          {platform === "toutiao" ? `#${topic}#` : topic}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              {/* 正文 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700">
-                    {platform === "wechat" ? "公众号版正文" : platform === "toutiao" ? "头条版正文" : platform === "zhihu" ? "知乎版正文" : "掘金版正文"}
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => copyText(currentData.content, "正文")}
-                      className="text-xs text-blue-600 hover:text-blue-700"
-                    >
-                      复制全文
-                    </button>
-                    {platform === "wechat" && (
-                      <button
-                        onClick={copyWechatFormatted}
-                        disabled={formatting}
-                        className="text-xs text-green-600 hover:text-green-700 font-medium"
-                      >
-                        {formatting ? "格式化中..." : "📋 复制公众号格式"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* 公众号模板选择 */}
-                {platform === "wechat" && (
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="text-xs text-gray-500">排版模板：</span>
-                    {[
-                      { value: "technical", label: "技术风格", desc: "蓝灰配色" },
-                      { value: "open-source", label: "开源风格", desc: "绿色社区感" },
-                    ].map((t) => (
-                      <button
-                        key={t.value}
-                        onClick={() => setWechatTemplate(t.value as "technical" | "open-source")}
-                        className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                          wechatTemplate === t.value
-                            ? "border-green-400 bg-green-50 text-green-700"
-                            : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                    <span className="text-xs text-gray-400">
-                      复制后粘贴到公众号编辑器自动套用样式
-                    </span>
-                  </div>
-                )}
-
-                <div className="p-4 bg-gray-50 rounded-lg max-h-96 overflow-y-auto">
-                  <MarkdownRenderer content={currentData.content} className="prose-sm" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentData && activeTab === "titles" && (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-500 mb-2">
-                点击标题即可复制，选一个最合适的作为
-                {platform === "wechat"
-                  ? "公众号"
-                  : platform === "toutiao"
-                  ? "头条"
-                  : platform === "zhihu"
-                  ? "知乎"
-                  : "掘金"}
-                标题
-              </p>
-              {currentData.titleCandidates.map((title, i) => (
-                <div
-                  key={i}
-                  onClick={() => copyText(title, `标题${i + 1}`)}
-                  className="p-4 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 text-xs font-bold rounded-full">
-                      {i + 1}
-                    </span>
-                    <span className="flex-1 text-gray-900 font-medium">{title}</span>
-                    <span className="text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                      点击复制
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {currentData && activeTab === "cover" && currentData.coverPrompt && (
-            <div className="space-y-4">
-              {/* 封面文案 */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">封面图文案</h3>
-                <div className="p-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white text-center">
-                  <div className="text-2xl font-bold mb-1">{currentData.coverMainTitle}</div>
-                  <div className="text-sm opacity-90">{currentData.coverSubTitle}</div>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() =>
-                      copyText(
-                        `${currentData.coverMainTitle}\n${currentData.coverSubTitle}`,
-                        "封面文案"
-                      )
-                    }
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    复制文案
-                  </button>
-                </div>
-              </div>
-
-              {/* 封面图提示词 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700">AI 绘图提示词</h3>
-                  <button
-                    onClick={() => copyText(currentData.coverPrompt?.fullPrompt || "", "提示词")}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    复制提示词
-                  </button>
-                </div>
-                <div className="p-3 bg-orange-50 rounded-lg text-sm text-orange-900">
-                  {currentData.coverPrompt.fullPrompt}
-                </div>
-              </div>
-
-              {/* 提示 */}
-              <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
-                💡 把提示词复制到任意 AI 绘图工具（Midjourney、DALL·E、Stable Diffusion
-                等）即可生成封面图。尺寸：{currentData.coverPrompt?.style}。
-              </div>
-            </div>
-          )}
-
-          {/* SEO: 标题 Tab */}
-          {seoData && activeTab === "titles" && platform === "seo" && (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-500 mb-2">
-                5 个不同关键词布局的 SEO 标题，点击即可复制
-              </p>
-              {seoData.seoTitles.map((title, i) => (
-                <div
-                  key={i}
-                  onClick={() => copyText(title, `SEO标题${i + 1}`)}
-                  className="p-4 bg-white border border-gray-200 rounded-lg cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 flex items-center justify-center bg-green-100 text-green-600 text-xs font-bold rounded-full">
-                      {i + 1}
-                    </span>
-                    <span className="flex-1 text-gray-900 font-medium">{title}</span>
-                    <span className="text-xs text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                      点击复制
-                    </span>
-                  </div>
-                </div>
-              ))}
-
-              {/* Meta Description */}
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700">Meta Description</h3>
-                </div>
-                {seoData.metaDescriptions.map((desc, i) => (
-                  <div
-                    key={i}
-                    onClick={() => copyText(desc, `描述${i + 1}`)}
-                    className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700 mb-2 cursor-pointer hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="text-xs text-gray-400 mb-1">候选 {i + 1}</div>
-                    {desc}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* SEO: 关键词 Tab */}
-          {seoData && activeTab === "keywords" && platform === "seo" && (
-            <div className="space-y-5">
-              {/* 主关键词 */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">🎯 主关键词</h3>
-                <div className="inline-block px-4 py-2 bg-red-50 text-red-700 rounded-lg font-medium border border-red-200">
-                  {seoData.mainKeyword}
-                </div>
-              </div>
-
-              {/* 长尾关键词 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700">📈 长尾关键词</h3>
-                  <button
-                    onClick={() =>
-                      copyText(seoData.longTailKeywords.join("\n"), "长尾关键词")
-                    }
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    复制全部
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {seoData.longTailKeywords.map((kw, i) => (
-                    <span
-                      key={i}
-                      className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-200"
-                    >
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* 相关关键词 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700">🔗 相关关键词</h3>
-                  <button
-                    onClick={() =>
-                      copyText(seoData.relatedKeywords.join("\n"), "相关关键词")
-                    }
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    复制全部
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {seoData.relatedKeywords.map((kw, i) => (
-                    <span
-                      key={i}
-                      className="px-3 py-1.5 bg-purple-50 text-purple-700 text-sm rounded-full border border-purple-200"
-                    >
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SEO: 优化建议 Tab */}
-          {seoData && activeTab === "content" && platform === "seo" && (
-            <div className="space-y-5">
-              {/* 关键词布局建议 */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">📍 关键词布局建议</h3>
-                {seoData.keywordLayout?.positions && (
-                  <div className="mb-3">
-                    <div className="text-xs text-gray-500 mb-2">出现位置</div>
-                    <div className="space-y-1">
-                      {seoData.keywordLayout.positions.map((p, i) => (
-                        <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                          <span className="text-blue-500 mt-0.5">•</span>
-                          <span>{p}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {seoData.keywordLayout?.headings && (
-                  <div className="mb-3">
-                    <div className="text-xs text-gray-500 mb-2">H2/H3 小标题优化</div>
-                    <div className="space-y-1">
-                      {seoData.keywordLayout.headings.map((h, i) => (
-                        <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                          <span className="text-green-500 mt-0.5">✓</span>
-                          <span>{h}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {seoData.keywordLayout?.internalLinks && (
-                  <div>
-                    <div className="text-xs text-gray-500 mb-2">内链建议</div>
-                    <div className="space-y-1">
-                      {seoData.keywordLayout.internalLinks.map((l, i) => (
-                        <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                          <span className="text-purple-500 mt-0.5">🔗</span>
-                          <span>{l}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 结构化数据建议 */}
-              {seoData.schemaSuggestions && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">🏗️ 结构化数据建议</h3>
-                  <div className="space-y-1">
-                    {seoData.schemaSuggestions.map((s, i) => (
-                      <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                        <span className="text-amber-500 mt-0.5">💡</span>
-                        <span>{s}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* 底部 */}
-        <div className="flex items-center justify-end gap-2 px-6 py-3 border-t border-gray-100 bg-gray-50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            关闭
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+      
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={onClose} color="inherit">
+          关闭
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={!adaptResult || loading}
+          startIcon={<SaveIcon />}
+        >
+          保存到数据库
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
-}
-
-/** 从输入中解析帖子 ID */
-function parsePostId(input: string): string | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    try {
-      const url = new URL(trimmed);
-      const segs = url.pathname.split("/").filter(Boolean);
-      const postIdx = segs.findIndex((s) => s === "post");
-      if (postIdx !== -1 && segs[postIdx + 1]) return segs[postIdx + 1];
-      const last = segs[segs.length - 1];
-      return last || null;
-    } catch {
-      return null;
-    }
-  }
-
-  if (trimmed.startsWith("/")) {
-    const segs = trimmed.split("/").filter(Boolean);
-    const postIdx = segs.findIndex((s) => s === "post");
-    if (postIdx !== -1 && segs[postIdx + 1]) return segs[postIdx + 1];
-  }
-
-  return trimmed;
 }
