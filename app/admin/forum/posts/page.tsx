@@ -1,455 +1,341 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
-import { adminFetch } from "@/lib/admin-fetch";
-import toast from "react-hot-toast";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  PageHeader,
-  Card,
-  CardBody,
+  Box,
+  Typography,
   Button,
-  Badge,
-  StatCard,
-  DataTable,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
   IconButton,
-  SearchInput,
+  Chip,
+  Grid,
+  Avatar,
+  Tooltip,
+  Alert,
+  CircularProgress,
   Select,
-  ConfirmDialog,
-  EmptyState,
-  TableLoading,
-  Pagination,
-  Icons,
-  Spinner,
-} from "@/components/admin/ui";
+  MenuItem,
+  FormControl,
+  InputLabel,
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import BlockIcon from '@mui/icons-material/Block';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { apiFetch } from '@/lib/fetch-retry';
 
-interface Post {
+interface ForumPost {
   id: string;
   title: string;
   content: string;
-  author: { id: string; username: string };
-  category: { id: string; name: string; slug: string } | null;
-  viewCount: number;
-  likeCount: number;
-  commentCount: number;
-  isPinned: boolean;
-  isEssence: boolean;
-  isLocked: boolean;
-  status: string;
+  authorName: string;
+  authorId: string;
+  categoryId: string;
+  categoryName?: string;
+  status: 'PUBLISHED' | 'DRAFT' | 'DELETED';
+  views: number;
+  likes: number;
+  comments: number;
   createdAt: string;
+  updatedAt: string;
 }
-
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-type StatusFilter = "all" | "normal" | "pinned" | "essence" | "deleted";
-
-const PAGE_SIZE = 15;
 
 export default function ForumPostsPage() {
-  const { token } = useAppStore();
-  const router = useRouter();
-
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [posts, setPosts] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingPost, setEditingPost] = useState<ForumPost | null>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    categoryId: '',
+    status: 'PUBLISHED' as ForumPost['status'],
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'deleted'>('all');
+  const [token, setToken] = useState('');
 
-  // 操作确认弹窗
-  const [deleteTarget, setDeleteTarget] = useState<Post | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [wechatSyncing, setWechatSyncing] = useState<string | null>(null);
+  useEffect(() => {
+    fetchPosts();
+  }, [filter]);
 
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        admin: "1",
-        page: String(currentPage),
-        limit: String(PAGE_SIZE),
-        search: searchKeyword.trim(),
-      });
-
-      // 状态筛选传递给 API（all 不传）
-      if (statusFilter === "deleted") {
-        params.set("status", "DELETED");
-      } else if (statusFilter === "normal") {
-        params.set("status", "PUBLISHED");
-      }
-
-      // 分类筛选传递给 API
-      if (categoryFilter !== "all") {
-        params.set("category", categoryFilter);
-      }
-
-      const res = await adminFetch(`/api/forum/posts?${params.toString()}`);
-      if (!res.ok) throw new Error("获取失败");
-      const data = await res.json();
-      setPosts(
-        (data.posts || []).map((p: Post) => ({
-          ...p,
-          id: String(p.id),
-          category: p.category
-            ? {
-                id: String(p.category.id),
-                name: p.category.name,
-                slug: p.category.slug,
-              }
-            : null,
-        }))
-      );
-      setTotalPages(data.totalPages || 1);
-      setTotalCount(data.total || 0);
-    } catch {
-      toast.error("获取帖子列表失败");
+      const data = await apiFetch(`/api/forum/posts?filter=${filter}`) as ForumPost[];
+      setPosts(data);
+    } catch (err) {
+      console.error('Failed to fetch posts:', err);
     } finally {
       setLoading(false);
     }
-  }, [token, searchKeyword, statusFilter, categoryFilter, currentPage]);
+  }, [filter]);
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await fetch("/api/forum/categories");
-      if (res.ok) {
-        const data = await res.json();
-        setCategories(data);
-      }
-    } catch {
-      // 忽略分类获取失败
-    }
-  }, []);
-
-  useEffect(() => {
-    if (token) fetchPosts();
-  }, [token, fetchPosts]);
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  // 筛选条件变化时重置到第一页
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchKeyword, statusFilter, categoryFilter]);
-
-  // 统计
-  const stats = useMemo(() => {
-    return { total: totalCount, todayNew: 0, deleted: 0 };
-  }, [totalCount]);
-
-  async function patchPost(post: Post, action: string) {
-    if (actionLoading || post.status === "DELETED") return;
-    try {
-      setActionLoading(`${post.id}-${action}`);
-      const res = await adminFetch(`/api/forum/posts/${post.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action }),
+  const handleOpenDialog = (post?: ForumPost) => {
+    if (post) {
+      setEditingPost(post);
+      setFormData({
+        title: post.title,
+        content: post.content,
+        categoryId: post.categoryId || '',
+        status: post.status,
       });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "操作失败");
-        return;
-      }
-      const data = await res.json();
-      toast.success(data.message);
-      setPosts((prev) =>
-        prev.map((p) => {
-          if (p.id !== post.id) return p;
-          return {
-            ...p,
-            isPinned: data.isPinned !== undefined ? data.isPinned : p.isPinned,
-            isEssence:
-              data.isEssence !== undefined ? data.isEssence : p.isEssence,
-            isLocked:
-              data.isLocked !== undefined ? data.isLocked : p.isLocked,
-          };
-        })
-      );
-    } catch {
-      toast.error("操作失败，请稍后重试");
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleDelete() {
-    if (!deleteTarget || deleting) return;
-    try {
-      setDeleting(true);
-      const res = await adminFetch(`/api/forum/posts/${deleteTarget.id}`, {
-        method: "DELETE",
+    } else {
+      setEditingPost(null);
+      setFormData({
+        title: '',
+        content: '',
+        categoryId: '',
+        status: 'PUBLISHED',
       });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "删除失败");
-        return;
-      }
-      toast.success("帖子已删除");
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === deleteTarget.id ? { ...p, status: "DELETED" } : p
-        )
-      );
-      setDeleteTarget(null);
-    } catch {
-      toast.error("删除失败，请稍后重试");
-    } finally {
-      setDeleting(false);
     }
-  }
+    setOpenDialog(true);
+    setError('');
+  };
 
-  async function handleWechatSync(post: Post) {
-    if (wechatSyncing || post.status === "DELETED") return;
-    try {
-      setWechatSyncing(post.id);
-      const res = await adminFetch("/api/wechat/sync", {
-        method: "POST",
-        body: JSON.stringify({ postId: post.id }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "同步失败");
-        return;
-      }
-      toast.success("已同步到微信草稿箱");
-    } catch {
-      toast.error("同步失败，请稍后重试");
-    } finally {
-      setWechatSyncing(null);
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setEditingPost(null);
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.title || !formData.content) {
+      setError('标题和内容不能为空');
+      return;
     }
+
+    try {
+      setSubmitting(true);
+      setError('');
+
+      const url = editingPost
+        ? `/api/forum/posts/${editingPost.id}`
+        : '/api/forum/posts';
+      
+      const method = editingPost ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '操作失败');
+      }
+
+      handleCloseDialog();
+      fetchPosts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const toggleStatus = async (post: ForumPost) => {
+    const newStatus = post.status === 'PUBLISHED' ? 'DELETED' : 'PUBLISHED';
+    try {
+      await fetch(`/api/forum/posts/${post.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      fetchPosts();
+    } catch (err) {
+      console.error('Failed to toggle status:', err);
+    }
+  };
+
+  const deletePost = async (id: string) => {
+    if (!confirm('确定要删除这个帖子吗？此操作不可恢复。')) return;
+
+    try {
+      await fetch(`/api/forum/posts/${id}`, {
+        method: 'DELETE',
+      });
+      fetchPosts();
+    } catch (err) {
+      console.error('Failed to delete post:', err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
-    <AdminLayout activeKey="forum-posts">
-      <div className="space-y-6">
-        {/* 页头 */}
-        <PageHeader
-          title="帖子管理"
-          actions={
-            <Link
-              href="/forum/new"
-              className="admin-btn-primary inline-flex items-center gap-1.5"
-            >
-              <Icons.Plus className="w-4 h-4" />
-              发布公告
-            </Link>
-          }
-        />
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">帖子管理</Typography>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={fetchPosts}
+        >
+          刷新
+        </Button>
+      </Box>
 
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-3 gap-3">
-          <StatCard
-            label="总帖子"
-            value={stats.total}
-            icon={<Icons.Doc className="w-5 h-5" />}
-            color="blue"
-          />
-          <StatCard
-            label="今日新增"
-            value={stats.todayNew}
-            icon={<Icons.Plus className="w-5 h-5" />}
-            color="green"
-          />
-          <StatCard
-            label="已删除"
-            value={stats.deleted}
-            icon={<Icons.Trash className="w-5 h-5" />}
-            color="red"
-          />
-        </div>
+      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+        <FormControl size="small">
+          <InputLabel>筛选</InputLabel>
+          <Select
+            value={filter}
+            label="筛选"
+            onChange={(e) => setFilter(e.target.value as any)}
+          >
+            <MenuItem value="all">全部</MenuItem>
+            <MenuItem value="published">已发布</MenuItem>
+            <MenuItem value="draft">草稿</MenuItem>
+            <MenuItem value="deleted">已删除</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-        {/* 搜索筛选栏 */}
-        <Card>
-          <CardBody>
-            <div className="flex flex-wrap items-center gap-3">
-              <SearchInput
-                value={searchKeyword}
-                onChange={setSearchKeyword}
-                placeholder="搜索帖子标题或内容..."
-              />
-              <Select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">全部分类</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.slug}>
-                    {cat.name}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              >
-                <option value="all">全部状态</option>
-                <option value="normal">正常</option>
-                <option value="pinned">置顶</option>
-                <option value="essence">精华</option>
-                <option value="deleted">已删除</option>
-              </Select>
-              <Button variant="secondary" onClick={fetchPosts}>
-                搜索
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        {/* 帖子表格 */}
-        {loading ? (
-          <Card>
-            <DataTable headers={["标题", "分类", "作者", "回复", "点赞", "状态", "操作"]}>
-              <TableLoading cols={7} rows={6} />
-            </DataTable>
-          </Card>
-        ) : posts.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<Icons.Chat className="w-12 h-12" />}
-              title={
-                searchKeyword ||
-                statusFilter !== "all" ||
-                categoryFilter !== "all"
-                  ? "没有符合条件的帖子"
-                  : "暂无帖子"
-              }
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>标题</TableCell>
+              <TableCell>作者</TableCell>
+              <TableCell>分类</TableCell>
+              <TableCell>状态</TableCell>
+              <TableCell>浏览</TableCell>
+              <TableCell>点赞</TableCell>
+              <TableCell>评论</TableCell>
+              <TableCell>时间</TableCell>
+              <TableCell>操作</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {posts.map((post) => (
+              <TableRow key={post.id}>
+                <TableCell sx={{ maxWidth: 300 }}>
+                  <Typography variant="body2" noWrap>
+                    {post.title}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Avatar sx={{ width: 24, height: 24, fontSize: 12 }}>
+                      {post.authorName[0]}
+                    </Avatar>
+                    {post.authorName}
+                  </Box>
+                </TableCell>
+                <TableCell>{post.categoryName || post.categoryId}</TableCell>
+                <TableCell>
+                  <Chip 
+                    label={post.status} 
+                    size="small" 
+                    color={post.status === 'PUBLISHED' ? 'success' : post.status === 'DRAFT' ? 'warning' : 'error'} 
+                  />
+                </TableCell>
+                <TableCell>{post.views}</TableCell>
+                <TableCell>{post.likes}</TableCell>
+                <TableCell>{post.comments}</TableCell>
+                <TableCell>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(post.createdAt).toLocaleDateString()}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Tooltip title="编辑">
+                    <IconButton size="small" onClick={() => handleOpenDialog(post)}>
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={post.status === 'PUBLISHED' ? '删除' : '发布'}>
+                    <IconButton size="small" onClick={() => toggleStatus(post)}>
+                      {post.status === 'PUBLISHED' ? <BlockIcon /> : <CheckCircleIcon />}
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="删除">
+                    <IconButton size="small" onClick={() => deletePost(post.id)} color="error">
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingPost ? '编辑帖子' : '添加帖子'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="标题"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              fullWidth
+              required
             />
-          </Card>
-        ) : (
-          <Card>
-            <DataTable headers={["标题", "分类", "作者", "回复", "点赞", "状态", "操作"]}>
-              {posts.map((post) => (
-                <tr
-                  key={post.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-4 py-3 max-w-[240px]">
-                    <Link
-                      href={`/forum/post/${post.id}`}
-                      className="text-gray-900 hover:text-blue-600 hover:underline line-clamp-1 block"
-                      title={post.title}
-                    >
-                      {post.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {post.category?.name || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {post.author.username}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{post.commentCount}</td>
-                  <td className="px-4 py-3 text-gray-600">{post.likeCount}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {post.status === "DELETED" ? (
-                        <Badge color="gray">已删</Badge>
-                      ) : (
-                        <>
-                          {post.isPinned && <Badge color="red">置顶</Badge>}
-                          {post.isEssence && <Badge color="purple">精华</Badge>}
-                          {post.isLocked && <Badge color="yellow">锁定</Badge>}
-                          {!post.isPinned &&
-                            !post.isEssence &&
-                            !post.isLocked && <Badge color="green">正常</Badge>}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-0.5 flex-wrap">
-                      <IconButton
-                        icon={<Icons.Edit />}
-                        onClick={() => router.push(`/forum/post/${post.id}/edit`)}
-                        title="编辑"
-                      />
-                      <IconButton
-                        icon={<Icons.Eye />}
-                        onClick={() => router.push(`/forum/post/${post.id}`)}
-                        title="查看"
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">📌</span>}
-                        onClick={() => patchPost(post, "pin")}
-                        title={post.isPinned ? "取消置顶" : "置顶"}
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">⭐</span>}
-                        onClick={() => patchPost(post, "essence")}
-                        title={post.isEssence ? "取消精华" : "加精"}
-                      />
-                      <IconButton
-                        icon={<Icons.Lock />}
-                        onClick={() =>
-                          patchPost(post, post.isLocked ? "unlock" : "lock")
-                        }
-                        title={post.isLocked ? "解锁" : "锁定"}
-                      />
-                      <IconButton
-                        icon={<span className="text-base leading-none">📱</span>}
-                        onClick={() => handleWechatSync(post)}
-                        title="同步到微信"
-                      />
-                      {post.status !== "DELETED" && (
-                        <IconButton
-                          icon={<Icons.Trash />}
-                          onClick={() => setDeleteTarget(post)}
-                          title="删除"
-                          variant="danger"
-                        />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </DataTable>
-          </Card>
-        )}
-
-        {/* 底部分页 */}
-        {!loading && posts.length > 0 && (
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="text-sm text-gray-500">
-              共 <span className="font-medium text-gray-700">{totalCount}</span> 篇帖子
-            </div>
-            <Pagination
-              page={currentPage}
-              totalPages={totalPages}
-              onChange={setCurrentPage}
+            <TextField
+              label="内容"
+              value={formData.content}
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              fullWidth
+              multiline
+              rows={8}
+              required
             />
-          </div>
-        )}
-      </div>
-
-      {/* 删除确认弹窗 */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        title="确认删除"
-        message={
-          deleteTarget
-            ? `确定要删除帖子「${deleteTarget.title}」吗？此为软删除，可在数据库恢复。`
-            : ""
-        }
-        confirmText="确认删除"
-        cancelText="取消"
-        onConfirm={handleDelete}
-        onCancel={() => {
-          if (!deleting) setDeleteTarget(null);
-        }}
-        danger
-      />
-    </AdminLayout>
+            <TextField
+              label="分类 ID"
+              value={formData.categoryId}
+              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>状态</InputLabel>
+              <Select
+                value={formData.status}
+                label="状态"
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as ForumPost['status'] })}
+              >
+                <MenuItem value="PUBLISHED">已发布</MenuItem>
+                <MenuItem value="DRAFT">草稿</MenuItem>
+                <MenuItem value="DELETED">已删除</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>取消</Button>
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            disabled={submitting || !formData.title || !formData.content}
+          >
+            {submitting ? '保存中...' : '保存'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

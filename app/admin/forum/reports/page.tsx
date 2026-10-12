@@ -1,262 +1,279 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { useAppStore } from "@/lib/store";
-import { adminFetch } from "@/lib/admin-fetch";
-import { formatDateTime } from "@/lib/admin-utils";
-import UserAvatar from "@/components/common/UserAvatar";
-import toast from "react-hot-toast";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  PageHeader,
-  Card,
-  CardBody,
+  Box,
+  Typography,
   Button,
-  Badge,
-  StatusBadge,
-  Pagination,
-  EmptyState,
-  LoadingState,
-  Icons,
-} from "@/components/admin/ui";
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  Chip,
+  Grid,
+  Avatar,
+  Tooltip,
+  Alert,
+  CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+} from '@mui/material';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import BlockIcon from '@mui/icons-material/Block';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { apiFetch } from '@/lib/fetch-retry';
 
-interface Report {
+interface ForumReport {
   id: string;
+  type: 'spam' | 'abuse' | 'inappropriate' | 'other';
+  content: string;
+  reporterName: string;
   reporterId: string;
-  targetType: string;
-  targetId: string;
-  reason: string;
-  description: string | null;
-  status: string;
+  targetPostId?: string;
+  targetCommentId?: string;
+  status: 'pending' | 'reviewed' | 'dismissed';
+  reviewedBy?: string;
+  reviewedAt?: string;
+  notes?: string;
   createdAt: string;
-  reporter: {
-    id: string;
-    username: string;
-    avatar: string | null;
-  };
 }
 
-const REASON_MAP = {
-  spam: { label: "垃圾广告", color: "yellow" as const },
-  abuse: { label: "辱骂攻击", color: "red" as const },
-  inappropriate: { label: "不当内容", color: "purple" as const },
-  other: { label: "其他", color: "gray" as const },
-};
-
-const STATUS_MAP = {
-  pending: { label: "待处理", color: "yellow" as const },
-  resolved: { label: "已处理", color: "green" as const },
-  dismissed: { label: "已驳回", color: "gray" as const },
-};
-
-const statusTabs = [
-  { value: "pending", label: "待处理" },
-  { value: "resolved", label: "已处理" },
-  { value: "dismissed", label: "已驳回" },
-  { value: "all", label: "全部" },
-];
-
-export default function AdminReportsPage() {
-  const { token } = useAppStore();
-  const [reports, setReports] = useState<Report[]>([]);
+export default function ForumReportsPage() {
+  const [reports, setReports] = useState<ForumReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  const fetchReports = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(currentPage),
-        limit: "20",
-      });
-      if (statusFilter !== "all") {
-        params.set("status", statusFilter);
-      }
-      const res = await adminFetch(`/api/forum/reports?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setReports(data.data || []);
-        setTotal(data.total || 0);
-        setTotalPages(data.totalPages || 1);
-      }
-    } catch (err) {
-      console.error("获取举报列表失败:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, currentPage, statusFilter]);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingReport, setEditingReport] = useState<ForumReport | null>(null);
+  const [formData, setFormData] = useState({
+    status: 'pending' as ForumReport['status'],
+    notes: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed' | 'dismissed'>('all');
+  const [token, setToken] = useState('');
 
   useEffect(() => {
     fetchReports();
-  }, [fetchReports]);
+  }, [filter]);
 
-  const handleUpdateStatus = async (reportId: string, status: "resolved" | "dismissed") => {
-    if (actionLoading) return;
-    setActionLoading(reportId);
+  const fetchReports = useCallback(async () => {
     try {
-      const res = await adminFetch(`/api/forum/reports/${reportId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        toast.success(status === "resolved" ? "举报已处理" : "举报已驳回");
-        await fetchReports();
-      } else {
-        const data = await res.json();
-        toast.error(data.error || "操作失败");
-      }
-    } catch {
-      toast.error("网络错误");
+      setLoading(true);
+      const data = await apiFetch(`/api/forum/reports?filter=${filter}`) as ForumReport[];
+      setReports(data);
+    } catch (err) {
+      console.error('Failed to fetch reports:', err);
     } finally {
-      setActionLoading(null);
+      setLoading(false);
+    }
+  }, [filter]);
+
+  const handleOpenDialog = (report?: ForumReport) => {
+    if (report) {
+      setEditingReport(report);
+      setFormData({
+        status: report.status,
+        notes: report.notes || '',
+      });
+    } else {
+      setEditingReport(null);
+      setFormData({
+        status: 'pending',
+        notes: '',
+      });
+    }
+    setOpenDialog(true);
+    setError('');
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setEditingReport(null);
+  };
+
+  const handleSubmit = async () => {
+    if (!editingReport) return;
+
+    try {
+      setSubmitting(true);
+      setError('');
+
+      const response = await fetch(`/api/forum/reports/${editingReport.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '操作失败');
+      }
+
+      handleCloseDialog();
+      fetchReports();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const updateReport = async (report: ForumReport) => {
+    try {
+      await fetch(`/api/forum/reports/${report.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: report.status }),
+      });
+      fetchReports();
+    } catch (err) {
+      console.error('Failed to update report:', err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <AdminLayout activeKey="forum-reports">
-      <div className="space-y-6">
-        {/* 页面标题 */}
-        <PageHeader title="举报管理" subtitle="处理用户举报的帖子和评论" />
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">举报管理</Typography>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={fetchReports}
+        >
+          刷新
+        </Button>
+      </Box>
 
-        {/* 状态筛选 */}
-        <div className="flex items-center gap-2">
-          {statusTabs.map((tab) => (
-            <Button
-              key={tab.value}
-              variant={statusFilter === tab.value ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => {
-                setStatusFilter(tab.value);
-                setCurrentPage(1);
-              }}
-            >
-              {tab.label}
-              {tab.value === "pending" &&
-                total > 0 &&
-                statusFilter === "pending" && (
-                  <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-white/30 rounded-full">
-                    {total}
-                  </span>
-                )}
-            </Button>
-          ))}
-        </div>
+      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+        <FormControl size="small">
+          <InputLabel>筛选</InputLabel>
+          <Select
+            value={filter}
+            label="筛选"
+            onChange={(e) => setFilter(e.target.value as any)}
+          >
+            <MenuItem value="all">全部</MenuItem>
+            <MenuItem value="pending">待处理</MenuItem>
+            <MenuItem value="reviewed">已处理</MenuItem>
+            <MenuItem value="dismissed">已驳回</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-        {/* 举报列表 */}
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i}>
-                <CardBody>
-                  <LoadingState rows={3} />
-                </CardBody>
-              </Card>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>类型</TableCell>
+              <TableCell>举报内容</TableCell>
+              <TableCell>举报人</TableCell>
+              <TableCell>目标</TableCell>
+              <TableCell>状态</TableCell>
+              <TableCell>举报时间</TableCell>
+              <TableCell>操作</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {reports.map((report) => (
+              <TableRow key={report.id}>
+                <TableCell>
+                  <Chip label={report.type} size="small" />
+                </TableCell>
+                <TableCell sx={{ maxWidth: 200 }}>
+                  <Typography variant="body2" noWrap>
+                    {report.content}
+                  </Typography>
+                </TableCell>
+                <TableCell>{report.reporterName}</TableCell>
+                <TableCell>
+                  {report.targetPostId ? `帖子#${report.targetPostId}` : 
+                   report.targetCommentId ? `评论#${report.targetCommentId}` : '-'}
+                </TableCell>
+                <TableCell>
+                  <Chip 
+                    label={report.status} 
+                    size="small" 
+                    color={report.status === 'pending' ? 'warning' : 'success'} 
+                  />
+                </TableCell>
+                <TableCell>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(report.createdAt).toLocaleDateString()}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Tooltip title="处理举报">
+                    <IconButton size="small" onClick={() => handleOpenDialog(report)}>
+                      <CheckCircleIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
             ))}
-          </div>
-        ) : reports.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<Icons.Check className="w-12 h-12" />}
-              title="暂无举报记录"
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          处理举报
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>处理状态</InputLabel>
+              <Select
+                value={formData.status}
+                label="处理状态"
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as ForumReport['status'] })}
+              >
+                <MenuItem value="pending">待处理</MenuItem>
+                <MenuItem value="reviewed">已处理</MenuItem>
+                <MenuItem value="dismissed">已驳回</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="处理备注"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              fullWidth
+              multiline
+              rows={3}
             />
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {reports.map((report) => {
-              const reasonConfig = REASON_MAP[report.reason as keyof typeof REASON_MAP] || REASON_MAP.other;
-              const targetLink =
-                report.targetType === "post"
-                  ? `/forum/post/${report.targetId}`
-                  : `/forum`;
-
-              return (
-                <Card key={report.id}>
-                  <CardBody>
-                    {/* 顶部：举报人信息 + 状态 */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <UserAvatar
-                          username={report.reporter.username}
-                          avatar={report.reporter.avatar}
-                          size="sm"
-                        />
-                        <div>
-                          <span className="text-sm font-medium text-gray-700">
-                            {report.reporter.username}
-                          </span>
-                          <span className="text-xs text-gray-400 ml-2">
-                            {formatDateTime(report.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <StatusBadge status={report.status} map={STATUS_MAP} />
-                    </div>
-
-                    {/* 举报内容 */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge color={reasonConfig.color}>{reasonConfig.label}</Badge>
-                        <span className="text-xs text-gray-400">
-                          举报对象: {report.targetType === "post" ? "帖子" : "评论"}
-                        </span>
-                        <Link
-                          href={targetLink}
-                          target="_blank"
-                          className="text-xs text-blue-500 hover:text-blue-600 inline-flex items-center gap-0.5"
-                        >
-                          查看内容
-                          <Icons.ExternalLink className="w-3 h-3" />
-                        </Link>
-                      </div>
-                      {report.description && (
-                        <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-                          {report.description}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* 操作按钮 */}
-                    {report.status === "pending" && (
-                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleUpdateStatus(report.id, "resolved")}
-                          disabled={actionLoading === report.id}
-                        >
-                          <Icons.Check className="w-3 h-3 mr-1 inline" />
-                          标记已处理
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleUpdateStatus(report.id, "dismissed")}
-                          disabled={actionLoading === report.id}
-                        >
-                          <Icons.Close className="w-3 h-3 mr-1 inline" />
-                          驳回举报
-                        </Button>
-                      </div>
-                    )}
-                  </CardBody>
-                </Card>
-              );
-            })}
-
-            {/* 分页 */}
-            <Pagination
-              page={currentPage}
-              totalPages={totalPages}
-              onChange={setCurrentPage}
-            />
-          </div>
-        )}
-      </div>
-    </AdminLayout>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>取消</Button>
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            disabled={submitting}
+          >
+            {submitting ? '保存中...' : '保存'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
