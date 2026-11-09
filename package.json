@@ -51,7 +51,7 @@
     "@typescript-eslint/eslint-plugin": "^8.72.1",
     "autoprefixer": "^10.6.2",
     "eslint": "^8.57.0",
-    "eslint-config-next": "14.2.35",
+    "eslint-config-next": "16.4.5",
     "pg": "^8.23.1",
     "postcss": "^8.5.32",
     "prisma": "^7.10.1",
